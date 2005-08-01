@@ -1,0 +1,512 @@
+<!DOCTYPE UI><UI>
+<class>DebugDialogBase</class>
+<widget>
+    <class>QDialog</class>
+    <property stdset="1">
+        <name>name</name>
+        <cstring>DebugDialogBase</cstring>
+    </property>
+    <property>
+        <name>geometry</name>
+        <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>783</width>
+            <height>559</height>
+        </rect>
+    </property>
+    <property>
+        <name>font</name>
+        <font>
+            <family>Courier New</family>
+            <pointsize>11</pointsize>
+        </font>
+    </property>
+    <property>
+        <name>caption</name>
+        <string>Debug View</string>
+    </property>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton1</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>500</x>
+                <y>0</y>
+                <width>80</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>I- In</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton2</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>590</x>
+                <y>0</y>
+                <width>80</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>O- Over</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton3</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>680</x>
+                <y>0</y>
+                <width>80</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>P- Out</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton8</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>50</x>
+                <y>10</y>
+                <width>80</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>Unused</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton9</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>140</x>
+                <y>10</y>
+                <width>80</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>Unused</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton6</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>30</x>
+                <y>40</y>
+                <width>140</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>G- Go</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton7</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>180</x>
+                <y>40</y>
+                <width>90</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>Q- Quit</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton5</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>280</x>
+                <y>40</y>
+                <width>150</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>C- Clear All BP</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton4</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>450</x>
+                <y>40</y>
+                <width>140</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>B- BreakPoint</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QLabel</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>TextLabel2_2</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>290</x>
+                <y>0</y>
+                <width>90</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>VM State:</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QLabel</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>TextLabel1_2</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>240</x>
+                <y>20</y>
+                <width>250</width>
+                <height>20</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>Running</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QTabWidget</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>TabWidget3_2</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>380</x>
+                <y>70</y>
+                <width>370</width>
+                <height>480</height>
+            </rect>
+        </property>
+        <widget>
+            <class>QWidget</class>
+            <property stdset="1">
+                <name>name</name>
+                <cstring>tab</cstring>
+            </property>
+            <attribute>
+                <name>title</name>
+                <string>Source</string>
+            </attribute>
+            <widget>
+                <class>QMultiLineEdit</class>
+                <property stdset="1">
+                    <name>name</name>
+                    <cstring>MultiLineEdit1</cstring>
+                </property>
+                <property>
+                    <name>geometry</name>
+                    <rect>
+                        <x>10</x>
+                        <y>10</y>
+                        <width>350</width>
+                        <height>430</height>
+                    </rect>
+                </property>
+            </widget>
+        </widget>
+        <widget>
+            <class>QWidget</class>
+            <property stdset="1">
+                <name>name</name>
+                <cstring>tab</cstring>
+            </property>
+            <attribute>
+                <name>title</name>
+                <string>Disassembly</string>
+            </attribute>
+            <widget>
+                <class>QMultiLineEdit</class>
+                <property stdset="1">
+                    <name>name</name>
+                    <cstring>MultiLineEdit2</cstring>
+                </property>
+                <property>
+                    <name>geometry</name>
+                    <rect>
+                        <x>10</x>
+                        <y>10</y>
+                        <width>350</width>
+                        <height>430</height>
+                    </rect>
+                </property>
+            </widget>
+        </widget>
+    </widget>
+    <widget>
+        <class>QTabWidget</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>TabWidget3</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>10</x>
+                <y>70</y>
+                <width>360</width>
+                <height>480</height>
+            </rect>
+        </property>
+        <property>
+            <name>focusPolicy</name>
+            <enum>NoFocus</enum>
+        </property>
+        <widget>
+            <class>QWidget</class>
+            <property stdset="1">
+                <name>name</name>
+                <cstring>tab</cstring>
+            </property>
+            <attribute>
+                <name>title</name>
+                <string>Call Stack</string>
+            </attribute>
+            <widget>
+                <class>QListBox</class>
+                <item>
+                    <property>
+                        <name>text</name>
+                        <string>New Item</string>
+                    </property>
+                </item>
+                <property stdset="1">
+                    <name>name</name>
+                    <cstring>ListBox1</cstring>
+                </property>
+                <property>
+                    <name>geometry</name>
+                    <rect>
+                        <x>10</x>
+                        <y>10</y>
+                        <width>340</width>
+                        <height>430</height>
+                    </rect>
+                </property>
+                <property>
+                    <name>focusPolicy</name>
+                    <enum>NoFocus</enum>
+                </property>
+            </widget>
+        </widget>
+        <widget>
+            <class>QWidget</class>
+            <property stdset="1">
+                <name>name</name>
+                <cstring>tab</cstring>
+            </property>
+            <attribute>
+                <name>title</name>
+                <string>Variable Stack</string>
+            </attribute>
+            <widget>
+                <class>QListView</class>
+                <column>
+                    <property>
+                        <name>text</name>
+                        <string>Column 1</string>
+                    </property>
+                    <property>
+                        <name>clickable</name>
+                        <bool>true</bool>
+                    </property>
+                    <property>
+                        <name>resizeable</name>
+                        <bool>true</bool>
+                    </property>
+                </column>
+            <item>
+                <property>
+                    <name>text</name>
+                    <string>New Item</string>
+                </property>
+                <property>
+                    <name>pixmap</name>
+                    <pixmap></pixmap>
+                </property>
+            </item>
+                <property stdset="1">
+                    <name>name</name>
+                    <cstring>ListView2_2</cstring>
+                </property>
+                <property>
+                    <name>geometry</name>
+                    <rect>
+                        <x>10</x>
+                        <y>10</y>
+                        <width>340</width>
+                        <height>430</height>
+                    </rect>
+                </property>
+                <property>
+                    <name>focusPolicy</name>
+                    <enum>NoFocus</enum>
+                </property>
+                <property>
+                    <name>allColumnsShowFocus</name>
+                    <bool>true</bool>
+                </property>
+                <property>
+                    <name>rootIsDecorated</name>
+                    <bool>true</bool>
+                </property>
+            </widget>
+        </widget>
+    </widget>
+</widget>
+<connections>
+    <connection>
+        <sender>PushButton1</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button1()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton2</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button2()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton3</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button3()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton4</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button4()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton5</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button5()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton6</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button6()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton7</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button7()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton8</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button8()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton9</sender>
+        <signal>released()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_button9()</slot>
+    </connection>
+    <connection>
+        <sender>ListBox1</sender>
+        <signal>selectionChanged()</signal>
+        <receiver>DebugDialogBase</receiver>
+        <slot>slot_callStackSelChange()</slot>
+    </connection>
+    <slot access="public">slot_callStackSelChange()</slot>
+    <slot access="public">slot_button1()</slot>
+    <slot access="public">slot_button2()</slot>
+    <slot access="public">slot_button3()</slot>
+    <slot access="public">slot_button4()</slot>
+    <slot access="public">slot_button5()</slot>
+    <slot access="public">slot_button6()</slot>
+    <slot access="public">slot_button7()</slot>
+    <slot access="public">slot_button8()</slot>
+    <slot access="public">slot_button9()</slot>
+</connections>
+</UI>

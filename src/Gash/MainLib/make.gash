@@ -1,0 +1,25 @@
+class Make(Object)
+{
+	proc main()
+	{
+		//Console:out.print("building...")
+		!Project:proj.new()
+		&proj.addFilename("Array.gash")
+		&proj.addFilename("BigInt.gash")
+		&proj.addFilename("Bool.gash")
+		&proj.addFilename("Console.gash")
+		&proj.addFilename("Engine.gash")
+		&proj.addFilename("Exception.gash")
+		&proj.addFilename("Float.gash")
+		&proj.addFilename("Image.gash")
+		&proj.addFilename("Library.gash")
+		&proj.addFilename("PopUps.gash")
+		&proj.addFilename("Project.gash")
+		&proj.addFilename("Sdl.gash")
+		&proj.addFilename("Stream.gash")
+		&proj.addFilename("String.gash")
+		proj.build(!Library:lib)
+		lib.save("MainLib.xlib")
+		//Console:out.print("done.")
+	}
+}

@@ -1,0 +1,134 @@
+Microsoft Developer Studio Workspace File, Format Version 6.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "Gash"=.\Command\Gash.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name GashEngine
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name GashLib
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name GClasses
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name GashSDL
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "GClasses"=..\GClasses\GClasses.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "GashGui"=.\GashGui.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name GashLib
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name GashQt
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name GashEngine
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name GClasses
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "GashEngine"=.\GashEngine.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name GClasses
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "GashLib"=.\GashLib.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name GashEngine
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "GashQt"=.\GashQt.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name GashEngine
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "GashSDL"=.\GashSDL\GashSDL.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+

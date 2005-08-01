@@ -1,0 +1,70 @@
+interface IDoubler
+{
+	method &double()
+}
+
+class IntDoubler(Object)
+{
+	!Integer:i
+
+	interface IDoubler
+
+	proc new(!IntDoubler:dest)
+	{
+		allocate(!dest)
+		!dest.i.new()
+	}
+
+	method &double()
+	{
+		&this.i.multiply(2)
+	}
+}
+
+class FloatDoubler(Object)
+{
+	!Float:f
+
+	interface IDoubler
+
+	proc new(!FloatDoubler:dest)
+	{
+		allocate(!dest)
+		!dest.f.new()
+	}
+
+	method &double()
+	{
+		&this.f.add(this.f)
+	}
+}
+
+class InterfaceTest(Object)
+{
+	proc TimesTwo(&IDoubler:d)
+	{
+		&d.double()
+	}
+
+	proc main()
+	{
+		!IntDoubler:id.new()
+		&id.i.Copy(7)
+		!FloatDoubler:fd.new()
+		&fd.f.FromString("1.23")
+		TimesTwo(&id)
+		TimesTwo(&fd)
+
+		if(id.i <> 14)
+			throw("wrong answer")
+
+		!Integer:n.new()
+		!Float:f.new()
+		&f.fromString("2.46")
+		fd.f.compareTo(&n, f)
+		if(n = 0)
+			return()
+
+		throw("wrong answer")
+	}
+}

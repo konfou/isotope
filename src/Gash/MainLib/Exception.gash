@@ -1,0 +1,48 @@
+class Exception(Object)
+{
+	!String:message
+
+	method !new(String:message)
+	{
+		!this.allocate()
+		!this.message.new()
+		&this.message.copy(message)
+	}
+
+	method getMessage(!String:message)
+	{
+		!message.set(this.message)
+	}
+}
+
+class NullReferenceException(Exception)
+{
+}
+
+class EngineException(Exception)
+{
+}
+
+class CastException(Exception)
+{
+}
+
+class DeserializationException(Exception)
+{
+}
+
+class IOException(Exception)
+{
+}
+
+class SdlException(Exception)
+{
+}
+
+class XmlException(Exception)
+{
+}
+
+class CompileException(Exception)
+{
+}

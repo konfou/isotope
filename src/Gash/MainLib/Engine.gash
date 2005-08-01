@@ -1,0 +1,12 @@
+machine Engine
+{
+	method collectTheGarbage()
+	method getObjectCount(&Integer:count)
+	method getClass(&Integer:id, Object:obj)
+	method getRandomNumber(&Integer:n)
+	method getRefs(&Integer:refCount, Object:obj)
+	method getGlobalObject(!Object:dest)
+	method setGlobalObject(Object:src)
+	method getRefs(&Integer:refCount, Object:obj)
+	method buildProject(!Library:lib, Project:proj)
+}

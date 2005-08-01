@@ -1,0 +1,69 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test", "test.vcproj", "{2B6379CC-B947-40EB-A7B0-13C34749532D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A3DDF447-B675-47CA-B749-AFA54A27574A} = {A3DDF447-B675-47CA-B749-AFA54A27574A}
+		{9A630B62-97DB-4664-831B-375F22BA22E3} = {9A630B62-97DB-4664-831B-375F22BA22E3}
+		{EDB1F168-A282-43FB-956D-5112976C83BB} = {EDB1F168-A282-43FB-956D-5112976C83BB}
+		{02491278-4EFB-41AE-B2EF-B7A124C646BC} = {02491278-4EFB-41AE-B2EF-B7A124C646BC}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GClasses", "..\GClasses\GClasses.vcproj", "{9A630B62-97DB-4664-831B-375F22BA22E3}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GashEngine", "..\Gash\GashEngine.vcproj", "{A3DDF447-B675-47CA-B749-AFA54A27574A}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GashLib", "..\Gash\GashLib.vcproj", "{EDB1F168-A282-43FB-956D-5112976C83BB}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GashSDL", "..\Gash\GashSDL\GashSDL.vcproj", "{02491278-4EFB-41AE-B2EF-B7A124C646BC}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Gash", "..\Gash\Command\Gash.vcproj", "{A3BCFA1F-7A2F-4147-9357-C26C4D01DCE1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A3DDF447-B675-47CA-B749-AFA54A27574A} = {A3DDF447-B675-47CA-B749-AFA54A27574A}
+		{9A630B62-97DB-4664-831B-375F22BA22E3} = {9A630B62-97DB-4664-831B-375F22BA22E3}
+		{EDB1F168-A282-43FB-956D-5112976C83BB} = {EDB1F168-A282-43FB-956D-5112976C83BB}
+		{02491278-4EFB-41AE-B2EF-B7A124C646BC} = {02491278-4EFB-41AE-B2EF-B7A124C646BC}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{2B6379CC-B947-40EB-A7B0-13C34749532D}.Debug.ActiveCfg = Debug|Win32
+		{2B6379CC-B947-40EB-A7B0-13C34749532D}.Debug.Build.0 = Debug|Win32
+		{2B6379CC-B947-40EB-A7B0-13C34749532D}.Release.ActiveCfg = Release|Win32
+		{2B6379CC-B947-40EB-A7B0-13C34749532D}.Release.Build.0 = Release|Win32
+		{9A630B62-97DB-4664-831B-375F22BA22E3}.Debug.ActiveCfg = Debug|Win32
+		{9A630B62-97DB-4664-831B-375F22BA22E3}.Debug.Build.0 = Debug|Win32
+		{9A630B62-97DB-4664-831B-375F22BA22E3}.Release.ActiveCfg = Release|Win32
+		{9A630B62-97DB-4664-831B-375F22BA22E3}.Release.Build.0 = Release|Win32
+		{A3DDF447-B675-47CA-B749-AFA54A27574A}.Debug.ActiveCfg = Debug|Win32
+		{A3DDF447-B675-47CA-B749-AFA54A27574A}.Debug.Build.0 = Debug|Win32
+		{A3DDF447-B675-47CA-B749-AFA54A27574A}.Release.ActiveCfg = Release|Win32
+		{A3DDF447-B675-47CA-B749-AFA54A27574A}.Release.Build.0 = Release|Win32
+		{EDB1F168-A282-43FB-956D-5112976C83BB}.Debug.ActiveCfg = Debug|Win32
+		{EDB1F168-A282-43FB-956D-5112976C83BB}.Debug.Build.0 = Debug|Win32
+		{EDB1F168-A282-43FB-956D-5112976C83BB}.Release.ActiveCfg = Release|Win32
+		{EDB1F168-A282-43FB-956D-5112976C83BB}.Release.Build.0 = Release|Win32
+		{02491278-4EFB-41AE-B2EF-B7A124C646BC}.Debug.ActiveCfg = Debug|Win32
+		{02491278-4EFB-41AE-B2EF-B7A124C646BC}.Debug.Build.0 = Debug|Win32
+		{02491278-4EFB-41AE-B2EF-B7A124C646BC}.Release.ActiveCfg = Release|Win32
+		{02491278-4EFB-41AE-B2EF-B7A124C646BC}.Release.Build.0 = Release|Win32
+		{A3BCFA1F-7A2F-4147-9357-C26C4D01DCE1}.Debug.ActiveCfg = Debug|Win32
+		{A3BCFA1F-7A2F-4147-9357-C26C4D01DCE1}.Debug.Build.0 = Debug|Win32
+		{A3BCFA1F-7A2F-4147-9357-C26C4D01DCE1}.Release.ActiveCfg = Release|Win32
+		{A3BCFA1F-7A2F-4147-9357-C26C4D01DCE1}.Release.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

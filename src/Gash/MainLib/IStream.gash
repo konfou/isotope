@@ -1,0 +1,8 @@
+interface IStream
+{
+	method &readObject(!Object:obj)
+	method &writeObject(Object:obj)
+
+	method &readData(!Blob:data)
+	method &writeData(Blob:data)
+}

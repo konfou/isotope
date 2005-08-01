@@ -1,0 +1,33 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<!DOCTYPE KDevPrjSession>
+<KDevPrjSession>
+ <DocsAndViews NumberOfDocuments="0" />
+ <pluginList>
+  <kdevbookmarks>
+   <bookmarks>
+    <bookmark url="/home/mike/chip/Mike/cpp/Projects/Source/Gash/Engine/Error.cpp" >
+     <mark line="186" />
+    </bookmark>
+    <bookmark url="/home/mike/chip/Mike/cpp/Projects/Source/Gash/Engine/Commands.cpp" >
+     <mark line="164" />
+     <mark line="165" />
+    </bookmark>
+   </bookmarks>
+  </kdevbookmarks>
+  <kdevsubversion>
+   <subversion recurseresolve="1" recurserelocate="1" recursemerge="1" recursecommit="1" base="" recursepropget="1" recurseswitch="1" recurseupdate="1" recursepropset="1" recursediff="1" recurserevert="1" forcemove="1" recursecheckout="1" forceremove="1" recurseadd="1" recurseproplist="1" forcemerge="1" />
+  </kdevsubversion>
+  <kdevvalgrind>
+   <executable path="" params="" />
+   <valgrind path="" params="" />
+  </kdevvalgrind>
+  <kdevdebugger>
+   <breakpointList>
+    <breakpoint0 location="/home/mike/chip/Mike/cpp/Projects/Source/Gash/Engine/Error.cpp:31" type="1" condition="" enabled="1" />
+    <breakpoint1 location="/home/mike/f/Dev/ion/src/Gash/Test/ClassTests.cpp:406" type="1" condition="" enabled="1" />
+    <breakpoint2 location="/home/mike/f/Dev/ion/src/Gash/Test/ClassTests.cpp:408" type="1" condition="" enabled="1" />
+    <breakpoint3 location="/home/mike/f/Dev/ion/src/Gash/Test/ClassTests.cpp:418" type="1" condition="" enabled="1" />
+   </breakpointList>
+  </kdevdebugger>
+ </pluginList>
+</KDevPrjSession>

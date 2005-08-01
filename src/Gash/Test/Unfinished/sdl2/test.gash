@@ -1,0 +1,18 @@
+class test(Object)
+{
+	proc foo(SdlWindow:w)
+	{
+		w.getNextFrame(!SdlFrame:frame)
+		&frame.drawStars()
+	}
+
+	proc main()
+	{
+		!SdlWindow:w.new()
+		while(Bool.true)
+		{
+			foo(w)
+		}
+		!Popups:p.messageBox("yo dude", "hello world")
+	}
+}

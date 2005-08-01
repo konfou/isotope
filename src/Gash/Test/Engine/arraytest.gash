@@ -1,0 +1,29 @@
+class ArrayTestPos(Object)
+{
+	proc main()
+	{
+		!Array:arr.new(2)
+		!Integer:i.set(7)
+		&arr.add(3)
+		&arr.add(5)
+		&arr.add(i)
+		&arr.add(i)
+		&arr.add("bologna")
+		arr.get(!Integer:j, 1)
+		arr.get(!i, 0)
+		if(i = j)
+			throw("these shouldn't be equal")
+		arr.get(!j, 2)
+		if(i == j)
+			throw("these shouldn't be the same")
+		arr.get(!i, 3)
+		if(i != j)
+			throw("these should be the same")
+		&arr.set(1, 3)
+		arr.get(!i, 0)
+		arr.get(!j, 1)
+		if(i <> j)
+			throw("these should be equal")
+	}
+}
+

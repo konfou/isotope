@@ -1,0 +1,49 @@
+<!DOCTYPE UI><UI>
+<class>UsageDialogBase</class>
+<widget>
+    <class>QDialog</class>
+    <property stdset="1">
+        <name>name</name>
+        <cstring>UsageDialogBase</cstring>
+    </property>
+    <property>
+        <name>geometry</name>
+        <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>528</width>
+            <height>482</height>
+        </rect>
+    </property>
+    <property>
+        <name>caption</name>
+        <string>Usage</string>
+    </property>
+    <widget>
+        <class>QMultiLineEdit</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>MultiLineEdit1</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>530</width>
+                <height>480</height>
+            </rect>
+        </property>
+        <property>
+            <name>font</name>
+            <font>
+                <family>@Arial Unicode MS</family>
+                <pointsize>11</pointsize>
+            </font>
+        </property>
+    </widget>
+</widget>
+<tabstops>
+    <tabstop>MultiLineEdit1</tabstop>
+</tabstops>
+</UI>

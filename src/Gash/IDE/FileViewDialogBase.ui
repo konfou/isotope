@@ -1,0 +1,106 @@
+<!DOCTYPE UI><UI>
+<class>FileViewDialogBase</class>
+<widget>
+    <class>QDialog</class>
+    <property stdset="1">
+        <name>name</name>
+        <cstring>FileViewDialogBase</cstring>
+    </property>
+    <property>
+        <name>geometry</name>
+        <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>660</width>
+            <height>507</height>
+        </rect>
+    </property>
+    <property>
+        <name>font</name>
+        <font>
+            <family>Courier New</family>
+            <pointsize>11</pointsize>
+        </font>
+    </property>
+    <property>
+        <name>caption</name>
+        <string>Form1</string>
+    </property>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton1</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>230</x>
+                <y>470</y>
+                <width>93</width>
+                <height>26</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>OK</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QPushButton</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>PushButton2</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>340</x>
+                <y>470</y>
+                <width>93</width>
+                <height>26</height>
+            </rect>
+        </property>
+        <property>
+            <name>text</name>
+            <string>Cancel</string>
+        </property>
+    </widget>
+    <widget>
+        <class>QMultiLineEdit</class>
+        <property stdset="1">
+            <name>name</name>
+            <cstring>MultiLineEdit1</cstring>
+        </property>
+        <property>
+            <name>geometry</name>
+            <rect>
+                <x>10</x>
+                <y>10</y>
+                <width>631</width>
+                <height>451</height>
+            </rect>
+        </property>
+        <property>
+            <name>undoDepth</name>
+            <number>1024</number>
+        </property>
+    </widget>
+</widget>
+<connections>
+    <connection>
+        <sender>PushButton2</sender>
+        <signal>released()</signal>
+        <receiver>FileViewDialogBase</receiver>
+        <slot>slot_button2()</slot>
+    </connection>
+    <connection>
+        <sender>PushButton1</sender>
+        <signal>released()</signal>
+        <receiver>FileViewDialogBase</receiver>
+        <slot>slot_button1()</slot>
+    </connection>
+    <slot access="public">slot_button1()</slot>
+    <slot access="public">slot_button2()</slot>
+</connections>
+</UI>

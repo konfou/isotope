@@ -1,0 +1,11 @@
+class Hello(Object)
+{
+
+	proc Main()
+	{
+		Popups.MessageBox('Hello World!', 'Hello!!!!!!!!!!!!!!!!')
+	}
+
+}
+
+

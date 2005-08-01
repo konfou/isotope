@@ -1,0 +1,296 @@
+Class Main
+{
+   Method New
+   {
+0:    NewObject(-3, 14)
+9:    {
+10:      PushParam(-3)
+15:      Call(2) [Main.Init]
+20:   }
+21:   Return()
+   }
+
+   Method Main
+   {
+0:    (NewVariable) [Pos: 0]
+1:    {
+2:       (NewVariable) [Pos: 2]
+3:       NewIntObj(2)
+8:       SetIntWithConst(2, 640)
+17:      (NewVariable) [Pos: 3]
+18:      NewIntObj(3)
+23:      SetIntWithConst(3, 480)
+32:      (NewVariable) [Pos: 4]
+33:      NewIntObj(4)
+38:      SetIntWithConst(4, 0)
+47:      (NewVariable) [Pos: 5]
+48:      NewIntObj(5)
+53:      SetIntWithConst(5, 32)
+62:      PushParam(0)
+67:      PushParam(2)
+72:      PushParam(3)
+77:      PushParam(4)
+82:      PushParam(5)
+87:      Call(3) [Main.New]
+92:      CopyVar(6, 0)
+101:  }
+102:  (NewVariable) [Pos: 1]
+103:  {
+104:     PushParam(1)
+109:     PushParam(0)
+114:     Call(6) [Main.New]
+119:     CopyVar(3, 1)
+128:  }
+129:  {
+130:     (NewVariable) [Pos: 3]
+131:     {
+132:        PushParam(3)
+137:        Call(10) [Main.New]
+142:        CopyVar(5, 3)
+151:     }
+152:     (NewVariable) [Pos: 4]
+153:     NewIntObj(4)
+158:     SetIntWithConst(4, 0)
+167:     {
+168:        PushParam(3)
+173:        PushParam(4)
+178:        CallBack(0) [WString.LoadStringFromTable (todo: display string here)]
+183:     }
+184:     PushParam(1)
+189:     PushParam(3)
+194:     Call(7) [Main.Load]
+199:  }
+200:  (NewVariable) [Pos: 2]
+201:  {
+202:     PushParam(0)
+207:     PushParam(2)
+212:     Call(4) [Main.GetCanvas]
+217:     CopyVar(5, 2)
+226:  }
+227:  {
+228:     (NewVariable) [Pos: 4]
+229:     NewIntObj(4)
+234:     SetIntWithConst(4, 0)
+243:     (NewVariable) [Pos: 5]
+244:     NewIntObj(5)
+249:     SetIntWithConst(5, 0)
+258:     (NewVariable) [Pos: 6]
+259:     NewIntObj(6)
+264:     SetIntWithConst(6, 49)
+273:     (NewVariable) [Pos: 7]
+274:     NewIntObj(7)
+279:     SetIntWithConst(7, 49)
+288:     (NewVariable) [Pos: 8]
+289:     NewIntObj(8)
+294:     SetIntWithConst(8, 10)
+303:     (NewVariable) [Pos: 9]
+304:     NewIntObj(9)
+309:     SetIntWithConst(9, 10)
+318:     PushParam(1)
+323:     PushParam(4)
+328:     PushParam(5)
+333:     PushParam(6)
+338:     PushParam(7)
+343:     PushParam(2)
+348:     PushParam(8)
+353:     PushParam(9)
+358:     Call(8) [Main.Blt]
+363:  }
+364:  {
+365:     (NewVariable) [Pos: 4]
+366:     {
+367:        PushParam(4)
+372:        Call(10) [Main.New]
+377:        CopyVar(6, 4)
+386:     }
+387:     (NewVariable) [Pos: 5]
+388:     NewIntObj(5)
+393:     SetIntWithConst(5, 1)
+402:     {
+403:        PushParam(4)
+408:        PushParam(5)
+413:        CallBack(0) [WString.LoadStringFromTable (todo: display string here)]
+418:     }
+419:     (NewVariable) [Pos: 6]
+420:     {
+421:        PushParam(6)
+426:        Call(10) [Main.New]
+431:        CopyVar(8, 6)
+440:     }
+441:     (NewVariable) [Pos: 7]
+442:     NewIntObj(7)
+447:     SetIntWithConst(7, 2)
+456:     {
+457:        PushParam(6)
+462:        PushParam(7)
+467:        CallBack(0) [WString.LoadStringFromTable (todo: display string here)]
+472:     }
+473:     PushParam(4)
+478:     PushParam(6)
+483:     Call(12) [Main.MessageBox]
+488:  }
+489:  Return()
+   }
+
+   Method Init
+   {
+0:    Return()
+   }
+
+}
+
+Class DirectDrawWindow
+{
+   Method New
+   {
+0:    NewObject(-7, 11)
+9:    {
+10:      PushParam(-7)
+15:      PushParam(-6)
+20:      PushParam(-5)
+25:      PushParam(-4)
+30:      PushParam(-3)
+35:      Call(5) [DirectDrawWindow.Init]
+40:   }
+41:   Return()
+   }
+
+   Method GetCanvas
+   {
+0:    SetVarToNull(-3)
+5:    (NewVariable) [Pos: 0]
+6:    {
+7:       PushParam(0)
+12:      PushParam(-3)
+17:      CallBack(1) [WDirectDrawWindow.GetCanvas]
+22:   }
+23:   SetMember(0, -4, 0)
+36:   Return()
+   }
+
+   Method Init
+   {
+0:    (NewVariable) [Pos: 0]
+1:    NewWrapperObj(0)
+6:    SetMember(0, -7, 0)
+19:   (NewVariable) [Pos: 1]
+20:   {
+21:      PushParam(1)
+26:      PushParam(-6)
+31:      PushParam(-5)
+36:      PushParam(-4)
+41:      PushParam(-3)
+46:      CallBack(2) [WDirectDrawWindow.Constructor]
+51:   }
+52:   SetMember(1, -7, 0)
+65:   Return()
+   }
+
+}
+
+Class DirectDrawImage
+{
+   Method New
+   {
+0:    NewObject(-4, 12)
+9:    {
+10:      PushParam(-4)
+15:      PushParam(-3)
+20:      Call(9) [DirectDrawImage.Init]
+25:   }
+26:   Return()
+   }
+
+   Method Load
+   {
+0:    (NewVariable) [Pos: 0]
+1:    {
+2:       PushParam(0)
+7:       PushParam(-3)
+12:      CallBack(3) [WDirectDrawImage.Load]
+17:   }
+18:   SetMember(0, -4, 0)
+31:   Return()
+   }
+
+   Method Blt
+   {
+0:    (NewVariable) [Pos: 0]
+1:    (NewVariable) [Pos: 1]
+2:    {
+3:       PushParam(0)
+8:       PushParam(-9)
+13:      PushParam(-8)
+18:      PushParam(-7)
+23:      PushParam(-6)
+28:      PushParam(1)
+33:      PushParam(-4)
+38:      PushParam(-3)
+43:      CallBack(4) [WDirectDrawImage.Blt]
+48:   }
+49:   SetMember(1, -5, 0)
+62:   SetMember(0, -10, 0)
+75:   Return()
+   }
+
+   Method Init
+   {
+0:    (NewVariable) [Pos: 0]
+1:    NewWrapperObj(0)
+6:    SetMember(0, -4, 0)
+19:   (NewVariable) [Pos: 1]
+20:   (NewVariable) [Pos: 2]
+21:   {
+22:      PushParam(1)
+27:      PushParam(2)
+32:      CallBack(5) [WDirectDrawImage.Constructor]
+37:   }
+38:   SetMember(2, -3, 0)
+51:   SetMember(1, -4, 0)
+64:   Return()
+   }
+
+}
+
+Class String
+{
+   Method New
+   {
+0:    NewObject(-3, 8)
+9:    {
+10:      PushParam(-3)
+15:      Call(11) [String.Init]
+20:   }
+21:   Return()
+   }
+
+   Method Init
+   {
+0:    (NewVariable) [Pos: 0]
+1:    NewWrapperObj(0)
+6:    SetMember(0, -3, 0)
+19:   (NewVariable) [Pos: 1]
+20:   {
+21:      PushParam(1)
+26:      CallBack(6) [WString.Constructor]
+31:   }
+32:   SetMember(1, -3, 0)
+45:   Return()
+   }
+
+}
+
+Class Popups
+{
+   Method MessageBox
+   {
+0:    {
+1:       PushParam(-4)
+6:       PushParam(-3)
+11:      CallBack(7) [WPopups.MessageBox]
+16:   }
+17:   Return()
+   }
+
+}
+

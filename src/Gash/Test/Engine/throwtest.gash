@@ -1,0 +1,54 @@
+class ThrowMe(Object)
+{
+	!String:s
+
+	proc New(!ThrowMe:dest)
+	{
+		allocate(!Dest)
+		!Dest.s.new()
+	}
+}
+
+class ThrowTest(Object)
+{
+	!Integer:n
+
+	method &foo()
+	{
+		!ThrowMe:tm.new()
+		&this.n.Copy(2)
+		throw(tm)
+		&this.n.Copy(3)
+	}
+
+	method &Go(&Bool:pass)
+	{
+		&pass.Copy(Bool.false)
+		&this.n.Copy(1)
+		!ThrowMe:catcher = &this.foo()
+		if(this.n <> 2)
+			return()
+
+		&pass.Copy(Bool.true)
+	}
+
+	proc DoTest(&Bool:pass)
+	{
+		!ThrowTest:tt.new()
+		&tt.Go(&pass)
+	}
+
+	proc new(!ThrowTest:Dest)
+	{
+		allocate(!Dest)
+		!Dest.n.new()
+	}
+
+	proc main()
+	{
+		!Bool:pass.new()
+		ThrowTest.DoTest(&pass)
+		if(pass <> Bool.true)
+			throw("failed")
+	}
+}
