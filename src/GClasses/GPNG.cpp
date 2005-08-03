@@ -113,11 +113,30 @@ bool LoadPng(GImage* pImage, const unsigned char* pData, int nDataSize)
 	unsigned long nPixels = width * height;
 	GColor* pRGBQuads = pImage->GetRGBQuads();
 	unsigned char *pBytes = pRawData;
-	for(i = 0; i < nPixels; i++)
+	if(channels > 3)
 	{
-		*pRGBQuads = gRGB(pBytes[0], pBytes[1], pBytes[2]); // todo: include the alpha channel too
-		pBytes += channels;
-		pRGBQuads++;
+		GAssert(channels == 4, "unexpected number of channels");
+		for(i = 0; i < nPixels; i++)
+		{
+			*pRGBQuads = gRGBA(pBytes[0], pBytes[1], pBytes[2], pBytes[3]);
+			pBytes += channels;
+			pRGBQuads++;
+		}
+	}
+	else
+	{
+		GAssert(channels == 3, "unexpected number of channels");
+		int alpha;
+		for(i = 0; i < nPixels; i++)
+		{
+			if(pBytes[0] == 0 && pBytes[1] == 0xff && pBytes[2] == 0) // If the color is pure green (0x00ff00)
+				alpha = 0;
+			else
+				alpha = 0xff;
+			*pRGBQuads = gRGBA(pBytes[0], pBytes[1], pBytes[2], alpha);
+			pBytes += channels;
+			pRGBQuads++;
+		}
 	}
 
 	// Check for additional tags

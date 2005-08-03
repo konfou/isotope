@@ -130,6 +130,8 @@ void GBillboardCamera::CalcPanelTrapezoid(GPanelPos* pOutPos, GPosSize* pPosSize
 		pOutPos->dy = ((y1 - (pPosSize->sz * scale1)) - pOutPos->y) / pOutPos->w;
 		pOutPos->dh = (pPosSize->sz * (scale1 - scale2)) / pOutPos->w;
 	}
+	if(scale1 < 0 || scale2 < 0)
+		pOutPos->w = 0;
 }
 
 float GBillboardCamera::CalculateDistanceFromCamera(float x, float y)

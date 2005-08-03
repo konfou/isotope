@@ -22,12 +22,17 @@ typedef unsigned int GColor;
 #define gBlue(c) ((c) & 0xff)
 #define gGreen(c) (((c) >> 8) & 0xff)
 #define gRed(c) (((c) >> 16) & 0xff)
+#define gAlpha(c) (((c) >> 24) & 0xff)
 
 inline GColor gRGB(int r, int g, int b)
 {
-	return ((b & 0xff) | ((g & 0xff) << 8) | ((r & 0xff) << 16));
+	return ((b & 0xff) | ((g & 0xff) << 8) | ((r & 0xff) << 16) | 0xff000000);
 }
 
+inline GColor gRGBA(int r, int g, int b, int a)
+{
+	return ((b & 0xff) | ((g & 0xff) << 8) | ((r & 0xff) << 16) | ((a & 0xff) << 24));
+}
 
 struct GRect
 {

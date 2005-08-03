@@ -162,7 +162,7 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 	GXMLTag* pCameraTag = m_pMap->GetChildTag("Camera");
 	if(pCameraTag)
 	{
-		GXMLAttribute* pAttrPointOfView = m_pMap->GetAttribute("PointOfView");
+		GXMLAttribute* pAttrPointOfView = pCameraTag->GetAttribute("PointOfView");
 		if(pAttrPointOfView)
 		{
 			if(stricmp(pAttrPointOfView->GetValue(), "FirstPerson") == 0)
@@ -199,14 +199,11 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 	// Find the starting spot
 	float x = 0;
 	float y = 0;
-	if(szSpot)
+	int nSpotIndex = m_pSpotStore->GetIndex(szSpot ? szSpot : "Default");
+	if(nSpotIndex >= 0)
 	{
-		int nSpotIndex = m_pSpotStore->GetIndex(szSpot);
-		if(nSpotIndex >= 0)
-		{
-			MSpot* pSpot = m_pSpotStore->GetSpot(nSpotIndex);
-			pSpot->GetPos(&x, &y);
-		}
+		MSpot* pSpot = m_pSpotStore->GetSpot(nSpotIndex);
+		pSpot->GetPos(&x, &y);
 	}
 
 	// Load the static objects
@@ -254,6 +251,10 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 		GXMLAttribute* pAttrZoom = pCameraTag->GetAttribute("Zoom");
 		if(pAttrZoom)
 			m_pCamera->AjustZoom((float)atof(pAttrZoom->GetValue()), nScreenVerticalCenter);
+
+		// Position
+		if(m_bFirstPerson)
+			m_pCamera->SetPos(x, y);
 	}
 }
 

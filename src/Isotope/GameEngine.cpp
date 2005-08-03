@@ -149,7 +149,8 @@
 {
 	// Download from URL
 	GHttpClient socket;
-	socket.Get(szUrl, 80);
+	if(!socket.Get(szUrl, 80))
+		ThrowError("Failed to connect to url: %s", szUrl);
 	while(socket.CheckStatus() == GHttpClient::Downloading)
 	{
 #ifdef WIN32
