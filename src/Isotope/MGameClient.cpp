@@ -33,9 +33,13 @@
 #include <unistd.h>
 #endif // WIN32
 
-MGameClient::MGameClient(bool loner)
+MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag, bool loner)
 : Model()
 {
+	m_szAccountFilename = new char[strlen(szAccountFilename) + 1];
+	strcpy(m_szAccountFilename, szAccountFilename);
+	m_pAccountTag = pAccountTag;
+	m_pAccountRefTag = pAccountRefTag;
 	m_pCamera = NULL;
 	m_pConnection = NULL;
 	m_pCurrentRealm = NULL;
@@ -66,6 +70,8 @@ MGameClient::MGameClient(bool loner)
 
 /*virtual*/ MGameClient::~MGameClient()
 {
+	delete(m_pAccountTag);
+	delete(m_szAccountFilename);
 	UnloadRealm();
 	delete(m_pErrorHandler);
 	delete(m_pPlayer);
@@ -209,28 +215,33 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 	// Load the static objects
 	LoadObjects(m_pCurrentRealm, m_pMap);
 
-	// Find the goal flag
-	m_pGoalFlag = m_pCurrentRealm->GetObjectByID(1); // todo: use a better technique to find this object
-	m_pGoalFlag->SetTangible(false);
-	GAssert(m_pGoalFlag, "No goal flag");
+	// Make the goal flag
+	m_pGoalFlag = MakeIntangibleGlobalObject("flag", 0, 0, -10000);
 
 	if(!m_bFirstPerson)
 	{
-		// Add the avatar to the realm
-		const char* szAvatarAnim = "avatar";
-		const char* szAvatarAnimAction = "avataraction";
+		// Copy the animations for your avatar into the local animation store
+		GXMLAttribute* pAttrAnim = m_pAccountRefTag->GetAttribute("Anim");
+		if(!pAttrAnim)
+			GameEngine::ThrowError("Expected an \"Anim\" attribute in the account tag in the config file");
+		const char* szAvatarAnimID = pAttrAnim->GetValue();
+		m_pAnimationStore->AddAnimation(m_pScriptEngine, m_pImageStore, szAvatarAnimID);
+		char* szAvatarAnimActionID = (char*)alloca(strlen(szAvatarAnimID) + 10);
+		strcpy(szAvatarAnimActionID, szAvatarAnimID);
+		strcat(szAvatarAnimActionID, "action");
+		m_pAnimationStore->AddAnimation(m_pScriptEngine, m_pImageStore, szAvatarAnimActionID);
+
+		// Construct the avatar object
 		const char* pParams[2];
-		pParams[0] = szAvatarAnim;
-		pParams[1] = szAvatarAnimAction;
+		pParams[0] = szAvatarAnimID;
+		pParams[1] = szAvatarAnimActionID;
 		m_pAvatar = m_pScriptEngine->NewObject("Avatar", x, y, 0, 250, 250, 250, pParams, 2);
 		m_pAvatar->SetTime(time);
 		m_pAvatar->SetTangible(false);
 		m_pCurrentRealm->ReplaceObject(0, m_pAvatar);
 
-		// Find the info cloud
-		m_pInfoCloud = m_pCurrentRealm->GetObjectByID(2); // todo: use a better technique to find this object
-		m_pInfoCloud->SetTangible(false);
-		GAssert(m_pInfoCloud, "No info cloud");
+		// Make the info cloud
+		m_pInfoCloud = MakeIntangibleGlobalObject("cloud", 0, -5000, 200);
 	}
 
 	// Make the camera
@@ -256,6 +267,17 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 		if(m_bFirstPerson)
 			m_pCamera->SetPos(x, y);
 	}
+}
+
+MObject* MGameClient::MakeIntangibleGlobalObject(const char* szID, float x, float y, float z)
+{
+	m_pImageStore->AddImage(m_pScriptEngine, szID);
+	VarHolder* pVH = m_pImageStore->GetVarHolder(szID);
+	MGameImage* pImage = (MGameImage*)pVH->GetGObject();
+	MObject* pNewObject = m_pScriptEngine->NewObject("Scenery", x, y, z, (float)pImage->m_value.GetWidth(), (float)pImage->m_value.GetWidth(), (float)pImage->m_value.GetHeight(), &szID, 1);
+	pNewObject->SetTangible(false);
+	m_pCurrentRealm->ReplaceObject(0, pNewObject);
+	return pNewObject;
 }
 
 // Whenever the MRealm updates an object, it will call this method

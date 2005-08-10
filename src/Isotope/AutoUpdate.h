@@ -11,6 +11,7 @@
 #define UPDATE_DESCRIPTOR "http://neutron.edumetrics.org/updates/linux/update.xml"
 #endif // !WIN32
 
+void HashBlobSha512(unsigned char* pOutDigest, const unsigned char* pBlob, int nSize);
 
 // Returns a string containing an XML-serialization of the trusted public key
 const char* GetTrustedPublicKey();

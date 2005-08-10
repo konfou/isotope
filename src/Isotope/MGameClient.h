@@ -58,9 +58,12 @@ protected:
 	bool m_bLoner;
 	bool m_bFirstPerson;
 	GPointerArray* m_pSelectedObjects;
+	char* m_szAccountFilename;
+	GXMLTag* m_pAccountTag;
+	GXMLTag* m_pAccountRefTag;
 
 public:
-	MGameClient(bool loner);
+	MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag, bool loner);
 	virtual ~MGameClient();
 
 	MImageStore* GetImages() { return m_pImageStore; }
@@ -133,6 +136,9 @@ protected:
 	void ProcessPacket(NRealmPacket* pPacket);
 	void UpdateObject(NUpdateObjectPacket* pPacket);
 	void LoadObjects(MRealm* pRealm, GXMLTag* pModelTag);
+
+	// Makes an intangible scenery object from an image in the global cache
+	MObject* MakeIntangibleGlobalObject(const char* szID, float x, float y, float z);
 };
 
 #endif // __MGAMECLIENT_H__

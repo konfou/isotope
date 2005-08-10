@@ -56,15 +56,15 @@ void MGameImage::drawTextImage(const char* szText)
 	int hgt = 33;
 	int wid = m_value.MeasureHardTextWidth(hgt, szText, 1);
 	m_value.SetSize(wid + 4, hgt + 4);
-	m_value.Clear(0xffffffff);
-	m_value.DrawBox(0, 0, wid + 3, hgt + 3, 0x0000ff, false);
-	m_value.DrawBox(1, 1, wid + 2, hgt + 2, 0x0000ff, false);
+	m_value.Clear(0xd0ffffff);
+	m_value.DrawBox(0, 0, wid + 3, hgt + 3, 0xff0000ff, false);
+	m_value.DrawBox(0, 0, wid + 2, hgt + 2, 0xff0000ff, false);
 	GRect r;
 	r.x = 3;
 	r.y = 2;
 	r.w = wid;
 	r.h = hgt;
-	m_value.DrawHardText(&r, szText, 0, 1);
+	m_value.DrawHardText(&r, szText, 0xff000000, 1);
 }
 
 void MGameImage::setText(Engine* pEngine, EVar* pText)
@@ -90,7 +90,7 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 	char cMode;
 	int nLen = 0;
 	pQ->Pop(&cMode);
-	if(cMode < Store || cMode > Url)
+	if(cMode < Store || cMode > GlobalId)
 		GameEngine::ThrowError("Bad Image mode");
 	pQ->Pop(&nLen);
 	if(nLen <= 0 || nLen > 512)
@@ -127,6 +127,15 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 		else if(cMode == Url)
 		{
 			pEngine->SetThis(DownloadImage(pEngine, szID));
+		}
+		else if(cMode == GlobalId)
+		{
+			MImageStore* pGlobalStore = GameEngine::GetGlobalImageStore();
+			VarHolder* pVH = pGlobalStore->GetVarHolder(szID);
+			MGameImage* pGameImage = (MGameImage*)pVH->GetGObject();
+			MGameImage* pNewImage = new MGameImage(pEngine, GlobalId, szID);
+			pNewImage->m_value.CopyImage(&pGameImage->m_value);
+			pEngine->SetThis(pNewImage);
 		}
 	}
 	else
@@ -175,4 +184,10 @@ void MGameImage::load(Engine* pEngine, EVar* pFilename)
 
 	// Create the image
 	pEngine->SetThis(DownloadImage(pEngine, szFullUrl));
+}
+
+const char* MGameImage::GetID()
+{
+	GAssert(m_eMode == GlobalId || m_eMode == Store, "This image has no ID");
+	return m_szText;
 }

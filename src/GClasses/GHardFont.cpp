@@ -304,13 +304,13 @@ inline unsigned int GSmallHardFont_GetPixel(int x, int y)
 unsigned int GHardFont_GetWhiteOnBlack(int x, int y)
 {
 	unsigned int n = GHardFont_GetPixel(x, y);
-	return (n | (n << 8) | (n << 16));
+	return (n | (n << 8) | (n << 16) | 0xff000000);
 }
 
 unsigned int GHardFont_GetBlackOnWhite(int x, int y)
 {
 	unsigned int n = (~(GHardFont_GetPixel(x, y))) & 255;
-	return (n | (n << 8) | (n << 16));
+	return (n | (n << 8) | (n << 16) | 0xff000000);
 }
 
 unsigned int GHardFont_GetAlphaBlended(int x, int y, unsigned int nColor, unsigned int nBackground)
@@ -319,7 +319,8 @@ unsigned int GHardFont_GetAlphaBlended(int x, int y, unsigned int nColor, unsign
 	int r = n * (nColor & 255) + (255 - n) * (nBackground & 255);
 	int g = n * ((nColor >> 8) & 255) + (255 - n) * ((nBackground >> 8) & 255);
 	int b = n * ((nColor >> 16) & 255) + (255 - n) * ((nBackground >> 16) & 255);
-	return ((r / 255) | ((g / 255) << 8) | ((b / 255) << 16));
+	int a = n * ((nColor >> 24) & 255) + (255 - n) * ((nBackground >> 24) & 255);
+	return ((r / 255) | ((g / 255) << 8) | ((b / 255) << 16) | ((a / 255) << 24));
 }
 
 unsigned int GSmallHardFont_GetAlphaBlended(int x, int y, unsigned int nColor, unsigned int nBackground)
@@ -328,6 +329,7 @@ unsigned int GSmallHardFont_GetAlphaBlended(int x, int y, unsigned int nColor, u
 	int r = n * (nColor & 255) + (255 - n) * (nBackground & 255);
 	int g = n * ((nColor >> 8) & 255) + (255 - n) * ((nBackground >> 8) & 255);
 	int b = n * ((nColor >> 16) & 255) + (255 - n) * ((nBackground >> 16) & 255);
-	return ((r / 255) | ((g / 255) << 8) | ((b / 255) << 16));
+	int a = n * ((nColor >> 24) & 255) + (255 - n) * ((nBackground >> 24) & 255);
+	return ((r / 255) | ((g / 255) << 8) | ((b / 255) << 16) | ((a / 255) << 24));
 }
 

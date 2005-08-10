@@ -36,8 +36,14 @@ public:
 	// Generates a polynomial fitted to predict the provided data as best as possible
 	static GPolynomial* FitData(GArffRelation* pRelation, GArffData* pData, int nOutputAttr, int nControlPoints);
 
+	// Generates an optimal polynomial that uses the first "n - 1" inputs to calculate
+	// threshold values for the last input such that the two halves can be fitted
+	// with a polynomial as well as possible
+	static GPolynomial* DivideData(GArffRelation* pRelation, GArffData* pData, int nOutputAttr, int nControlPoints);
+
 protected:
 	int CalcIndex(int* pDegrees);
+	double DivideAndMeasureError(GArffRelation* pRelation, GArffData* pData, int nOutputAttr);
 };
 
 

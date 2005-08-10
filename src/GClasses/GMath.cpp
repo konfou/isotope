@@ -11,6 +11,7 @@
 
 #include "GMath.h"
 #include "string.h"
+#include <stdlib.h>
 #ifdef DARWIN
 #include <sys/malloc.h>
 #else // DARWIN

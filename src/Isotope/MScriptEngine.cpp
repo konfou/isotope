@@ -14,6 +14,7 @@
 #include "../GClasses/GString.h"
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GXML.h"
+#include "../GClasses/GFile.h"
 #include "../Gash/BuiltIns/GashStream.h"
 #include "../Gash/BuiltIns/GashFloat.h"
 #include "../Gash/Engine/Error.h"
@@ -137,7 +138,7 @@ m_pLibrary->GetLibraryTag()->ToFile("server.xlib");
 	getcwd(szCurDir, 512);
 	m_pCBG = new IsotopeCallBackGetter();
 	m_pErrorHandler = pErrorHandler;
-	m_pVM = new MVM(m_pLibrary, m_pCBG, m_pErrorHandler, szCurDir, pGameClient, pController);
+	m_pVM = new MVM(m_pLibrary, m_pCBG, m_pErrorHandler, szCurDir, pGameClient, pController, this);
 
 	// Prefind the methods we're going to need
 	FindMethod(&m_mrUpdate, "RealmObject", "method &update(Float)");
@@ -389,19 +390,74 @@ MObject* MScriptEngine::NewObject(const char* szClass, float x, float y, float z
 	return pNewObject;
 }
 
+VarHolder* MScriptEngine::CopyGlobalImage(const char* szGlobalID)
+{
+	Holder<VarHolder*> hVHLocal(new VarHolder(m_pVM));
+	VarHolder* pVHLocal = hVHLocal.Get();
+	GAssert(pVHLocal->m_szID = "local copy of global image", "");
+	MGameImage* pMImage = new MGameImage(m_pVM, MGameImage::GlobalId, szGlobalID);
+	pVHLocal->SetGObject(pMImage);
+	MImageStore* pGlobalImageStore = GameEngine::GetGlobalImageStore();
+	VarHolder* pVHGlobal = pGlobalImageStore->GetVarHolder(szGlobalID);
+	if(!pVHGlobal)
+		GameEngine::ThrowError("There is no global image with the ID: %s", szGlobalID);
+	MGameImage* pImageGlobal = (MGameImage*)pVHGlobal->GetGObject();
+	pMImage->m_value.CopyImage(&pImageGlobal->m_value);
+	return hVHLocal.Drop();
+}
+
+VarHolder* MScriptEngine::CopyGlobalAnimation(MImageStore* pLocalImageStore, const char* szGlobalID)
+{
+	// Get the image from the global animation
+	MAnimationStore* pGlobalAnimationStore = GameEngine::GetGlobalAnimationStore();
+	int nIndexGlobal = pGlobalAnimationStore->GetIndex(szGlobalID);
+	if(nIndexGlobal < 0)
+		GameEngine::ThrowError("There is no global animation with the ID: %s", szGlobalID);
+	VarHolder* pVHAnimGlobal = pGlobalAnimationStore->GetVarHolder(nIndexGlobal);
+	MAnimation* pAnimGlobal = (MAnimation*)pVHAnimGlobal->GetGObject();
+	VarHolder* pVHImageGlobal = pAnimGlobal->GetImage();
+	MGameImage* pImageGlobal = (MGameImage*)pVHImageGlobal->GetGObject();
+
+	// Copy the image into the local store
+	const char* szImageGlobalID = pImageGlobal->GetID();
+	pLocalImageStore->AddImage(this, szImageGlobalID);
+	VarHolder* pVHImageLocal = pLocalImageStore->GetVarHolder(szImageGlobalID);
+	GAssert(pVHImageLocal, "Failed to copy image to local store");
+
+	// Copy the global animation
+	Holder<VarHolder*> hVHLocal(new VarHolder(m_pVM));
+	VarHolder* pVHLocal = hVHLocal.Get();
+	GAssert(pVHLocal->m_szID = "local copy of global animation", "");
+	MAnimation* pAnimation = new MAnimation(m_pVM);
+	pVHLocal->SetGObject(pAnimation);
+	pAnimation->CopyDataAcrossEngines(pAnimGlobal, pVHImageLocal, szImageGlobalID);
+	return hVHLocal.Drop();
+}
+
 VarHolder* MScriptEngine::LoadPNGImage(const char* szRemotePath, const char* szUrl, const char* szID)
 {
 	Holder<VarHolder*> hVH(new VarHolder(m_pVM));
 	VarHolder* pVH = hVH.Get();
-	GAssert(pVH->m_szID = "BMP Image", "");
+	GAssert(pVH->m_szID = "PNG Image", "");
 	MGameImage* pMImage = new MGameImage(m_pVM, MGameImage::Store, szID);
 	pVH->SetGObject(pMImage);
 	GImage* pImage = pMImage->GetImage();
 	int nSize;
-	Holder<char*> hFile(GameEngine::LoadFileFromUrl(szRemotePath, szUrl, &nSize));
-	char* pFile = hFile.Get();
+	char* pFile;
+	if(szRemotePath)
+		pFile = GameEngine::LoadFileFromUrl(szRemotePath, szUrl, &nSize);
+	else
+	{
+		const char* szAppPath = GameEngine::GetAppPath();
+		char* szPath = (char*)alloca(strlen(szAppPath) + strlen(szUrl) + 20);
+		strcpy(szPath, szAppPath);
+		strcat(szPath, "media/");
+		strcat(szPath, szUrl);
+		pFile = GFile::LoadFileToBuffer(szPath, &nSize);
+	}
 	if(!pFile)
 		GameEngine::ThrowError("Failed to load image: %s", szUrl);
+	Holder<char*> hFile(pFile);
 	if(!pImage->LoadPNGFile((const unsigned char*)pFile, nSize))
 		GameEngine::ThrowError("The image %s appears to be corrupt", szUrl);
 	return hVH.Drop();

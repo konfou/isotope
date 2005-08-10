@@ -15,6 +15,7 @@
 #include "../GClasses/GMacros.h"
 #include "../GClasses/GBillboardCamera.h"
 #include "../GClasses/GXML.h"
+#include "../GClasses/sha2.h"
 #include <math.h>
 #include "VGame.h"
 #include "MGameClient.h"
@@ -27,6 +28,13 @@
 #include "VServer.h"
 #include "MRealmServer.h"
 #include "MKeyPair.h"
+#include "VCharSelect.h"
+#include "VCharMake.h"
+#ifdef WIN32
+#include <direct.h>
+#else // WIN32
+#include <unistd.h>
+#endif // !WIN32
 
 Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 {
@@ -53,9 +61,11 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_goalX = 0;
 	m_goalY = 0;
 	m_pMainMenu = NULL;
+	m_pCharSelect = NULL;
+	m_pMakeNewChar = NULL;
 	m_szNewUrl = NULL;
 	m_pGameClient = NULL;
-
+	m_bLoner = false;
 	m_bQuit = false;
 	m_pView = new View();
 	switch(eRunMode)
@@ -66,15 +76,14 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 			break;
 
 		case CLIENT:
-			m_pGameClient = new MGameClient(false);
-			m_pModel = m_pGameClient;
-			GoToRealm(szParam);
+			m_pModel = new NoModel();
+			MakeCharSelectView();
 			break;
 
 		case LONER:
-			m_pGameClient = new MGameClient(true);
-			m_pModel = m_pGameClient;
-			GoToRealm(szParam);
+			m_bLoner = true;
+			m_pModel = new NoModel();
+			MakeCharSelectView();
 			break;
 
 		case KEYPAIR:
@@ -118,6 +127,9 @@ void Controller::Update(double dTimeDelta)
 	}
 
 	// Check for events
+	int mouseButtonClearers[4];
+	mouseButtonClearers[1] = 1;
+	mouseButtonClearers[3] = 1;
 	int nCount = 0;
 	SDL_Event event;
 	while(SDL_PollEvent(&event))
@@ -141,12 +153,19 @@ void Controller::Update(double dTimeDelta)
 				break;
 
 			case SDL_MOUSEBUTTONUP:
-				m_mouse[event.button.button] = 0;
+				mouseButtonClearers[event.button.button] = 0;
+				//m_mouse[event.button.button] = 0;
 				break;
 
 			case SDL_MOUSEMOTION:
+#ifdef WIN32
 				m_mouseX = event.motion.x;
 				m_mouseY = event.motion.y;
+#else // WIN32
+				// This is a workaround for a packing bug in SDL on Linux
+				m_mouseX = event.motion.y;
+				m_mouseY = event.motion.xrel;
+#endif // !WIN32
 				break;
 
 			case SDL_QUIT:
@@ -158,6 +177,9 @@ void Controller::Update(double dTimeDelta)
 		}
 	}
 	DoControl(dTimeDelta);
+	m_mouse[1] &= mouseButtonClearers[1];
+	m_mouse[3] &= mouseButtonClearers[3];
+	mouseButtonClearers[3] = 1;
 }
 
 void Controller::SetMode(ControlModes newMode)
@@ -200,31 +222,48 @@ void Controller::OnKeyDown(SDLKey key, SDLMod mod)
 {
 	if(key > SDLK_z)
 		return;
-	if(key < SDLK_SPACE && key != SDLK_BACKSPACE && key != SDLK_RETURN)
+	if(key == SDLK_BACKSPACE)
+	{
+		if(m_nTypeBufferPos > 0)
+		{
+			m_szTypeBuffer[--m_nTypeBufferPos] = '\0';
+			return;
+		}
+	}
+	else if(key == SDLK_RETURN)
+	{
+		if(m_mode == THIRDPERSON)
+		{
+			// Make the chat cloud
+			if(m_nTypeBufferPos <= 0)
+				return;
+			if(!m_pGameClient)
+				return;
+			m_pGameClient->MakeChatCloud(m_szTypeBuffer);
+			ClearTypeBuffer();
+		}
+	}
+	else if(key < SDLK_SPACE)
 		return;
 	char c = (char)key;
-	if(c == '\r') // Pressed return
-	{
-		// Make the chat cloud
-		if(m_nTypeBufferPos <= 0)
-			return;
-		if(!m_pGameClient)
-			return;
-		m_pGameClient->MakeChatCloud(m_szTypeBuffer);
-		m_nTypeBufferPos = 0;
-	}
-	if(c < ' ' || c > 'z')
+	if(c > 126)
 		return;
 	if(m_nTypeBufferPos >= TYPE_BUFFER_SIZE - 1)
 		return;
 
 	// Capitalize if shift is down
 	if(mod & KMOD_SHIFT)
-		c = g_shiftTable[c & 127];
+		c = g_shiftTable[c];
 
 	// Record the key
 	m_szTypeBuffer[m_nTypeBufferPos++] = c;
 	m_szTypeBuffer[m_nTypeBufferPos] = '\0';
+}
+
+void Controller::ClearTypeBuffer()
+{
+	m_nTypeBufferPos = 0;
+	m_szTypeBuffer[0] = '\0';
 }
 
 /*
@@ -291,6 +330,12 @@ void Controller::DoControl(double dTimeDelta)
 			break;
 		case ENTROPYCOLLECTOR:
 			ControlEntropyCollector(dTimeDelta);
+			break;
+		case SELECTCHAR:
+			ControlCharSelect(dTimeDelta);
+			break;
+		case MAKENEWCHAR:
+			ControlMakeNewChar(dTimeDelta);
 			break;
 		default:
 			GAssert(false, "unexpected control mode");
@@ -577,7 +622,7 @@ void Controller::ControlMainMenu(double dTimeDelta)
 		}
 	}
 
-	// Space Bar
+	// Control key
 	if(m_keyboard[SDLK_RCTRL] | m_keyboard[SDLK_LCTRL])
 	{
 		// Don't let the key stroke repeat
@@ -606,6 +651,46 @@ void Controller::ControlMainMenu(double dTimeDelta)
 		if(m_bMouseDown)
 		{
 			m_pMainMenu->OnMouseUp(this, m_mouseX, m_mouseY);
+			m_bMouseDown = false;
+		}
+	}
+}
+
+void Controller::ControlCharSelect(double dTimeDelta)
+{
+	if(m_mouse[1]) // left button
+	{
+		if(!m_bMouseDown)
+		{
+			m_pCharSelect->OnMouseDown(this, m_mouseX, m_mouseY);
+			m_bMouseDown = true;
+		}
+	}
+	else
+	{
+		if(m_bMouseDown)
+		{
+			m_pCharSelect->OnMouseUp(this, m_mouseX, m_mouseY);
+			m_bMouseDown = false;
+		}
+	}
+}
+
+void Controller::ControlMakeNewChar(double dTimeDelta)
+{
+	if(m_mouse[1]) // left button
+	{
+		if(!m_bMouseDown)
+		{
+			m_pMakeNewChar->OnMouseDown(this, m_mouseX, m_mouseY);
+			m_bMouseDown = true;
+		}
+	}
+	else
+	{
+		if(m_bMouseDown)
+		{
+			m_pMakeNewChar->OnMouseUp(this, m_mouseX, m_mouseY);
 			m_bMouseDown = false;
 		}
 	}
@@ -688,6 +773,109 @@ void Controller::MakeEntropyCollectorView()
 	ViewPort* pViewPort = new VEntropyCollector(m_pView->GetScreenRect(), (MKeyPair*)m_pModel);
 	m_pView->PushViewPort(pViewPort);
 	SetMode(ENTROPYCOLLECTOR);
+}
+
+void Controller::MakeCharSelectView()
+{
+	m_pCharSelect = new VCharSelect(m_pView->GetScreenRect(), m_szTypeBuffer);
+	m_pView->PushViewPort(m_pCharSelect);
+	SetMode(SELECTCHAR);
+}
+
+void Controller::MakeNewCharView()
+{
+	m_pMakeNewChar = new VCharMake(m_pView->GetScreenRect(), m_szTypeBuffer);
+	m_pView->PushViewPort(m_pMakeNewChar);
+	SetMode(MAKENEWCHAR);
+	ClearTypeBuffer();
+}
+
+void Controller::CancelMakeNewChar()
+{
+	ViewPort* pViewPort = m_pView->PopViewPort();
+	GAssert(pViewPort == m_pMakeNewChar, "unexpected view port");
+	m_pMakeNewChar = NULL;
+	delete(pViewPort);
+	SetMode(SELECTCHAR);
+	m_pCharSelect->ReloadAccounts();
+}
+
+void Controller::CreateNewCharacter(const char* szAvatarID, const char* szPassword)
+{
+	// Make the account file
+	char szUsername[64];
+	itoa(rand(), szUsername, 10); // todo: use the username instead of a random number
+	const char* szAppPath = GameEngine::GetAppPath();
+	char* szAccountFilename = (char*)alloca(strlen(szAppPath) + 50 + strlen(szUsername));
+	strcpy(szAccountFilename, szAppPath);
+	strcat(szAccountFilename, "accounts");
+#ifdef WIN32
+	mkdir(szAccountFilename);
+#else // WIN32
+	mkdir(szAccountFilename, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif // !WIN32
+	strcat(szAccountFilename, "/");
+	strcat(szAccountFilename, szUsername);
+	strcat(szAccountFilename, ".xml");
+	Holder<GXMLTag*> hRootTag(new GXMLTag("Account"));
+	hRootTag.Get()->ToFile(szAccountFilename);
+
+	// Add an account ref to the config file
+	GXMLTag* pConfigTag = GameEngine::GetConfig();
+	GXMLTag* pAccountsTag = pConfigTag->GetChildTag("Accounts");
+	if(!pAccountsTag)
+		GameEngine::ThrowError("Expected an Accounts tag in config.xml");
+	GXMLTag* pNewAccountTag = new GXMLTag("Account");
+	pAccountsTag->AddChildTag(pNewAccountTag);
+	pNewAccountTag->AddAttribute(new GXMLAttribute("Anim", szAvatarID));
+	char szPasswordHash[2 * SHA512_DIGEST_LENGTH + 1];
+	GameEngine::MakePasswordHash(szPasswordHash, szPassword);
+	pNewAccountTag->AddAttribute(new GXMLAttribute("Password", szPasswordHash));
+	pNewAccountTag->AddAttribute(new GXMLAttribute("File", szAccountFilename + strlen(szAppPath)));
+	GameEngine::SaveConfig();
+
+	CancelMakeNewChar();
+}
+
+void Controller::LogIn(GXMLTag* pAccountRefTag, const char* szPassword)
+{
+	// Unload the character selection view
+	ViewPort* pViewPort = m_pView->PopViewPort();
+	GAssert(pViewPort == m_pCharSelect, "unexpected view port");
+	m_pCharSelect = NULL;
+	delete(pViewPort);
+
+	// Load the account
+	GXMLAttribute* pFileAttr = pAccountRefTag->GetAttribute("File");
+	if(!pFileAttr)
+		GameEngine::ThrowError("Expected a \"File\" attribute in the account tag");
+	const char* szAppPath = GameEngine::GetAppPath();
+	char* szFilename = (char*)alloca(strlen(szAppPath) + strlen(pFileAttr->GetValue()) + 10);
+	strcpy(szFilename, szAppPath);
+	strcat(szFilename, pFileAttr->GetValue());
+	const char* szErrorMessage;
+	int nErrorLine;
+	GXMLTag* pAccountTag = GXMLTag::FromFile(szFilename, &szErrorMessage, NULL, &nErrorLine, NULL);
+	if(!pAccountTag)
+		GameEngine::ThrowError("Error loading account %s, %s", szFilename, szErrorMessage);
+
+	// Find the start URL
+	const char* szStartUrl = NULL;
+	GXMLTag* pStartTag = pAccountTag->GetChildTag("Start");
+	if(pStartTag)
+	{
+		GXMLAttribute* pUrlAttr = pStartTag->GetAttribute("url");
+		if(pUrlAttr)
+			szStartUrl = pUrlAttr->GetValue();
+	}
+	if(!szStartUrl)
+		szStartUrl = GameEngine::GetStartUrl();
+
+	// Start the game
+	delete(m_pModel);
+	m_pGameClient = new MGameClient(szFilename, pAccountTag, pAccountRefTag, m_bLoner);
+	m_pModel = m_pGameClient;
+	GoToRealm(szStartUrl);
 }
 
 void Controller::AddObject(const char* szFilename)

@@ -25,8 +25,11 @@ class MObject;
 class VMainMenu;
 class Model;
 class View;
+class VCharSelect;
+class VCharMake;
 class MGameServer;
 class MRealm;
+class GXMLTag;
 
 #define TYPE_BUFFER_SIZE 128
 
@@ -49,6 +52,8 @@ public:
 		FIRSTPERSON,
 		MAINMENU,
 		ENTROPYCOLLECTOR,
+		SELECTCHAR,
+		MAKENEWCHAR,
 	};
 
 protected:
@@ -71,10 +76,13 @@ protected:
 	VGame* m_pGameView;
 	MGameClient* m_pGameClient;
 	VMainMenu* m_pMainMenu;
+	VCharSelect* m_pCharSelect;
+	VCharMake* m_pMakeNewChar;
 	double m_dMenuSlideInAnimTime;
 	double m_dMenuSlideOutAnimTime;
 	bool m_bMouseDown;
 	char* m_szNewUrl;
+	bool m_bLoner;
 
 public:
 	Controller(RunModes eRunMode, const char* szParam);
@@ -108,7 +116,12 @@ public:
 	void FollowLink(const char* szUrl);
 
 	void MakeServerView(MGameServer* pServer);
+	void MakeNewCharView();
+	void CancelMakeNewChar();
 	void AddObject(const char* szFilename);
+	void ClearTypeBuffer();
+	void CreateNewCharacter(const char* szAvatarID, const char* szPassword);
+	void LogIn(GXMLTag* pAccountRefTag, const char* szPassword);
 
 protected:
 	//void GetArrowKeyVector(float* pdx, float* pdy);
@@ -117,6 +130,8 @@ protected:
 	void ControlThirdPerson(double dTimeDelta);
 	void ControlFirstPerson(double dTimeDelta);
 	void ControlMainMenu(double dTimeDelta);
+	void ControlCharSelect(double dTimeDelta);
+	void ControlMakeNewChar(double dTimeDelta);
 	void ControlEntropyCollector(double dTimeDelta);
 	void GoToRealm(const char* szURL);
 	void PopAllViewPorts();
@@ -133,6 +148,7 @@ protected:
 	void OnKeyDown(SDLKey key, SDLMod mod);
 
 	void MakeEntropyCollectorView();
+	void MakeCharSelectView();
 	void BringUpMainMenu();
 };
 

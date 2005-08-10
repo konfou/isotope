@@ -130,6 +130,9 @@ public:
 	// you must delete the row this returns
 	double* DropRow(int nRow);
 
+	// Abandons (leaks) all the rows of data
+	void DropAllRows();
+
 	// Randomizes row order
 	void ShuffleRows();
 

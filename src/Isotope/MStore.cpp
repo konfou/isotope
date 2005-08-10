@@ -79,6 +79,14 @@ void MImageStore::AddImage(const char* szRemotePath, MScriptEngine* pScriptEngin
 	m_pVarHolders->AddPointer(pVarHolder);
 }
 
+void MImageStore::AddImage(MScriptEngine* pScriptEngine, const char* szGlobalID)
+{
+	char* szIDString = m_pStringHeap->Add(szGlobalID);
+	m_pHashTable->Add(szIDString, (void*)(m_pVarHolders->GetSize()));
+	VarHolder* pVarHolder = pScriptEngine->CopyGlobalImage(szGlobalID);
+	m_pVarHolders->AddPointer(pVarHolder);
+}
+
 // -------------------------------------------------------------------------------
 
 MAnimationStore::MAnimationStore(MScriptEngine* pScriptEngine)
@@ -128,6 +136,14 @@ void MAnimationStore::FromXml(GXMLTag* pTag, MImageStore* pImageStore)
 		m_pHashTable->Add(szIDString, (void*)m_pVarHolders->GetSize());
 		m_pVarHolders->AddPointer(hVarHolder.Drop());
 	}
+}
+
+void MAnimationStore::AddAnimation(MScriptEngine* pScriptEngine, MImageStore* pImageStore, const char* szGlobalID)
+{
+	char* szIDString = m_pStringHeap->Add(szGlobalID);
+	m_pHashTable->Add(szIDString, (void*)(m_pVarHolders->GetSize()));
+	VarHolder* pVarHolder = pScriptEngine->CopyGlobalAnimation(pImageStore, szGlobalID);
+	m_pVarHolders->AddPointer(pVarHolder);
 }
 
 // -------------------------------------------------------------------------------

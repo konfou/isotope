@@ -14,7 +14,7 @@ const char* g_szTrustedPublicKey = "<KeyPair N=\"1b5d56db6338439933613b7dfbd6b68
 {
 	return g_szTrustedPublicKey;
 }
-void HashBlob(unsigned char* pOutDigest, const unsigned char* pBlob, int nSize)
+void HashBlobSha512(unsigned char* pOutDigest, const unsigned char* pBlob, int nSize)
 {
 	sha512_ctx ctx;
 	memset(&ctx, '\0', sizeof(sha512_ctx));
@@ -44,7 +44,7 @@ int GetHashOfTagMinusSignature(unsigned char* pOutDigest, int nBytes, GXMLTag* p
 	Holder<char*> hDoc(pTag->ToString());
 	char* pDoc = hDoc.Get();
 	unsigned char pDigest[SHA512_DIGEST_LENGTH];
-	HashBlob(pDigest, (const unsigned char*)pDoc, strlen(pDoc));
+	HashBlobSha512(pDigest, (const unsigned char*)pDoc, strlen(pDoc));
 
 	// Copy as much of the hash as the buffer can hold
 	int nOutSize = MIN(nBytes, SHA512_DIGEST_LENGTH);
@@ -147,7 +147,7 @@ void BlessThisApplication(const char* szPrivateKeyFilename, const char* szUrl)
 	Holder<char*> hThisApp(GFile::LoadFileToBuffer(szFilename, &nSize));
 	char* pThisApp = hThisApp.Get();
 	unsigned char pDigest[SHA512_DIGEST_LENGTH];
-	HashBlob(pDigest, (const unsigned char*)pThisApp, nSize);
+	HashBlobSha512(pDigest, (const unsigned char*)pThisApp, nSize);
 	Holder<char*> hHex(new char[2 * SHA512_DIGEST_LENGTH + 10]);
 	char* pHex = hHex.Get();
 	BufferToHex(pDigest, SHA512_DIGEST_LENGTH, pHex);
@@ -237,7 +237,7 @@ unsigned int CheckForUpdates(void* pData)
 		return 0;
 	}
 	unsigned char pHash[SHA512_DIGEST_LENGTH];
-	HashBlob(pHash, (const unsigned char*)pNewAppFile, nSize);
+	HashBlobSha512(pHash, (const unsigned char*)pNewAppFile, nSize);
 	Holder<char*> hHex(new char[2 * SHA512_DIGEST_LENGTH + 10]);
 	char* pHex = hHex.Get();
 	BufferToHex(pHash, SHA512_DIGEST_LENGTH, pHex);

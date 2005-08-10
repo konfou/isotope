@@ -94,9 +94,8 @@ MAnimation::~MAnimation()
 	delete(m_szID);
 }
 
-void MAnimation::CopyData(MAnimation* pThat)
+void MAnimation::CopyGuts(MAnimation* pThat)
 {
-	m_pImage = pThat->m_pImage;
 	m_pFrames = new MAnimationFrame[pThat->m_nFrames];
 	int n;
 	for(n = 0; n < pThat->m_nFrames; n++)
@@ -106,8 +105,22 @@ void MAnimation::CopyData(MAnimation* pThat)
 	m_time = 0;
 	m_nColumns = pThat->m_nColumns;
 	m_fDirection = pThat->m_fDirection;
+}
+
+void MAnimation::CopyDataAcrossEngines(MAnimation* pThat, VarHolder* pImage, const char* szID)
+{
+	m_pImage = pImage;
+	m_szID = new char[strlen(szID) + 1];
+	strcpy(m_szID, szID);
+	CopyGuts(pThat);
+}
+
+void MAnimation::CopyData(MAnimation* pThat)
+{
+	m_pImage = pThat->m_pImage;
 	m_szID = new char[strlen(pThat->m_szID) + 1];
 	strcpy(m_szID, pThat->m_szID);
+	CopyGuts(pThat);
 }
 
 void MAnimation::newCopy(Engine* pEngine, EVar* pThat)
@@ -157,9 +170,19 @@ void MAnimation::fromStream(Engine* pEngine, EVar* pStream)
 			// the store and make a copy
 			MAnimationStore* pStore = pGameClient->GetAnimations();
 			int index = pStore->GetIndex(szID);
+			if(index < 0)
+			{
+				MAnimationStore* pGlobalStore = GameEngine::GetGlobalAnimationStore();
+				if(pGlobalStore->GetIndex(szID) >= 0)
+				{
+					pStore->AddAnimation(((MVM*)pEngine)->m_pScriptEngine, pGameClient->GetImages(), szID);
+					index = pStore->GetIndex(szID);
+				}
+				else
+					GameEngine::ThrowError("No such animation: %s", szID);
+			}
 			MAnimation* pAnim = (MAnimation*)pStore->GetVarHolder(index)->GetGObject();
-			if(!pAnim)
-				GameEngine::ThrowError("No such animation: %s", szID);
+			GAssert(pAnim, "Failed to retrieve animation");
 			pNewAnim = new MAnimation(pEngine);
 			pNewAnim->CopyData(pAnim);
 			pNewAnim->m_nUID = nUID;
@@ -243,6 +266,24 @@ bool MAnimation::AdvanceTime(double dt)
 	return bRet;
 }
 
+GImage* MAnimation::GetFrame(GRect* pRect)
+{
+	*pRect = m_pFrames[m_nCurrentFrame].m_rect;
+	return &((MGameImage*)m_pImage->GetGObject())->m_value;
+}
+
+GImage* MAnimation::GetColumnFrame(GRect* pRect, float fCameraDirection)
+{
+	GImage* pImage = GetFrame(pRect);
+	int col = (int)((fCameraDirection - m_fDirection) * m_nColumns / (float)6.28318);
+	while(col < 0) // todo: this could be a perf issue
+		col += m_nColumns;
+	while(col >= m_nColumns) // todo: this could be a perf issue
+		col -= m_nColumns;
+	pRect->x += pRect->w * col;
+	return pImage;
+}
+
 void MAnimation::getFrame(Engine* pEngine, EVar* pOutImage, EVar* pOutRect)
 {
 	if(!m_pImage)
@@ -271,9 +312,9 @@ void MAnimation::getColumnFrame(Engine* pEngine, EVar* pOutImage, EVar* pOutRect
 {
 	getFrame(pEngine, pOutImage, pOutRect);
 	int col = (int)((pCameraDirection->pFloatObject->m_value - m_fDirection) * m_nColumns / (float)6.28318);
-	while(col < 0)
+	while(col < 0) // todo: this could be a perf issue
 		col += m_nColumns;
-	while(col >= m_nColumns)
+	while(col >= m_nColumns) // todo: this could be a perf issue
 		col -= m_nColumns;
 	((IntObject*)pOutRect->pObjectObject->arrFields[0])->m_value +=
 		((IntObject*)pOutRect->pObjectObject->arrFields[2])->m_value * col;

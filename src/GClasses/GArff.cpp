@@ -530,6 +530,11 @@ double* GArffData::DropRow(int nRow)
 	return pRow;
 }
 
+void GArffData::DropAllRows()
+{
+	m_pRows->Clear();
+}
+
 void GArffData::ShuffleRows()
 {
 	// Swap every row with a randomely selected row

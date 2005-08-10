@@ -12,6 +12,10 @@
 #ifndef __GAMEENGINE_H__
 #define __GAMEENGINE_H__
 
+class MImageStore;
+class MAnimationStore;
+class GXMLTag;
+
 // This is the main class that represents the entire application
 class GameEngine
 {
@@ -20,6 +24,9 @@ protected:
 	static const char* s_szCachePath;
 	static char* s_szErrorMessage;
 	static const char* s_szEdumetricsPublicKey;
+	static MImageStore* s_pImageStore;
+	static MAnimationStore* s_pAnimationStore;
+	static GXMLTag* s_pConfigTag;
 
 public:
 	static void ThrowError(const char* szMessage);
@@ -59,11 +66,21 @@ public:
 	// it will throw an execption, otherwise just return NULL.
 	static char* DownloadFile(const char* szUrl, int* pnSize, bool bThrow);
 
+	// pOutHash should be a buffer of at least size 2 * SHA512_DIGEST_LENGTH + 1
+	static void MakePasswordHash(char* pOutHash, const char* szPassword);
+
 	static const char* SetErrorMessage(const char* szMessage);
+	static MImageStore* GetGlobalImageStore();
+	static MAnimationStore* GetGlobalAnimationStore();
+	static GXMLTag* GetConfig();
+	static void SaveConfig();
+	static const char* GetStartUrl();
 
 protected:
 	// Helper used by LoadFileFromUrl
 	static char* DownloadAndCacheFile(const char* szUrl, int* pnSize, char* szCacheName);
+
+	static void LoadGlobalMedia();
 };
 
 #endif // __GAMEENGINE_H__

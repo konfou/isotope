@@ -38,6 +38,7 @@ public:
 		Store,
 		Text,
 		Url,
+		GlobalId,
 	};
 
 	GImage m_value;
@@ -106,6 +107,7 @@ public:
 	GImage* GetImage() { return &m_value; }
 
 	void load(Engine* pEngine, EVar* pFilename);
+	const char* GetID();
 
 protected:
 	void makeTextImageHelper(Engine* pEngine, const char* szText);

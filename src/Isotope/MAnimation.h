@@ -13,13 +13,14 @@
 #define __MANIMATION_H__
 
 #include "../Gash/Include/GashSdl.h"
-#include "../GClasses/GImage.h"
 #include <wchar.h>
 
 class MAnimationFrame;
-class GImage;
 class GXMLTag;
 class MImageStore;
+class MGameImage;
+struct GRect;
+class MScriptEngine;
 
 // This class represents an animation (which consists of an image and a collection of frames, where
 // a frame is a rectangular region of the image).  The toStream and fromStream methods only
@@ -42,8 +43,8 @@ protected:
 	char* m_szID;
 	int m_nUID;
 
-	MAnimation(Engine* pEngine);
 public:
+	MAnimation(Engine* pEngine);
 	virtual ~MAnimation();
 
 	static MAnimation* FromXml(GXMLTag* pTag, MScriptEngine* pScriptEngine, const char* szID, MImageStore* pImageStore);
@@ -86,8 +87,17 @@ public:
 	void SetDirection(float radians) { m_fDirection = radians; }
 	int GetColumnCount() { return m_nColumns; }
 	void SetColumnCount(int n) { m_nColumns = n; }
+	GImage* GetFrame(GRect* pRect);
+	GImage* GetColumnFrame(GRect* pRect, float fCameraDirection);
+	void CopyDataAcrossEngines(MAnimation* pThat, VarHolder* pImage, const char* szID);
+	VarHolder* GetImage() { return m_pImage; }
 
 protected:
+	// Copies just the primitive data parts of pThat into this animation.  (This
+	// method does the work that is common between CopyData and CopyDataAcrossEngines)
+	void CopyGuts(MAnimation* pThat);
+
+	// Copies pThat into this animation (including the ID and image)
 	void CopyData(MAnimation* pThat);
 };
 

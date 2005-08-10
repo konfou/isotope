@@ -32,6 +32,7 @@ class Model
 public:
 	enum ModelType
 	{
+		None,
 		Server,
 		Client,
 		KeyGenerator,
@@ -56,5 +57,16 @@ protected:
 
 };
 
+class NoModel : public Model
+{
+public:
+
+	NoModel() {}
+	virtual ~NoModel() {}
+
+	virtual void Update(double time) {}
+	virtual bool OnReplaceObject(int nConnection, MObject* pOld, MObject* pNew) { return true; }
+	virtual ModelType GetType() { return None; }
+};
 
 #endif // __MODEL_H__

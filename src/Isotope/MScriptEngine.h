@@ -31,6 +31,8 @@ class GImage;
 class MObject;
 class MGameClient;
 class Controller;
+class MImageStore;
+class MScriptEngine;
 
 
 // This class just provids a callback function to use when an error occurs.
@@ -81,12 +83,14 @@ class MVM : public GVM
 public:
 	MGameClient* m_pGameClient;
 	Controller* m_pController;
+	MScriptEngine* m_pScriptEngine;
 
-	MVM(Library* pLibrary, CallBackGetter* pCBG, ErrorHandler* pErrorHandler, const char* szChrootJail, MGameClient* pGameClient, Controller* pController)
+	MVM(Library* pLibrary, CallBackGetter* pCBG, ErrorHandler* pErrorHandler, const char* szChrootJail, MGameClient* pGameClient, Controller* pController, MScriptEngine* pScriptEngine)
 		: GVM(pLibrary, pCBG, pErrorHandler, szChrootJail)
 	{
 		m_pGameClient = pGameClient;
 		m_pController = pController;
+		m_pScriptEngine = pScriptEngine;
 	}
 
 	virtual ~MVM()
@@ -173,6 +177,12 @@ public:
 
 	// loads a bitmap image into a Gash Image object
 	VarHolder* LoadPNGImage(const char* szRemotePath, const char* szUrl, const char* szID);
+
+	// Copies an image from the global image store and returns a VarHolder
+	VarHolder* CopyGlobalImage(const char* szGlobalID);
+
+	// Copies an animation from the global image store and returns a VarHolder
+	VarHolder* CopyGlobalAnimation(MImageStore* pLocalImageStore, const char* szGlobalID);
 
 	static void DoAvatarActionAnimation(MObject* pAvatar);
 

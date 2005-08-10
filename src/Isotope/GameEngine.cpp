@@ -24,6 +24,7 @@
 #include "../GClasses/GXML.h"
 #include "../GClasses/GBillboardCamera.h"
 #include "../GClasses/GThread.h"
+#include "../GClasses/sha2.h"
 #include "MGameClient.h"
 #include "MScriptEngine.h"
 #ifdef WIN32
@@ -35,11 +36,14 @@
 #include "MObject.h"
 #include <string.h>
 #include "AutoUpdate.h"
+#include "MStore.h"
 
 /*static*/ const char* GameEngine::s_szAppPath = NULL;
 /*static*/ const char* GameEngine::s_szCachePath = NULL;
 /*static*/ char* GameEngine::s_szErrorMessage = NULL;
-
+/*static*/ MImageStore* GameEngine::s_pImageStore = NULL;
+/*static*/ MAnimationStore* GameEngine::s_pAnimationStore = NULL;
+/*static*/ GXMLTag* GameEngine::s_pConfigTag = NULL;
 
 /*static*/ void GameEngine::ThrowError(const char* szMessage)
 {
@@ -83,6 +87,13 @@
 			continue;
 		return uid;
 	}
+}
+
+/*static*/ void GameEngine::MakePasswordHash(char* pOutHash, const char* szPassword)
+{
+	unsigned char pDigest[SHA512_DIGEST_LENGTH];
+	HashBlobSha512(pDigest, (const unsigned char*)szPassword, strlen(szPassword));
+	BufferToHex(pDigest, SHA512_DIGEST_LENGTH, pOutHash);
 }
 
 // todo: this method probably doesn't handle all URL's properly.  For example, if the host is
@@ -239,6 +250,134 @@
 	s_szCachePath = szPath;
 }
 
+const char* g_szBogusScript = "\
+class Rect(Object)\n\
+{\n\
+	method !new()\n\
+	{\n\
+	}\n\
+}\n\
+\n\
+machine GImage\n\
+{\n\
+}\n\
+\n\
+machine Animation\n\
+{\n\
+	method getFrame(!GImage:i, &Rect:r)\n\
+	method getColumnFrame(!GImage:i, &Rect:r, Float:cameraDirection)\n\
+	method &advanceTime(&Bool:looped, Float:dt)\n\
+	method !newCopy(Animation:that)\n\
+}\n\
+\n\
+interface IObject\n\
+{\n\
+	method &update(Float:time)\n\
+	method getFrame(!GImage:i, &Rect:r, Float:cameraDirection)\n\
+	method &doAction(Float:x, Float:y)\n\
+	method &onGetFocus()\n\
+	method &onLoseFocus()\n\
+	method verify(&Bool:ok, Integer:client, RealmObject:newObj)\n\
+}\n\
+\n\
+class RealmObject(Object)\n\
+{\n\
+	interface IObject\n\
+}\n\
+\n\
+class Bogus(Object)\n\
+{\n\
+	proc main()\n\
+	{\n\
+		!Rect:r.new()\n\
+		!Float:f.new()\n\
+		!Stream:s.new()\n\
+	}\n\
+}";
+
+/*static*/ void GameEngine::LoadGlobalMedia()
+{
+	// Load the global media XML file
+	const char* szAppPath = GetAppPath();
+	char* szMediaListFile = (char*)alloca(strlen(szAppPath) + 50);
+	strcpy(szMediaListFile, szAppPath);
+	strcat(szMediaListFile, "media/media.xml");
+	const char* szErrorMessage = NULL;
+	int nErrorLine = 0;
+	Holder<GXMLTag*> hRootTag(GXMLTag::FromFile(szMediaListFile, &szErrorMessage, NULL, &nErrorLine, NULL));
+	GXMLTag* pRootTag = hRootTag.Get();
+	if(!pRootTag)
+		ThrowError("Error loading XML file: %s\n%s\n", szMediaListFile, szErrorMessage);
+
+	// Make a bogus script engine
+	MScriptEngine* pBogusScriptEngine = new MScriptEngine(g_szBogusScript, strlen(g_szBogusScript), new IsotopeErrorHandler(), NULL, NULL);
+
+	// Load the image store
+	GXMLTag* pImages = pRootTag->GetChildTag("Images");
+	if(!pImages)
+		GameEngine::ThrowError("Expected an 'Images' tag");
+	s_pImageStore = new MImageStore();
+	s_pImageStore->FromXml(NULL, pImages, pBogusScriptEngine);
+
+	// Load the animation store
+	GXMLTag* pAnimations = pRootTag->GetChildTag("Animations");
+	if(!pAnimations)
+		GameEngine::ThrowError("Expected an 'Animations' tag");
+	s_pAnimationStore = new MAnimationStore(pBogusScriptEngine);
+	s_pAnimationStore->FromXml(pAnimations, s_pImageStore);
+}
+
+/*static*/ MImageStore* GameEngine::GetGlobalImageStore()
+{
+	if(!s_pImageStore)
+		LoadGlobalMedia();
+	return s_pImageStore;
+}
+
+/*static*/ MAnimationStore* GameEngine::GetGlobalAnimationStore()
+{
+	if(!s_pAnimationStore)
+		LoadGlobalMedia();
+	return s_pAnimationStore;
+}
+
+/*static*/ GXMLTag* GameEngine::GetConfig()
+{
+	if(s_pConfigTag)
+		return s_pConfigTag;
+	const char* szAppPath = GetAppPath();
+	char* szConfigFileName = (char*)alloca(strlen(szAppPath) + 50);
+	strcpy(szConfigFileName, szAppPath);
+	strcat(szConfigFileName, "config.xml");
+	const char* szErrorMessage;
+	int nErrorLine;
+	s_pConfigTag = GXMLTag::FromFile(szConfigFileName, &szErrorMessage, NULL, &nErrorLine, NULL);
+	if(!s_pConfigTag)
+		ThrowError("Failed to load config file: %s", szErrorMessage);
+	return s_pConfigTag;
+}
+
+/*static*/ const char* GameEngine::GetStartUrl()
+{
+	GXMLTag* pConfigTag = GetConfig();
+	GXMLTag* pStartTag = pConfigTag->GetChildTag("Start");
+	if(!pStartTag)
+		GameEngine::ThrowError("Expected a <Start> tag in the config.xml file");
+	GXMLAttribute* pUrlAttr = pStartTag->GetAttribute("url");
+	if(!pUrlAttr)
+		GameEngine::ThrowError("Expected a \"url\" attribute in the start tag in the config.xml file");
+	return pUrlAttr->GetValue();
+}
+
+/*static*/ void GameEngine::SaveConfig()
+{
+	const char* szAppPath = GetAppPath();
+	char* szConfigFileName = (char*)alloca(strlen(szAppPath) + 50);
+	strcpy(szConfigFileName, szAppPath);
+	strcat(szConfigFileName, "config.xml");
+	GetConfig()->ToFile(szConfigFileName);
+}
+
 /*static*/ const char* GameEngine::SetErrorMessage(const char* szMessage)
 {
 	delete(s_szErrorMessage);
@@ -312,15 +451,12 @@ void LaunchProgram(int argc, char *argv[])
 	// Parse the runmode
 	bool bOK = false;
 	Controller::RunModes eRunMode = Controller::SERVER;
+	const char* szArg = NULL;
 	if(argc >= 3)
 	{
 		bOK = true;
 		if(stricmp(argv[1], "server") == 0)
 			eRunMode = Controller::SERVER;
-		else if(stricmp(argv[1], "client") == 0)
-			eRunMode = Controller::CLIENT;
-		else if(stricmp(argv[1], "loner") == 0)
-			eRunMode = Controller::LONER;
 		else if(stricmp(argv[1], "keypair") == 0)
 			eRunMode = Controller::KEYPAIR;
 		else if(stricmp(argv[1], "bless") == 0 && argc >= 4)
@@ -330,6 +466,22 @@ void LaunchProgram(int argc, char *argv[])
 		}
 		else
 			bOK = false;
+		szArg = argv[2];
+	}
+	else if(argc >= 2)
+	{
+		bOK = true;
+		if(stricmp(argv[1], "client") == 0)
+			eRunMode = Controller::CLIENT;
+		else if(stricmp(argv[1], "loner") == 0)
+			eRunMode = Controller::LONER;
+		else
+			bOK = false;
+	}
+	else
+	{
+		bOK = true;
+		eRunMode = Controller::CLIENT;
 	}
 
 	// Show usage if we couldn't parse the runmode
@@ -342,9 +494,8 @@ void LaunchProgram(int argc, char *argv[])
 		printf("Valid values for [parameters] depend on the value for [command].\n");
 		printf("Possible values for [command]:\n");
 		printf("\n");
-		printf("client [Url]            Run as a client.  (If you don't know what you're doing,\n");
-		printf("                        you want this one.)  The value of [Url] should refer to\n");
-		printf("                        a .realm file for which someone is running as a server.\n");
+		printf("client                  Run as a client.  (If you don't know what you're doing,\n");
+		printf("                        you want this one.)\n");
 		printf("\n");
 		printf("server [WWW-Root-Path]  Run as a server.  The value of [WWW-Root-Path]\n");
 		printf("                        should be the web root used by your HTTP server\n");
@@ -356,7 +507,7 @@ void LaunchProgram(int argc, char *argv[])
 		printf("                        still be made available via some HTTP server, but there\n");
 		printf("                        doesn't need to be an Isotope server running anywhere.\n");
 		printf("                        Consequently, you will be alone in any worlds you\n");
-		printf("                        visit.  This mode is useful for testing purposes.\n");
+		printf("                        visit.  This mode is useful while developing content.\n");
 		printf("\n");
 		printf("keypair [Output File]   Generate a key pair.\n");
 		printf("\n");
@@ -372,7 +523,7 @@ void LaunchProgram(int argc, char *argv[])
 	//	return;
 
 	// Run the main loop
-	Controller c(eRunMode, argv[2]);
+	Controller c(eRunMode, szArg);
 	c.Run();
 }
 

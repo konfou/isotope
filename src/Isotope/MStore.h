@@ -51,9 +51,7 @@ public:
 	VarHolder* GetVarHolder(const char* szID);
 
 	void AddImage(const char* szRemotePath, MScriptEngine* pScriptEngine, const char* szID, const char* szFilename);
-
-protected:
-	//GImage* GetImage(int n);
+	void AddImage(MScriptEngine* pScriptEngine, const char* szGlobalID);
 };
 
 
@@ -78,6 +76,8 @@ public:
 	VarHolder* GetVarHolder(int n);
 
 	void FromXml(GXMLTag* pTag, MImageStore* pImageStore);
+
+	void AddAnimation(MScriptEngine* pScriptEngine, MImageStore* pImageStore, const char* szGlobalID);
 };
 
 

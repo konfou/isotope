@@ -109,6 +109,43 @@ double GPolynomial::MeasureMeanSquareError(GArffRelation* pRelation, GArffData* 
 	return dSum / nCount;
 }
 
+double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* pData, int nOutputAttr)
+{
+	int nCount = pData->GetRowCount();
+	GArffData d1(nCount);
+	GArffData d2(nCount);
+	int nInputs = pRelation->GetInputCount();
+	GAssert(m_nDimensions == nInputs - 1, "unexpected number of inputs");
+	double* pInputs = (double*)alloca(sizeof(double) * (nInputs - 1));
+	int n, i;
+	double dThresh;
+	for(n = 0; n < nCount; n++)
+	{
+		double* pRow = pData->GetRow(n);
+		for(i = 0; i < nInputs - 1; i++)
+			pInputs[i] = pRow[pRelation->GetInputIndex(i)];
+		dThresh = Eval(pInputs);
+		if(dThresh >= 0)
+			d1.AddRow(pRow);
+		else
+			d2.AddRow(pRow);
+	}
+	double dError1 = 1e100;
+	double dError2 = 1e100;
+	if(d1.GetRowCount() * 5 >= d2.GetRowCount() && d2.GetRowCount() * 5 >= d1.GetRowCount())
+	{
+		Holder<GPolynomial*> hPoly1(FitData(pRelation, &d1, nOutputAttr, m_nControlPoints));
+		dError1 = hPoly1.Get()->MeasureMeanSquareError(pRelation, &d1, nOutputAttr);
+		Holder<GPolynomial*> hPoly2(FitData(pRelation, &d2, nOutputAttr, m_nControlPoints));
+		dError2 = hPoly2.Get()->MeasureMeanSquareError(pRelation, &d2, nOutputAttr);
+	}
+	dError1 *= dError1;
+	dError2 *= dError2;
+	d1.DropAllRows();
+	d2.DropAllRows();
+	return dError1 + dError2;
+}
+
 /*static*/ GPolynomial* GPolynomial::FitData(GArffRelation* pRelation, GArffData* pData, int nOutputAttr, int nControlPoints)
 {
 	GArffAttribute* pAttr = pRelation->GetAttribute(nOutputAttr);
@@ -120,8 +157,10 @@ double GPolynomial::MeasureMeanSquareError(GArffRelation* pRelation, GArffData* 
 	double dStep;
 	int nCoefficients = pPolynomial->m_nCoefficients;
 	int n;
-	for(dStep = 100; dStep > .000001; dStep *= .95)
+	bool bGotOne;
+	for(dStep = 1000; dStep > .000001; dStep *= .95)
 	{
+		bGotOne = false;
 		for(n = 0; n < nCoefficients; n++)
 		{
 			pPolynomial->m_pCoefficients[n] += dStep;
@@ -135,8 +174,53 @@ double GPolynomial::MeasureMeanSquareError(GArffRelation* pRelation, GArffData* 
 			if(dError >= dBestError)
 				pPolynomial->m_pCoefficients[n] += dStep;
 			else
+			{
 				dBestError = dError;
+				bGotOne = true;
+			}
 		}
+		if(!bGotOne)
+			dStep *= .6;
+	}
+	return pPolynomial;
+}
+
+/*static*/ GPolynomial* GPolynomial::DivideData(GArffRelation* pRelation, GArffData* pData, int nOutputAttr, int nControlPoints)
+{
+	GArffAttribute* pAttr = pRelation->GetAttribute(nOutputAttr);
+	GAssert(!pAttr->IsInput(), "expected an output attribute");
+	int nInputs = pRelation->GetInputCount();
+	GAssert(nInputs > 1, "Not enough inputs for this technique");
+	GPolynomial* pPolynomial = new GPolynomial(nInputs - 1, nControlPoints);
+	double dBestError = pPolynomial->DivideAndMeasureError(pRelation, pData, nOutputAttr);
+	double dError;
+	double dStep;
+	int nCoefficients = pPolynomial->m_nCoefficients;
+	int n;
+	bool bGotOne;
+	for(dStep = 1000; dStep > .000001; dStep *= .95)
+	{
+		bGotOne = false;
+		for(n = 0; n < nCoefficients; n++)
+		{
+			pPolynomial->m_pCoefficients[n] += dStep;
+			dError = pPolynomial->DivideAndMeasureError(pRelation, pData, nOutputAttr);
+			if(dError >= dBestError)
+			{
+				pPolynomial->m_pCoefficients[n] -= dStep;
+				pPolynomial->m_pCoefficients[n] -= dStep;
+				dError = pPolynomial->DivideAndMeasureError(pRelation, pData, nOutputAttr);
+			}
+			if(dError >= dBestError)
+				pPolynomial->m_pCoefficients[n] += dStep;
+			else
+			{
+				dBestError = dError;
+				bGotOne = true;
+			}
+		}
+		if(!bGotOne)
+			dStep *= .6;
 	}
 	return pPolynomial;
 }
