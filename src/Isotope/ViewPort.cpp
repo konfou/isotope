@@ -10,6 +10,8 @@
 */
 
 #include "ViewPort.h"
+#include "../GClasses/GString.h"
+#include "../GClasses/GWidgets.h"
 
 /*static*/ void ViewPort::BlitImage(SDL_Surface* pScreen, int x, int y, GImage* pImage)
 {
@@ -110,3 +112,11 @@
 	}
 }
 
+/*static*/ GWidgetButton* ViewPort::MakeNewButton(GWidgetStyle* pStyle, int x, int y, int w, int h, const wchar_t* wszText)
+{
+	GString sText(wszText);
+	GWidgetButton* pNewButton = new GWidgetButton(pStyle, x, y, w, h, &sText);
+	pStyle->AddWidget(pNewButton);
+	pNewButton->Update();
+	return pNewButton;
+}

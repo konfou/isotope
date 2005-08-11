@@ -84,10 +84,10 @@ const char* EMethod::FindParamName(int n)
 	return "<error>";
 }
 
-EInstrArray* EMethod::GetEInstrArray()
+EInstrArray* EMethod::GetEInstrArray(COMethod* pMethod)
 {
 	if(!m_pEInstrArray)
-		m_pEInstrArray = new EInstrArray(m_pMethodTag);
+		m_pEInstrArray = new EInstrArray(m_pMethodTag, pMethod);
 	return m_pEInstrArray;
 }
 
@@ -111,7 +111,7 @@ void EMethod::GetDependentMethods(GHashTable* pMethodTable, GHashTable* pTypeTab
 	if(pMethodTable->Get(nID, (void**)&nTmp))
 		return;
 	pMethodTable->Add(nID, NULL);
-	EInstrArray* pEInstrArray = GetEInstrArray();
+	EInstrArray* pEInstrArray = GetEInstrArray(NULL);
 	pEInstrArray->GetDependentMethods(pMethodTable, pTypeTable, pLibrary, pProject);
 }
 

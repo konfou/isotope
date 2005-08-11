@@ -24,25 +24,28 @@
 COInstruction::COInstruction(int nLine, int nCol, int nWid, COInstrArray* pParent)
 : COScope(nLine, nCol, nWid, pParent)
 {
-	m_nFirstAsmInstr = -1;
+	m_nIndex = -1;
 }
 
 COInstruction::~COInstruction()
 {
 }
 
-/*static*/ COInstruction* COInstruction::FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial)
+/*static*/ COInstruction* COInstruction::FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial, int* pnInstructionIndex)
 {
 	COInstruction* pNewInstruction = NULL;
 	const char* szName = pTag->GetName();
+	int nIndex = *pnInstructionIndex;
+	(*pnInstructionIndex)++;
+	COInstruction* pInstruction;
 	if(stricmp(szName, TAG_NAME_CALL) == 0)
-		return COCall::FromXML(pTag, pParent, pCOProject, bPartial);
+		pInstruction = COCall::FromXML(pTag, pParent, pCOProject, bPartial, pnInstructionIndex);
 	else if(stricmp(szName, TAG_NAME_BLOCK) == 0)
-		return COBlock::FromXML(pTag, pParent, pCOProject, bPartial);
+		pInstruction = COBlock::FromXML(pTag, pParent, pCOProject, bPartial);
 	else
 		pCOProject->ThrowError(&Error::EXPECTED_ASM_CALL_OR_CALLBACK_TAG, pTag);
-	GAssert(false, "how'd you get here?");
-	return NULL;
+	pInstruction->m_nIndex = nIndex;
+	return pInstruction;
 }
 
 GXMLTag* COInstruction::SaveToXML(COInstrArray* pParent)

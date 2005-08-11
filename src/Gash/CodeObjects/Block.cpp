@@ -55,9 +55,9 @@ void COBlock::SetComment(const char* szComment)
 	return pBlock;
 }
 
-void COBlock::LoadChildInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial)
+void COBlock::LoadChildInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial, int* pnInstructionIndex)
 {
-	m_pInstrArray->LoadFromXML(pTag, pCOProject, bPartial);
+	m_pInstrArray->LoadFromXML(pTag, pCOProject, bPartial, pnInstructionIndex);
 }
 
 /*virtual*/ GXMLTag* COBlock::SaveToXML(COInstrArray* pParent)
@@ -140,3 +140,10 @@ void COBlock::SaveToClassicSyntax(GQueue* pQ, int nTabs)
 	return true;
 }
 
+/*virtual*/ COInstruction* COBlock::FindInstruction(int nIndex)
+{
+	if(m_pInstrArray)
+		return m_pInstrArray->FindInstruction(nIndex);
+	else
+		return NULL;
+}

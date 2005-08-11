@@ -521,6 +521,8 @@ class Library
 {
 protected:
 	GXMLTag* m_pLibraryTag;
+	COProject* m_pProject;
+	bool m_bOwnProject;
 
 	int m_nMethodCount;
 	EMethod* m_pMethods;
@@ -546,26 +548,25 @@ protected:
 #endif // _DEBUG
 
 	// Constructors are intentionally protected--use a public static method instead
-	Library(GXMLTag* pLibraryTag); // takes ownership of pLibraryTag
-	Library(const char* szFilename);
+	Library(GXMLTag* pLibraryTag, COProject* pProject, bool bTakeProjectOwnership); // takes ownership of pLibraryTag
 
 public:
 	virtual ~Library();
 
 	// This loads a library from a .xlib file.  You are responsible to
 	// delete the library it returns when you are done with it.
-	static Library* LoadFromFile(const char* szFilename);
+	static Library* LoadFromFile(const char* szFilename, COProject* pProject, bool bTakeProjectOwnership);
 
 	// This loads a library from a .xlib file that has already been loaded
 	// into a buffer.  You are responsible to
 	// delete the library it returns when you are done with it.
-	static Library* LoadFromBuffer(const char* pBuffer, int nBufferSize); // you must delete the library when you're done with it
+	static Library* LoadFromBuffer(const char* pBuffer, int nBufferSize, COProject* pProject, bool bTakeProjectOwnership); // you must delete the library when you're done with it
 
 	// This creates a library from a .xlib file that you have already
 	// parsed into a GXMLTag tree.  This takes ownership of the XML tree, so
 	// don't delete it!  You are responsible to delete the library it returns
 	// when you are done with it (and it will delete the XML tree you gave it).
-	static Library* CreateFromXML(GXMLTag* pLibraryTag);
+	static Library* CreateFromXML(GXMLTag* pLibraryTag, COProject* pProject, bool bTakeProjectOwnership);
 
 	// Getters
 	int GetMethodCount() { return m_nMethodCount; }
@@ -583,6 +584,7 @@ public:
 	static bool RenumberIDs(GXMLTag* pLibraryTag, COProject* pCOProject);
 	char* GetXmlAsCppString(); // You are responsible to "delete" the string it returns
 	bool SaveAsCppString(const char* szFilename);
+	COProject* GetProject() { return m_pProject; }
 
 	inline EClass* GetObject() { return m_pObject; }
 	inline EClass* GetInteger() { return m_pInteger; }

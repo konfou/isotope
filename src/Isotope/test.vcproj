@@ -241,6 +241,18 @@
 			RelativePath=".\NRealmProtocol.h">
 		</File>
 		<File
+			RelativePath=".\VCharMake.cpp">
+		</File>
+		<File
+			RelativePath=".\VCharMake.h">
+		</File>
+		<File
+			RelativePath=".\VCharSelect.cpp">
+		</File>
+		<File
+			RelativePath=".\VCharSelect.h">
+		</File>
+		<File
 			RelativePath=".\VEntropyCollector.cpp">
 		</File>
 		<File

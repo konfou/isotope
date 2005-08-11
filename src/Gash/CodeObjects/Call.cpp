@@ -80,7 +80,7 @@ COExpression* COCall::GetParam(int n)
 	return m_pParameters->GetExpression(n);
 }
 
-/*static*/ COCall* COCall::FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial)
+/*static*/ COCall* COCall::FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial, int* pnInstructionIndex)
 {
 	int nLine = pTag->GetLineNumber();
 	int nCol, nWid;
@@ -202,7 +202,7 @@ COExpression* COCall::GetParam(int n)
 		if(!bCanHaveChildren)
 			pCOProject->ThrowError(&Error::INSTRUCTION_CANT_HAVE_CHILDREN, pTag);
 		COMethodCallThatCanHaveChildren* pThisCall = (COMethodCallThatCanHaveChildren*)hNewCall.Get();
-		pThisCall->m_pInstrArray->LoadFromXML(pInstructionsTag, pCOProject, bPartial);
+		pThisCall->m_pInstrArray->LoadFromXML(pInstructionsTag, pCOProject, bPartial, pnInstructionIndex);
 	}
 
 	return hNewCall.Drop();
@@ -572,6 +572,14 @@ void COMethodCallThatCanHaveChildren::SaveToClassicSyntax(GQueue* pQ, int nTabs,
 
 	// Add child instructions
 	m_pInstrArray->SaveToClassicSyntax(pQ, nTabs);
+}
+
+/*virtual*/ COInstruction* COMethodCallThatCanHaveChildren::FindInstruction(int nIndex)
+{
+	if(m_pInstrArray)
+		return m_pInstrArray->FindInstruction(nIndex);
+	else
+		return NULL;
 }
 
 void COMethodCall::SaveToClassicSyntax(GQueue* pQ, int nTabs, bool bDisplay)

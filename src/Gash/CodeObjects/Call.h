@@ -61,7 +61,7 @@ public:
 
 	virtual bool CanHaveChildren() = 0;
 	virtual COVariable* FindVariable(const char* pName, int nLength);
-	static COCall* FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial);
+	static COCall* FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial, int* pnInstructionIndex);
 	virtual bool Compile(GCompiler* pCompiler, COMethod* pMethod, COInstruction* pSymbolInstr); // todo: this shouldn't be virtual (or the child classes should override it and it should be abstract)
 
 	// WARNING: this method takes ownership of pParamList, so after you pass it in don't delete it!  todo: don't do this
@@ -119,6 +119,7 @@ public:
 	virtual COInstrArray* GetChildInstructions() { return m_pInstrArray; }
 	virtual GXMLTag* SaveToXML(COInstrArray* pParent);
 	virtual void SaveToClassicSyntax(GQueue* pQ, int nTabs, bool bDisplay = false);
+	virtual COInstruction* FindInstruction(int nIndex);
 };
 
 

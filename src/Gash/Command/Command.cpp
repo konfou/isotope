@@ -142,11 +142,11 @@ bool RebuildMainLib(const char* szAppPath)
 
 	// Compile the project to a library
 	CompileError errorHolder;
-	Library* pLibrary = GCompiler::Compile(pProject, &errorHolder);
+	Holder<Library*> hLibrary(GCompiler::Compile(pProject, true, &errorHolder));
+	Library* pLibrary = hLibrary.Get();
 	if(!pLibrary)
 	{
 		errorHandler.OnError(&errorHolder);
-		delete(pProject);
 		return false;
 	}
 
@@ -158,19 +158,13 @@ bool RebuildMainLib(const char* szAppPath)
 	if(chdir(pLibrariesDir) != 0)
 	{
 	    fprintf(stderr, "couldn't change to libraries folder");
-		delete(pProject);
-		delete(pLibrary);
 		return false;
 	}
 	if(!pLibrary->GetLibraryTag()->ToFile("MainLib.xlib"))
 	{
 	    fprintf(stderr, "error saving the library file");
-		delete(pProject);
-		delete(pLibrary);
 		return false;
 	}
-	delete(pLibrary);
-	delete(pProject);
     printf("Successfully rebuilt main lib!");
 	return true;
 }

@@ -91,7 +91,7 @@ protected:
 public:
 	// This takes a COProject and returns a Library.  You must delete
 	// the library when you're done with it.  On error it returns NULL.
-	static Library* Compile(COProject* pCOProject, CompileError* pErrorHolder);
+	static Library* Compile(COProject* pCOProject, bool bLibraryOwnsProject, CompileError* pErrorHolder);
 	static EInstrArray* PartialCompileMethod(COMethod* pMethod, COProject* pProject);
  
 protected:

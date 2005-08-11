@@ -30,7 +30,7 @@ class GCompilerBase;
 class COInstruction : public COScope
 {
 protected:
-	int m_nFirstAsmInstr;
+	int m_nIndex;
 
 public:
 	enum InstructionType
@@ -48,22 +48,16 @@ public:
 	// Methods that deal with child instructions
 	virtual COInstrArray* GetChildInstructions() { return NULL; }
 
+	virtual COInstruction* FindInstruction(int nIndex) { return NULL; }
+
 	// Methods for loading and saving
-	static COInstruction* FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial);
+	static COInstruction* FromXML(GXMLTag* pTag, COInstrArray* pParent, COProject* pCOProject, bool bPartial, int* pnInstructionIndex);
 	virtual GXMLTag* SaveToXML(COInstrArray* pParent) = 0;
 	void SaveToClassicSyntax(GQueue* pQ, int nTabs, bool bDisplay = false);
 	static void FromClassicSyntax(ClassicSyntax* pParser, GXMLTag* pParentTag, ClassicSyntax::InstrType eType);
 
 	// Misc
-	void SetFirstAsmInstr(int nInstr)
-	{
-		m_nFirstAsmInstr = nInstr;
-	}
-
-	int GetFirstAsmInstr()
-	{
-		return m_nFirstAsmInstr;
-	}
+	int GetIndex() { return m_nIndex; }
 
 	virtual COVariable* FindVariable(const char* pName, int nLength) = 0;
 	virtual ScopeType GetScopeType() { return ST_INSTRUCTION; }

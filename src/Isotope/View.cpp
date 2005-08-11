@@ -31,13 +31,19 @@ View::~View()
 
 void View::SetScreenSize(int x, int y)
 {
+#ifdef WIN32
 	m_bFullScreen = false;
+#else // WIN32
+	m_bFullScreen = false;
+#endif // !WIN32
 	unsigned int flags = 
 		SDL_HWSURFACE |
 		SDL_ANYFORMAT;
 	if(m_bFullScreen)
 		flags |= SDL_FULLSCREEN;
+#ifdef WIN32
 	else
+#endif // WIN32
 		flags |= SDL_DOUBLEBUF; // There's a bug in SDL where double-buffering doesn't work with full screen mode
 	m_pScreen = SDL_SetVideoMode(x, y, 32, flags);
 	if(!m_pScreen)

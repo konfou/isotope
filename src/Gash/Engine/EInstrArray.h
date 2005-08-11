@@ -56,7 +56,8 @@ protected:
 
 public:
 	// Construct a EInstrArray from the XML method tag in an xlib file
-	EInstrArray(GXMLTag* pMethod);
+	// If pMethod is NULL, it will ignore any symbols in the XML tag
+	EInstrArray(GXMLTag* pMethodTag, COMethod* pMethod);
 
 	// Construct a EInstrArray from a compiled method in memory
 	// Note: this takes ownership of pData

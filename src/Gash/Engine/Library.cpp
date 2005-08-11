@@ -31,8 +31,10 @@
 #endif // !DARWIN
 
 // Takes ownership of the XML tree
-Library::Library(GXMLTag* pLibraryTag)
+Library::Library(GXMLTag* pLibraryTag, COProject* pProject, bool bTakeProjectOwnership)
 {
+	m_pProject = pProject;
+	m_bOwnProject = bTakeProjectOwnership;
 	m_pObject = NULL;
 	m_pInteger = NULL;
 	m_pStackLayer = NULL;
@@ -46,6 +48,8 @@ Library::Library(GXMLTag* pLibraryTag)
 
 Library::~Library()
 {
+	if(m_bOwnProject)
+		delete(m_pProject);
 	delete(m_pLibraryTag);
 	delete [] m_pMethods;
 
@@ -80,7 +84,7 @@ bool Library::Init()
 	return true;
 }
 
-/*static*/ Library* Library::LoadFromFile(const char* szFilename)
+/*static*/ Library* Library::LoadFromFile(const char* szFilename, COProject* pProject, bool bTakeProjectOwnership)
 {
 	const char* szErrorMessage;
 	int nErrorOffset;
@@ -89,11 +93,11 @@ bool Library::Init()
 	GXMLTag* pRootTag = GXMLTag::FromFile(szFilename, &szErrorMessage, &nErrorOffset, &nErrorLine, &nErrorColumn);
 	if(!pRootTag)
 		return NULL;
-	Library* pLibrary = CreateFromXML(pRootTag); // takes ownership of pRootTag
+	Library* pLibrary = CreateFromXML(pRootTag, pProject, bTakeProjectOwnership); // takes ownership of pRootTag
 	return pLibrary;
 }
 
-/*static*/ Library* Library::LoadFromBuffer(const char* pBuffer, int nBufferSize)
+/*static*/ Library* Library::LoadFromBuffer(const char* pBuffer, int nBufferSize, COProject* pProject, bool bTakeProjectOwnership)
 {
 	const char* szErrorMessage;
 	int nErrorOffset;
@@ -102,13 +106,13 @@ bool Library::Init()
 	GXMLTag* pRootTag = GXMLTag::FromString(pBuffer, nBufferSize, &szErrorMessage, &nErrorOffset, &nErrorLine, &nErrorColumn);
 	if(!pRootTag)
 		return NULL;
-	Library* pLibrary = CreateFromXML(pRootTag); // takes ownership of pRootTag
+	Library* pLibrary = CreateFromXML(pRootTag, pProject, bTakeProjectOwnership); // takes ownership of pRootTag
 	return pLibrary;
 }
 
-/*static*/ Library* Library::CreateFromXML(GXMLTag* pLibraryTag)
+/*static*/ Library* Library::CreateFromXML(GXMLTag* pLibraryTag, COProject* pProject, bool bTakeProjectOwnership)
 {
-	Holder<Library*> hLibrary(new Library(pLibraryTag));
+	Holder<Library*> hLibrary(new Library(pLibraryTag, pProject, bTakeProjectOwnership));
 	if(!hLibrary.Get()->Init())
 	{
 		GAssert(false, "failed to init library!");
@@ -536,7 +540,7 @@ void AjustIDAndAddMapEntry(GXMLTag* pTag, int* pnCounter, int* map, int nMaxID)
 		{
 			if(stricmp(pMethodTag->GetName(), TAG_NAME_METHOD) != 0 && stricmp(pMethodTag->GetName(), TAG_NAME_PROCEDURE) != 0)
 				continue;
-			EInstrArray mb(pMethodTag);
+			EInstrArray mb(pMethodTag, NULL);
 			int nCount = mb.GetInstrCount();
 			int n;
 			for(n = 0; n < nCount; n++)
@@ -633,7 +637,7 @@ void AjustIDAndAddMapEntry(GXMLTag* pTag, int* pnCounter, int* map, int nMaxID)
 				// Fix up the methods
 				if(stricmp(pMethodTag->GetName(), TAG_NAME_METHOD) == 0 || stricmp(pMethodTag->GetName(), TAG_NAME_PROCEDURE) == 0)
 				{
-					EInstrArray mb(pMethodTag);
+					EInstrArray mb(pMethodTag, NULL);
 					int nCount = mb.GetInstrCount();
 					int n;
 					for(n = 0; n < nCount; n++)

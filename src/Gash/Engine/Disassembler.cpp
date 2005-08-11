@@ -151,7 +151,8 @@ void Disassembler::MethodToText(int nMethodID)
 
 	// Show the instructions in the method
 	int nInstr;
-	EInstrArray* pMB = pEMethod->GetEInstrArray();
+	COProject* pProject = m_pLibrary->GetProject();
+	EInstrArray* pMB = pEMethod->GetEInstrArray(pProject ? pEMethod->GetCOMethod(pProject) : NULL);
 	pMB->SetDisassemblyStartLine(m_nCurrentLine);
 	int nSize = pMB->GetInstrCount();
 	for(nInstr = 0; nInstr < nSize; nInstr++)

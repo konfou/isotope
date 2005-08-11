@@ -101,6 +101,8 @@ public:
 
 	EInstrArray* Compile2(GCompiler* pCompiler);
 
+	COInstruction* FindInstruction(int index);
+
 protected:
 	bool ProduceSymbols(EInstrArray* pEInstrArray, COProject* pProject);
 	virtual bool CompileInstructions(GXMLTag* pTag, GCompiler* pCompiler);

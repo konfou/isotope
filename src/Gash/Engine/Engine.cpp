@@ -472,7 +472,10 @@ GObject* Engine::MakeException2(const char* szTypeName, const wchar_t* wszMessag
 	GashString* pMessage = new GashString(this);
 	if(!pMessage)
 		return NULL;
-	pMessage->m_value.Copy(wszMessage);
+	GString* pString = &pMessage->m_value;
+	pString->Copy(wszMessage);
+	pString->Add(L"\n\n");
+	DumpStack(pString);
 	vMessage.SetGObject(pMessage);
 
 	// Find the method with the signature "!new(String)"
@@ -513,11 +516,7 @@ GObject* Engine::MakeException(const char* szTypeName, const wchar_t* wszMessage
 
 void Engine::ThrowError(const char* szTypeName, const wchar_t* wszMessage)
 {
-	GString sMessage;
-	sMessage.Add(wszMessage);
-	sMessage.Add(L"\n\n");
-	DumpStack(&sMessage);
-	GObject* pException = MakeException(szTypeName, sMessage.GetString());
+	GObject* pException = MakeException(szTypeName, wszMessage);
 	GAssert(pException, "Failed to create the exception object");
 	GAssert(!m_pException->GetGObject(), "There's already an exception being thrown!");
 	m_pException->SetGObject(pException);

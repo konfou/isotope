@@ -47,12 +47,13 @@ public:
 	void SetInstr(int n, COInstruction* pInstr);
 	void AddInstr(COInstruction* pInstr);
 	COVariable* FindVar(const char* szName);
-	void LoadFromXML(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
+	void LoadFromXML(GXMLTag* pTag, COProject* pCOProject, bool bPartial, int* pnInstructionIndex);
 	void SaveToXML(GXMLTag* pParentTag);
 	void SaveToClassicSyntax(GQueue* pQ, int nTabs);
 	virtual ScopeType GetScopeType() { return ST_INSTRUCTION_ARRAY; }
 	virtual COVariable* FindVariable(const char* pName, int nLength);
 	int FindInstruction(COInstruction* pInstr);
+	COInstruction* FindInstruction(int nIndex);
 
 protected:
 	static void DestructInstructions(GPointerArray* pChildInstructions);

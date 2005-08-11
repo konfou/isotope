@@ -4,7 +4,7 @@
 TARGET_PATH = ../../bin
 TARGET_NAME_OPT = gash.exe
 TARGET_NAME_DBG = gashdbg.exe
-OBJ_PATH = ../../objs
+OBJ_PATH = ../../obj/obj
 GCLASSES_PATH = ../GClasses
 ENGINE_PATH = Engine
 CODEOBJ_PATH = CodeObjects
@@ -30,7 +30,8 @@ endif
 # GClasses Sources
 ################
 
-GCLASSES_SOURCES = $(GCLASSES_PATH)/GArray.cpp\
+GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
+                   $(GCLASSES_PATH)/GArray.cpp\
                    $(GCLASSES_PATH)/GAVLTree.cpp\
                    $(GCLASSES_PATH)/GBezier.cpp\
                    $(GCLASSES_PATH)/GBigNumber.cpp\
@@ -59,6 +60,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArray.cpp\
                    $(GCLASSES_PATH)/GParseTree.cpp\
                    $(GCLASSES_PATH)/GPNG.cpp\
                    $(GCLASSES_PATH)/GPointerQueue.cpp\
+                   $(GCLASSES_PATH)/GPolynomial.cpp\
                    $(GCLASSES_PATH)/GQueue.cpp\
                    $(GCLASSES_PATH)/GRand.cpp\
                    $(GCLASSES_PATH)/GRayTrace.cpp\
@@ -79,7 +81,8 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArray.cpp\
                    $(GCLASSES_PATH)/sha1.cpp\
                    $(GCLASSES_PATH)/sha2.cpp
 
-GCLASSES_HEADER =  $(GCLASSES_PATH)/GArray.h\
+GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
+                   $(GCLASSES_PATH)/GArray.h\
                    $(GCLASSES_PATH)/GAVLTree.h\
                    $(GCLASSES_PATH)/GBezier.h\
                    $(GCLASSES_PATH)/GBigNumber.h\
@@ -106,6 +109,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArray.h\
                    $(GCLASSES_PATH)/GParseTree.h\
                    $(GCLASSES_PATH)/GPNG.h\
                    $(GCLASSES_PATH)/GPointerQueue.h\
+                   $(GCLASSES_PATH)/GPolynomial.h\
                    $(GCLASSES_PATH)/GQueue.h\
                    $(GCLASSES_PATH)/GRand.h\
                    $(GCLASSES_PATH)/GRayTrace.h\
@@ -371,46 +375,46 @@ $(GCLASSES_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(GCLASSES_PATH)/%.cpp $(GCLASSES_HE
 $(GCLASSES_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(GCLASSES_PATH)/%.cpp $(GCLASSES_HEADER)
 	g++ $(DBG_CFLAGS) -c $< -o $@
 
-$(ENGINE_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(ENGINE_PATH)/%.cpp $(ENGINE_HEADER)
+$(ENGINE_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(ENGINE_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(OPT_CFLAGS) -c $< -o $@
 
-$(ENGINE_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(ENGINE_PATH)/%.cpp $(ENGINE_HEADER)
+$(ENGINE_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(ENGINE_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(DBG_CFLAGS) -c $< -o $@
 
-$(CODEOBJ_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(CODEOBJ_PATH)/%.cpp $(CODEOBJ_HEADER)
+$(CODEOBJ_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(CODEOBJ_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(OPT_CFLAGS) -c $< -o $@
 
-$(CODEOBJ_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(CODEOBJ_PATH)/%.cpp $(CODEOBJ_HEADER)
+$(CODEOBJ_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(CODEOBJ_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(DBG_CFLAGS) -c $< -o $@
 
-$(BUILTINS_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(BUILTINS_PATH)/%.cpp $(BUILTINS_HEADER)
+$(BUILTINS_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(BUILTINS_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(OPT_CFLAGS) -c $< -o $@
 
-$(BUILTINS_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(BUILTINS_PATH)/%.cpp $(BUILTINS_HEADER)
+$(BUILTINS_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(BUILTINS_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(DBG_CFLAGS) -c $< -o $@
 
-$(MACHINE_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(MACHINE_PATH)/%.cpp $(MACHINE_HEADER)
+$(MACHINE_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(MACHINE_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(OPT_CFLAGS) -c $< -o $@
 
-$(MACHINE_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(MACHINE_PATH)/%.cpp $(MACHINE_HEADER)
+$(MACHINE_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(MACHINE_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(DBG_CFLAGS) -c $< -o $@
 
-$(GASHSDL_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(GASHSDL_PATH)/%.cpp $(GASHSDL_HEADER)
+$(GASHSDL_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(GASHSDL_PATH)/%.cpp $(ALL_HEADERS)
 	g++  $(OPT_CFLAGS) -c $< -o $@
 
-$(GASHSDL_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(GASHSDL_PATH)/%.cpp $(GASHSDL_HEADER)
+$(GASHSDL_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(GASHSDL_PATH)/%.cpp $(ALL_HEADERS)
 	g++  $(DBG_CFLAGS) -c $< -o $@
 
-$(COMMAND_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(COMMAND_PATH)/%.cpp $(COMMAND_HEADER)
+$(COMMAND_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(COMMAND_PATH)/%.cpp $(ALL_HEADERS)
 	g++  $(OPT_CFLAGS) -c $< -o $@
 
-$(COMMAND_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(COMMAND_PATH)/%.cpp $(COMMAND_HEADER)
+$(COMMAND_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(COMMAND_PATH)/%.cpp $(ALL_HEADERS)
 	g++  $(DBG_CFLAGS) -c $< -o $@
 
-$(TEST_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(TEST_PATH)/%.cpp $(TEST_HEADER)
+$(TEST_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(TEST_PATH)/%.cpp $(ALL_HEADERS)
 	g++  $(OPT_CFLAGS) -c $< -o $@
 
-$(TEST_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(TEST_PATH)/%.cpp $(TEST_HEADER)
+$(TEST_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(TEST_PATH)/%.cpp $(ALL_HEADERS)
 	g++  $(DBG_CFLAGS) -c $< -o $@
 
 clean :

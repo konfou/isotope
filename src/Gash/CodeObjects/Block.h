@@ -36,8 +36,9 @@ public:
 	void SaveToClassicSyntax(GQueue* pQ, int nTabs);
 	static void FromClassicSyntax(ClassicSyntax* pParser, GXMLTag* pParentTag);
 	virtual COVariable* FindVariable(const char* pName, int nLength);
-	void LoadChildInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
+	void LoadChildInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial, int* pnInstructionIndex);
 	virtual bool Compile(GCompiler* pCompiler, COMethod* pMethod, COInstruction* pSymbolInstr);
+	virtual COInstruction* FindInstruction(int nIndex);
 };
 
 #endif // __BLOCK_H__

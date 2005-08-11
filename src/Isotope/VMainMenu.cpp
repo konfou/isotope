@@ -15,13 +15,8 @@
 #include "Controller.h"
 #include "../GClasses/GWindows.h"
 
-GWidgetButton* MakeNewButton(GWidgetStyle* pStyle, int x, int y, int w, int h, const wchar_t* wszText)
-{
-	GString sText(wszText);
-	GWidgetButton* pNewButton = new GWidgetButton(pStyle, x, y, w, h, &sText);
-	pStyle->AddWidget(pNewButton);
-	return pNewButton;
-}
+#define BACKGROUND_COLOR 0x445566
+
 
 VMainMenu::VMainMenu(GRect* pRect, GRect* pClippingRect)
 : ViewPort(pRect)
@@ -37,13 +32,6 @@ VMainMenu::VMainMenu(GRect* pRect, GRect* pClippingRect)
 	m_pTerrainButton = MakeNewButton(m_pWidgetStyle, 10, 130, 100, 24, L"Terrain On");
 	m_pAddObjectButton = MakeNewButton(m_pWidgetStyle, 10, 160, 100, 24, L"Add Object");
 	m_pSaveMapButton = MakeNewButton(m_pWidgetStyle, 10, 190, 100, 25, L"Save Map");
-	m_pViewMapButton->Update();
-	m_pViewScriptButton->Update();
-	m_pScreenBiggerButton->Update();
-	m_pScreenSmallerButton->Update();
-	m_pTerrainButton->Update();
-	m_pAddObjectButton->Update();
-	m_pSaveMapButton->Update();
 	RefreshEntireImage();
 	m_pClickWidget = NULL;
 }
@@ -56,7 +44,7 @@ VMainMenu::VMainMenu(GRect* pRect, GRect* pClippingRect)
 
 void VMainMenu::RefreshEntireImage()
 {
-	m_pImage->Clear(0x445566);
+	m_pImage->Clear(BACKGROUND_COLOR);
 	m_pImage->DrawBox(0, 0, m_pImage->GetWidth() - 1, m_pImage->GetHeight() - 1, 0xffffff, false);
 	m_pViewMapButton->Draw(m_pImage);
 	m_pViewScriptButton->Draw(m_pImage);
@@ -72,15 +60,6 @@ void VMainMenu::RefreshEntireImage()
 	StretchClipAndBlitImage(pScreen, &m_rect, m_pClippingRect, m_pImage);
 }
 
-void VMainMenu::PressButton(GWidgetButton* pButton)
-{
-	pButton->SetPressed(true);
-	pButton->Update();
-	pButton->Draw(m_pImage);
-	// todo: Refresh this portion of the view port now so that the reaction time
-	//       will feel snappy.  Currently it waits until the next call to View::Update
-}
-
 void VMainMenu::AddObject(Controller* pController)
 {
 #ifdef WIN32
@@ -91,6 +70,15 @@ void VMainMenu::AddObject(Controller* pController)
 #else // WIN32
 	GAssert(false, "Sorry, this feature not supported in Linux yet");
 #endif // !WIN32
+}
+
+void VMainMenu::PressButton(GWidgetButton* pButton)
+{
+	pButton->SetPressed(true);
+	pButton->Update();
+	pButton->Draw(m_pImage);
+	// todo: Refresh this portion of the view port now so that the reaction time
+	//       will feel snappy.  Currently it waits until the next call to View::Update
 }
 
 void VMainMenu::ReleaseButton(Controller* pController, GWidgetButton* pButton)

@@ -302,7 +302,8 @@ unsigned char* GVM::GetCompiledMethod(int nMethodID, int* pnSize)
 		return NULL;
 	}
 	EMethod* pMethod = m_pLibrary->GetEMethod(nMethodID);
-	EInstrArray* pInstructions = pMethod->GetEInstrArray();
+	COProject* pProject = m_pLibrary->GetProject();
+	EInstrArray* pInstructions = pMethod->GetEInstrArray(pProject ? pMethod->GetCOMethod(pProject) : NULL);
 	*pnSize = pInstructions->GetSize();
 	return pInstructions->GetData();
 }

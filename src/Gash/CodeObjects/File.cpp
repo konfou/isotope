@@ -589,7 +589,7 @@ bool COFile::Compile(GCompiler* pCompiler)
 Library* COXLibFile::GetLibrary()
 {
 	if(!m_pLibrary)
-		m_pLibrary = Library::LoadFromFile(m_szFilename);
+		m_pLibrary = Library::LoadFromFile(m_szFilename, NULL, false);
 	return m_pLibrary;
 }
 

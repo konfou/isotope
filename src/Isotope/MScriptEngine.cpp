@@ -100,17 +100,17 @@ void RegisterIsotopeMachineClasses()
 MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, MGameClient* pGameClient, Controller* pController)
 {
 	// Parse the script into a project
-	COProject proj("*bogus*");
+	Holder<COProject*> hProj(new COProject("*bogus*"));
 	char szGashLibPath[512];
 	strcpy(szGashLibPath, GameEngine::GetAppPath());
 	strcat(szGashLibPath, "../src/Gash/xlib");
-	if(!proj.LoadLibraries(szGashLibPath, pErrorHandler))
+	if(!hProj.Get()->LoadLibraries(szGashLibPath, pErrorHandler))
 	{
 		GAssert(false, "The error handler should have thrown");
 		GameEngine::ThrowError("Failed to load Gash libraries from: %s", szGashLibPath);
 	}
 	const char* szFilename = "*The Script*";
-	if(!proj.LoadSources(&szScript, &szFilename, 1, pErrorHandler))
+	if(!hProj.Get()->LoadSources(&szScript, &szFilename, 1, pErrorHandler))
 	{
 		GAssert(false, "The error handler should have thrown");
 		GameEngine::ThrowError("Failed to parse the script file");
@@ -118,7 +118,7 @@ MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler
 
 	// Build the project into a library
 	CompileError errorHolder;
-	m_pLibrary = GCompiler::Compile(&proj, &errorHolder);
+	m_pLibrary = GCompiler::Compile(hProj.Drop(), true, &errorHolder);
 	if(!m_pLibrary)
 	{
 		pErrorHandler->OnError(&errorHolder);

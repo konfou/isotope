@@ -147,7 +147,7 @@ Library* BuildProject(ErrorHandler* pErrorHandler, const char* szSourceFilename,
 
 	// Compile the project to a library
 	CompileError errorHolder;
-	Holder<Library*> hLibrary(GCompiler::Compile(hProject.Get(), &errorHolder));
+	Holder<Library*> hLibrary(GCompiler::Compile(hProject.Drop(), true, &errorHolder));
 	if(!hLibrary.Get())
 	{
 		if(pErrorHandler)
@@ -176,7 +176,7 @@ Library* BuildFileRefs(ErrorHandler* pErrorHandler, const char** ppFiles, const 
 
 	// Compile the project to a library
 	CompileError errorHolder;
-	Holder<Library*> hLibrary(GCompiler::Compile(hProject.Get(), &errorHolder));
+	Holder<Library*> hLibrary(GCompiler::Compile(hProject.Drop(), true, &errorHolder));
 	if(!hLibrary.Get())
 	{
 		if(pErrorHandler)
@@ -249,7 +249,7 @@ void RunMainProcInLibrary(ErrorHandler* pErrorHandler, Library* pLibrary, Primit
 
 Library* BufferToLibrary(ErrorHandler* pErrorHandler, const char* szLibrary)
 {
-	Library* pLibrary = Library::LoadFromBuffer(szLibrary, strlen(szLibrary));
+	Library* pLibrary = Library::LoadFromBuffer(szLibrary, strlen(szLibrary), NULL, false);
 	if(!pLibrary)
 	{
 		GlobalError errorHolder;

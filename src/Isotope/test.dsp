@@ -210,6 +210,22 @@ SOURCE=.\NRealmProtocol.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\VCharMake.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\VCharMake.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\VCharSelect.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\VCharSelect.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\VEntropyCollector.cpp
 # End Source File
 # Begin Source File

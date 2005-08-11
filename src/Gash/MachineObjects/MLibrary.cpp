@@ -26,7 +26,7 @@ void MLibrary::load(Engine* pEngine, EVar* pFilename)
 	int nBufferSize;
 	Holder<char*> hBuffer(pEngine->LoadFile(&pFilename->pStringObject->m_value, &nBufferSize));
 	char* pBuffer = hBuffer.Get();
-	Library* pLibrary = Library::LoadFromBuffer(pBuffer, nBufferSize);
+	Library* pLibrary = Library::LoadFromBuffer(pBuffer, nBufferSize, NULL, false);
 	if(!pLibrary)
 		pEngine->ThrowIOError(L"Error loading file: %s", pFilename->pStringObject->m_value.GetString());
 	pEngine->SetThis(new MLibrary(pEngine, pLibrary));

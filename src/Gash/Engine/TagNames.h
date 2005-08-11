@@ -25,6 +25,7 @@ extern const char* TAG_NAME_CALL;
 extern const char* TAG_NAME_PARAM;
 extern const char* TAG_NAME_SOURCE;
 extern const char* TAG_NAME_BIN;
+extern const char* TAG_NAME_SYM;
 extern const char* TAG_NAME_LIBRARY;
 extern const char* TAG_NAME_BLOCK;
 extern const char* TAG_NAME_STRINGTABLE;

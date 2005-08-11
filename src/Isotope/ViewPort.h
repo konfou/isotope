@@ -17,6 +17,8 @@
 #include "../GClasses/GImage.h"
 
 class View;
+class GWidgetStyle;
+class GWidgetButton;
 
 // This class represents a single layer of the main view.  (For example, if you have the game
 // in the background and a menu on top of it, then the view consists of two ViewPorts.)
@@ -43,6 +45,7 @@ public:
 	GRect* GetRect() { return &m_rect; }
 	static void BlitImage(SDL_Surface* pScreen, int x, int y, GImage* pImage);
 	static void StretchClipAndBlitImage(SDL_Surface* pScreen, GRect* pDestRect, GRect* pClipRect, GImage* pImage);
+	static GWidgetButton* MakeNewButton(GWidgetStyle* pStyle, int x, int y, int w, int h, const wchar_t* wszText);
 };
 
 

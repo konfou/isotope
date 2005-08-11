@@ -88,7 +88,7 @@ GCompiler::~GCompiler()
 	delete(m_pEInstrArrayBuilder);
 }
 
-/*static*/ Library* GCompiler::Compile(COProject* pCOProject, CompileError* pErrorHolder)
+/*static*/ Library* GCompiler::Compile(COProject* pCOProject, bool bLibraryOwnsProject, CompileError* pErrorHolder)
 {
 	GCompiler comp(pCOProject, pErrorHolder);
 	bool bSuccess = comp.CompileProject();
@@ -96,7 +96,7 @@ GCompiler::~GCompiler()
 	{
 		GXMLTag* pTmp = comp.m_pLibraryTag;
 		comp.m_pLibraryTag = NULL;
-		Library* pLibrary = Library::CreateFromXML(pTmp);
+		Library* pLibrary = Library::CreateFromXML(pTmp, pCOProject, bLibraryOwnsProject);
 		if(!pLibrary)
 		{
 			pErrorHolder->SetError(&Error::INTERNAL_ERROR, NULL);
@@ -458,7 +458,7 @@ bool GCompiler::ImportExternalMethod(Library* pExternalLibrary, int nMethodID, G
 	pAttrID->SetValue(szTmp);
 
 	// Fix up the Bin tags
-	EInstrArray instrArray(pNewMethodTag);
+	EInstrArray instrArray(pNewMethodTag, NULL);
 	int nCount = instrArray.GetInstrCount();
 	int n;
 	for(n = 0; n < nCount; n++)

@@ -23,6 +23,7 @@
 #include "InstrSet.h"
 #include "GCompiler.h"
 #include "../CodeObjects/Instruction.h"
+#include "../CodeObjects/Method.h"
 #include "EType.h"
 
 #define DATA_BYTES_PER_XML_LINE 1024
@@ -64,7 +65,7 @@ EInstrArray::EInstrArray(unsigned char* pData, int nSize)
 	m_nDisassemblyStartLine = -1;
 }
 
-EInstrArray::EInstrArray(GXMLTag* pMethodTag)
+EInstrArray::EInstrArray(GXMLTag* pMethodTag, COMethod* pMethod)
 {
 	m_pSymbols = NULL;
 	m_instrIndexes = NULL;
@@ -74,10 +75,15 @@ EInstrArray::EInstrArray(GXMLTag* pMethodTag)
 	// Count the space needed for the data
 	m_nSize = 0;
 	GXMLTag* pBin;
+	bool bGotSymbols = false;
 	for(pBin = pMethodTag->GetFirstChildTag(); pBin; pBin = pMethodTag->GetNextChildTag(pBin))
 	{
 		if(stricmp(pBin->GetName(), TAG_NAME_BIN) != 0)
+		{
+			if(pMethod && !bGotSymbols && stricmp(pBin->GetName(), TAG_NAME_SYM) == 0)
+				bGotSymbols = true;
 			continue; // skip non "Bin" tags
+		}
 		GXMLAttribute* pData = pBin->GetAttribute(ATTR_DATA);
 		if(!pData)
 		{
@@ -127,6 +133,49 @@ EInstrArray::EInstrArray(GXMLTag* pMethodTag)
 			unsigned char byte = HexToByte(h1, h2);
 			m_pData[nPos] = byte;
 			nPos++;
+		}
+	}
+
+	// Load the symbols
+	if(bGotSymbols && pMethod)
+	{
+		int nInstrCount = GetInstrCount();
+		m_pSymbols = new COInstruction*[nInstrCount];
+		int nInstr = 0;
+		GXMLTag* pSymTag;
+		for(pSymTag = pMethodTag->GetFirstChildTag(); pSymTag; pSymTag = pMethodTag->GetNextChildTag(pSymTag))
+		{
+			if(stricmp(pSymTag->GetName(), TAG_NAME_SYM) != 0)
+				continue; // skip non "Sym" tags
+			GXMLAttribute* pData = pSymTag->GetAttribute(ATTR_DATA);
+			if(!pData)
+			{
+				GAssert(false, "No Data attribute");
+				continue;
+			}
+			const char* szData = pData->GetValue();
+			GAssert(sizeof(int) == 4, "unexpected int size");
+			while(nInstr < nInstrCount &&
+					szData[0] != '\0' &&
+					szData[1] != '\0' &&
+					szData[2] != '\0' &&
+					szData[3] != '\0' &&
+					szData[4] != '\0' &&
+					szData[5] != '\0' &&
+					szData[6] != '\0' &&
+					szData[7] != '\0')
+			{
+				int nIndex;
+				HexToBuffer(szData, 8, (unsigned char*)&nIndex);
+				m_pSymbols[nInstr++] = pMethod->FindInstruction(nIndex);
+				szData += 8;
+			}
+		}
+		if(nInstr < nInstrCount)
+		{
+			GAssert(false, "Incomplete symbols");
+			while(nInstr < nInstrCount)
+				m_pSymbols[nInstr++] = NULL;
 		}
 	}
 }
@@ -239,7 +288,37 @@ void EInstrArray::SetBinTags(GXMLTag* pMethodTag)
 		GXMLTag* pBinTag = new GXMLTag(TAG_NAME_BIN);
 		pBinTag->AddAttribute(new GXMLAttribute(ATTR_DATA, szHex));
 		pMethodTag->AddChildTag(pBinTag);
+	}
+
+	// Add Sym tags
+	if(m_pSymbols)
+	{
 		nHexPos = 0;
+		GAssert(DATA_BYTES_PER_XML_LINE % sizeof(int) == 0, "expected this value to be integer aligned");
+		for(n = 0; n < m_nInstrCount; n++)
+		{
+			COInstruction* pInstr = m_pSymbols[n];
+			int nIndex = pInstr ? pInstr->GetIndex() : -1;
+			unsigned char* pBytes = (unsigned char*)&nIndex;
+			BufferToHex(pBytes, sizeof(int), szHex + nHexPos);
+			nHexPos += (2 * sizeof(int));
+			if(nHexPos >= DATA_BYTES_PER_XML_LINE)
+			{
+				GAssert(nHexPos == DATA_BYTES_PER_XML_LINE, "bad alignment");
+				szHex[nHexPos] = '\0';
+				GXMLTag* pSymTag = new GXMLTag(TAG_NAME_SYM);
+				pSymTag->AddAttribute(new GXMLAttribute(ATTR_DATA, szHex));
+				pMethodTag->AddChildTag(pSymTag);
+				nHexPos = 0;
+			}			
+		}
+		if(nHexPos > 0)
+		{
+			szHex[nHexPos] = '\0';
+			GXMLTag* pSymTag = new GXMLTag(TAG_NAME_SYM);
+			pSymTag->AddAttribute(new GXMLAttribute(ATTR_DATA, szHex));
+			pMethodTag->AddChildTag(pSymTag);
+		}
 	}
 }
 
@@ -330,8 +409,6 @@ void EInstrArray::SetCOInstruction(int nInstr, COInstruction* pInstr)
 	}
 	GAssert(nInstr >= 0 && nInstr < m_nInstrCount, "out of range");
 	m_pSymbols[nInstr] = pInstr;
-	if(pInstr)
-		pInstr->SetFirstAsmInstr(nInstr);
 }
 
 void EInstrArray::AcquireSymbols(EInstrArray* pOther)

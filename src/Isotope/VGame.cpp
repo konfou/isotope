@@ -22,6 +22,8 @@
 #include "MAnimation.h"
 #include "MGameImage.h"
 
+#define ALPHA_BLENDING
+
 struct VVertGroundParams
 {
 	float x, y, dx, dy, size;
@@ -131,7 +133,7 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 				for(xn = 0; xn < pScreenRect->w; xn++)
 				{
 					xImage = ((int)fMapX + 1342177480) % m_pImageSky->GetWidth();
-					yImage = ((int)fMapY + 1342177480) % m_pImageSky->GetHeight();
+					yImage = ((int)fMapY) % m_pImageSky->GetHeight();
 					*(pPix32++) = m_pImageSky->GetPixel(xImage, yImage);
 					fMapX += fMapDeltaX;
 					fMapY += fMapDeltaY;
@@ -248,6 +250,11 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 	int yEnd;
 	float fSrcY, fSrcDY;
 	GColor col;
+#ifdef ALPHA_BLENDING
+	GColor colOld;
+	int a;
+	Uint32* pPix;
+#endif // ALPHA_BLENDING
 	while(nWid > 0)
 	{
 		fSrcY = (float)pSrcRect->y;
@@ -268,8 +275,17 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 			while(nY < yEnd)
 			{
 				col = pImage->GetPixel((int)fSrcX, (int)fSrcY);
+#ifdef ALPHA_BLENDING
+				pPix = getPixMem32(pScreen, nX, nY);
+				a = gAlpha(col);
+				colOld = *pPix;
+				*pPix = gRGB((a * gRed(col) + (256 - a) * gRed(colOld)) >> 8,
+							(a * gGreen(col) + (256 - a) * gGreen(colOld)) >> 8,
+							(a * gBlue(col) + (256 - a) * gBlue(colOld)) >> 8);
+#else // ALPHA_BLENDING
 				if(col != 0x00ff00) // todo: use sprite's transparent background color
 					*getPixMem32(pScreen, nX, nY) = col;
+#endif // ALPHA_BLENDING
 				fSrcY += fSrcDY;
 				nY++;
 			}
@@ -321,6 +337,10 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 	dSrcY = pSrcRect->y + dSrcDeltaY * (nDestYStart - destRect.y);
 	float dStartX = pSrcRect->x + dSrcDeltaX * (nDestXStart - destRect.x);
 	int x, y;
+#ifdef ALPHA_BLENDING
+	int a;
+	GColor pixOld;
+#endif // ALPHA_BLENDING
 	GColor pix;
 	int nBytesPerPixel = pScreen->format->BytesPerPixel;
 	for(y = nDestYStart; y < nDestYFinish; y++)
@@ -332,8 +352,16 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 			for(x = nDestXStart; x < nDestXFinish; x++)
 			{
 				pix = pImage->GetPixel((int)dSrcX, (int)dSrcY);
+#ifdef ALPHA_BLENDING
+				a = gAlpha(pix);
+				pixOld = *pPix;
+				*pPix = gRGB((a * gRed(pix) + (256 - a) * gRed(pixOld)) >> 8,
+							(a * gGreen(pix) + (256 - a) * gGreen(pixOld)) >> 8,
+							(a * gBlue(pix) + (256 - a) * gBlue(pixOld)) >> 8);
+#else // ALPHA_BLENDING
 				if(pix != 0x00ff00) // todo: use sprite's transparent background color
 					*pPix = pix;
+#endif // ALPHA_BLENDING
 				pPix++;
 				dSrcX += dSrcDeltaX;
 			}

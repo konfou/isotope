@@ -215,7 +215,8 @@ void GVMStack::DumpStack(GString* pString, GVM* pVM, int nMaxObjectDepth, bool b
 	int nSize;
 	EMethod* pMethod = pLibrary->GetEMethod(nMethod);
 	unsigned char* pMethodStart = pVM->GetCompiledMethod(nMethod, &nSize);
-	EInstrArray* pInstrArray = pMethod->GetEInstrArray();
+	COProject* pProject = pLibrary->GetProject();
+	EInstrArray* pInstrArray = pMethod->GetEInstrArray(pProject ? pMethod->GetCOMethod(pProject) : NULL);
 	int nInstr = pInstrArray->FindInstrByOffset(pInstrPointer - pMethodStart);
 	if(nInstr >= 0)
 	{

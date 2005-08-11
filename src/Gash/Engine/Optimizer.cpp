@@ -32,7 +32,7 @@ Optimizer::Optimizer(Library* pLibrary, COProject* pProject)
 	m_pEInstrArrays = new EInstrArray*[m_nMethodCount];
 	int n;
 	for(n = 0; n < m_nMethodCount; n++)
-		m_pEInstrArrays[n] = new EInstrArray(m_pLibrary->GetEMethod(n)->GetTag());
+		m_pEInstrArrays[n] = new EInstrArray(m_pLibrary->GetEMethod(n)->GetTag(), NULL);
 
 	// Maps from old to new source code offsets
 	m_pNewOffsets = new int*[m_nMethodCount];

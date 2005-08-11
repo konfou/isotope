@@ -254,7 +254,8 @@ void COClass::LoadAllInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPa
 			GXMLTag* pInstructions = pChild->GetChildTag(TAG_NAME_INSTRUCTIONS);
 			if(!pInstructions)
 				pCOProject->ThrowError(&Error::EXPECTED_COMMANDS_CHILD_TAG, pChild);
-			pProcedure->GetInstructions()->LoadFromXML(pInstructions, pCOProject, bPartial);
+			int nInstructionIndex = 0;
+			pProcedure->GetInstructions()->LoadFromXML(pInstructions, pCOProject, bPartial, &nInstructionIndex);
 			nProcedure++;
 		}
 		else if(stricmp(pChild->GetName(), TAG_NAME_METHOD) == 0)
@@ -263,7 +264,8 @@ void COClass::LoadAllInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPa
 			GXMLTag* pInstructions = pChild->GetChildTag(TAG_NAME_INSTRUCTIONS);
 			if(!pInstructions)
 				pCOProject->ThrowError(&Error::EXPECTED_COMMANDS_CHILD_TAG, pChild);
-			pMethod->GetInstructions()->LoadFromXML(pInstructions, pCOProject, bPartial);
+			int nInstructionIndex = 0;
+			pMethod->GetInstructions()->LoadFromXML(pInstructions, pCOProject, bPartial, &nInstructionIndex);
 			nMethod++;
 		}
 		else if(stricmp(pChild->GetName(), TAG_NAME_INTERFACE) == 0)

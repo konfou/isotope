@@ -4,7 +4,7 @@
 TARGET_PATH = ../../bin
 TARGET_NAME_OPT = Isotope.exe
 TARGET_NAME_DBG = Isotopedbg.exe
-OBJ_PATH = ../../objs
+OBJ_PATH = ../../obj/obj
 GCLASSES_PATH = ../GClasses
 ENGINE_PATH = ../Gash/Engine
 CODEOBJ_PATH = ../Gash/CodeObjects

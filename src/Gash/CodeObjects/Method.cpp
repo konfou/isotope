@@ -344,6 +344,11 @@ void COMethod::SaveToClassicSyntax(GQueue* pQ)
 	pQ->Push("\n\n");
 }
 
+COInstruction* COMethod::FindInstruction(int index)
+{
+	return m_pInstrArray->FindInstruction(index);
+}
+
 /*static*/ void COMethod::FromClassicSyntax(ClassicSyntax* pParser, bool bStatic)
 {
 	// Method name

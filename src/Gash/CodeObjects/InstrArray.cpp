@@ -111,7 +111,7 @@ void COInstrArray::SetInstr(int n, COInstruction* pInstr)
 	m_pInstrArray->SetPointer(n, pInstr);
 }
 
-void COInstrArray::LoadFromXML(GXMLTag* pTag, COProject* pCOProject, bool bPartial)
+void COInstrArray::LoadFromXML(GXMLTag* pTag, COProject* pCOProject, bool bPartial, int* pnInstructionIndex)
 {
 	GAssert(!m_pInstrArray, "Array for instructions already created!");
 	m_pInstrArray = new GPointerArray(ARRAY_GROW_SIZE);
@@ -120,10 +120,10 @@ void COInstrArray::LoadFromXML(GXMLTag* pTag, COProject* pCOProject, bool bParti
 	GXMLTag* pChild;
 	for(pChild = pTag->GetFirstChildTag(); pChild; pChild = pTag->GetNextChildTag(pChild))
 	{
-		COInstruction* pNewInstruction = COInstruction::FromXML(pChild, this, pCOProject, bPartial);
+		COInstruction* pNewInstruction = COInstruction::FromXML(pChild, this, pCOProject, bPartial, pnInstructionIndex);
 		AddInstr(pNewInstruction);
 		if(pNewInstruction->GetInstructionType() == COInstruction::IT_BLOCK)
-			((COBlock*)pNewInstruction)->LoadChildInstructions(pChild, pCOProject, bPartial);
+			((COBlock*)pNewInstruction)->LoadChildInstructions(pChild, pCOProject, bPartial, pnInstructionIndex);
 	}
 }
 
@@ -211,3 +211,37 @@ int COInstrArray::FindInstruction(COInstruction* pInstr)
 	return -1;
 }
 
+COInstruction* COInstrArray::FindInstruction(int nIndex)
+{
+	if(nIndex < 0)
+		return NULL;
+	int nMin = 0;
+	int nMax = GetInstrCount();
+	if(nMax == 0)
+		return NULL;
+	int nMid;
+	COInstruction* pInstr = NULL;
+	int n;
+	while(true)
+	{
+		nMid = (nMin + nMax) / 2;
+		pInstr = GetInstr(nMid);
+		n = pInstr->GetIndex();
+		if(n > nIndex)
+		{
+			if(nMid == nMax)
+				break;
+			nMax = nMid;
+		}
+		else if(n < nIndex)
+		{
+			if(nMid == nMin)
+				break;
+			nMin = nMid;
+		}
+		else
+			return pInstr;
+	}
+	GAssert(pInstr->GetIndex() < nIndex, "logic bug");
+	return pInstr->FindInstruction(nIndex);
+}

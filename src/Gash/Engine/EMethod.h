@@ -36,7 +36,10 @@ public:
 	EMethod();
 	~EMethod();
 
-	EInstrArray* GetEInstrArray();
+	// pMethod is an optional parameter that you can supply if you want the
+	// instruction array to be attached with symbols to the source objects
+	EInstrArray* GetEInstrArray(COMethod* pMethod);
+
 	int CountParams();
 	const char* FindParamName(int n);
 	EMethodSignature* GetSignature();

@@ -22,6 +22,7 @@ const char* TAG_NAME_CALL = "Call";
 const char* TAG_NAME_PARAM = "Param";
 const char* TAG_NAME_SOURCE = "Source";
 const char* TAG_NAME_BIN = "Bin";
+const char* TAG_NAME_SYM = "Sym";
 const char* TAG_NAME_LIBRARY = "Library";
 const char* TAG_NAME_BLOCK = "Block";
 const char* TAG_NAME_STRINGTABLE = "StringTable";

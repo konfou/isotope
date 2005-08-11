@@ -85,11 +85,10 @@ void GashEngine::buildProject(Engine* pEngine, EVar* pLibrary, EVar* pProject)
 	Holder<COProject*> hProj(new COProject("Untitled.proj"));
 	if(!hProj.Get()->LoadSources((const char**)files.m_pData, (const char**)filenames.m_pData, nCount, &eh))
 		pEngine->ThrowEngineError(L"Failed to create project"); // todo: change to a compile error
-	COProject* pProj = hProj.Get();
 
 	// Build it
 	CompileError errorHolder;
-	Library* pLib = GCompiler::Compile(pProj, &errorHolder);
+	Library* pLib = GCompiler::Compile(hProj.Drop(), true, &errorHolder);
 	if(!pLib)
 		pEngine->ThrowCompileError(&errorHolder);
 	pEngine->SetVar(pLibrary, new MLibrary(pEngine, pLib));
