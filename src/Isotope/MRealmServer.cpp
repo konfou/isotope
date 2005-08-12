@@ -110,10 +110,10 @@ void MRealmServer::SendUpdates(NSendMeUpdatesPacket* pPacketIn, NRealmServerConn
 	NUpdateObjectPacket packetOut;
 	double dObjectTime;
 	MObject* pOb;
-	MObject* pNextOb;
-	for(pOb = m_pRealm->GetFirstObject(); pOb; pOb = pNextOb)
+	int n;
+	for(n = m_pRealm->GetObjectCount() - 1; n >= 0; n--)
 	{
-		pNextOb = pOb->GetNext();
+		pOb = m_pRealm->GetObj(n);
 		dObjectTime = pOb->GetTime();
 		if(dObjectTime > pPacketIn->GetTime())
 		{

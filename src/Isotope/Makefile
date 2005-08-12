@@ -310,6 +310,7 @@ ISOTOPE_SOURCES =   $(ISOTOPE_PATH)/AutoUpdate.cpp\
                     $(ISOTOPE_PATH)/VGame.cpp\
                     $(ISOTOPE_PATH)/View.cpp\
                     $(ISOTOPE_PATH)/ViewPort.cpp\
+                    $(ISOTOPE_PATH)/VLoading.cpp\
                     $(ISOTOPE_PATH)/VMainMenu.cpp\
                     $(ISOTOPE_PATH)/VServer.cpp\
                     $(ISOTOPE_PATH)/VWave.cpp\
@@ -335,6 +336,7 @@ ISOTOPE_HEADER =    $(ISOTOPE_PATH)/AutoUpdate.h\
                     $(ISOTOPE_PATH)/VGame.h\
                     $(ISOTOPE_PATH)/View.h\
                     $(ISOTOPE_PATH)/ViewPort.h\
+                    $(ISOTOPE_PATH)/VLoading.h\
                     $(ISOTOPE_PATH)/VMainMenu.h\
                     $(ISOTOPE_PATH)/VServer.h\
                     $(ISOTOPE_PATH)/VWave.h\

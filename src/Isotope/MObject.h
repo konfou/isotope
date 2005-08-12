@@ -80,12 +80,9 @@ class MObject
 	: public AllocCounter
 #endif // _DEBUG
 {
-friend class MRealm;
 friend class MGameServer;
 protected:
 	MScriptEngine* m_pScriptEngine;
-	MObject* m_pNext;
-	MObject* m_pPrev;
 	VarHolder m_vh;
 	GPosSize m_drawPos;
 	bool m_bTangible;
@@ -97,9 +94,6 @@ public:
 
 	// Gets an image to blit onto the viewport to represent this object
 	GImage* GetFrame(GRect* pRect, GBillboardCamera* pCamera);
-
-	MObject* GetNext() { return m_pNext; }
-	MObject* GetPrev() { return m_pPrev; }
 
 	// Gets the objects position
 	void GetPos(float* px, float* py);

@@ -200,8 +200,19 @@ bool TestGLList(ClassTests* pThis)
 	return true;
 }
 
+int PointerArrayComparer(void* pA, void* pB)
+{
+	if((int)pA > (int)pB)
+		return 1;
+	else if((int)pA < (int)pB)
+		return -1;
+	else
+		return 0;
+}
+
 bool TestGSmallArray(ClassTests* pThis)
 {
+	// Add, insert, and then check
 	GSmallArray sa(1, 17);
 	int n;
 	for(n = 0; n < 1000; n++)
@@ -223,6 +234,8 @@ bool TestGSmallArray(ClassTests* pThis)
 	}
 	if(sa.GetSize() != 1050)
 		return false;
+
+	// Delete and then check again
 	for(n = 0; n < 49; n++)
 		sa.DeleteCell(1);
 	if(sa.GetSize() != 1001)
@@ -234,6 +247,18 @@ bool TestGSmallArray(ClassTests* pThis)
 		if(*(char*)sa._GetCellRef(n) != cTmp)
 			return false;
 	}
+
+	// Test GPointerArray::Sort
+	GPointerArray arr(64);
+	for(n = 34; n >= 0; n--)
+		arr.AddPointer((void*)n);
+	arr.Sort(PointerArrayComparer);
+	for(n = 0; n <= 34; n++)
+	{
+		if((int)arr.GetPointer(n) != n)
+			return false;
+	}
+
 	return true;
 }
 

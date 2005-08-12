@@ -150,6 +150,7 @@ protected:
 	void MakeEntropyCollectorView();
 	void MakeCharSelectView();
 	void BringUpMainMenu();
+	void ShutDown();
 };
 
 #endif // __CONTROLLER_H__

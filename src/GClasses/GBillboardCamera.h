@@ -83,7 +83,7 @@ public:
 	void MapToScreen(float* pOutX, float* pOutY, float* pOutScale, float x, float y, float z, GRect* pScreenRect);
 
 	// Converts a point on the screen to a point on the map where z is zero
-	void ScreenToMap(float* px, float* pY, float* pSize, bool* pbSky, int x, int y, GRect* pScreenRect);
+	void ScreenToMap(float* px, float* pY, float* pSize, bool* pbSky, int x, int y, GRect* pScreenRect, int nSkyImageWidth);
 
 	// Converts a GPosSize to a GRect in which you should draw the billboard
 	void CalcBillboardRect(GRect* pOutRect, GPosSize* pPosSize, GRect* pScreenRect);
@@ -105,6 +105,8 @@ public:
 protected:
 	// Move the camera in the opposite direction that it is facing
 	void Backup(float distance);
+
+	void RecalcVertAjust(int nScreenVerticalCenter);
 };
 
 

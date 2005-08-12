@@ -30,8 +30,7 @@ class GPointerArray;
 class MRealm
 {
 protected:
-	MObject* m_pFirstObject;
-	MObject* m_pNextObject;
+	GPointerArray* m_pObjects;
 	GHashTable* m_pObjectsByID;
 	MObject* m_pClosestObject;
 	float m_fXMin, m_fXMax, m_fYMin, m_fYMax;
@@ -42,23 +41,19 @@ public:
 	MRealm(Model* pModel);
 	~MRealm();
 
-	//void AddObject(MObject* pOb);
-
-	// Returns a linked list of all the objects in the realm
-	MObject* GetFirstObject() { return m_pFirstObject; }
+	int GetObjectCount();
+	MObject* GetObj(int n);
 
 	void Update(double time, GBillboardCamera* pCamera, MObject* pAvatar);
 
 	// Remove the object, and return the object previous to it in the list
-	MObject* RemoveObject(MObject* pOldOb, int uid);
+	void RemoveObject(int nIndex, MObject* pOldOb, int uid);
 
 	// Remove the object with the specified ID (if one exists) and notify the model about the change
 	void RemoveObject(int nConnection, int uid);
 
 	// Replaces whatever object has the same UID with this one
 	void ReplaceObject(int nConnection, MObject* pOb);
-
-	void UnloadAllObjects();
 
 	// Returns the object closest to the avatar
 	MObject* GetClosestObject() { return m_pClosestObject; }
@@ -92,11 +87,14 @@ public:
 
 	GImage* GetTerrainMap() { return m_pTerrain; }
 
-protected:
-	void LinkObject(MObject* pPrev, MObject* pOb);
-	void UnlinkObject(MObject* pOb);
-	void SetTerrainMap(GImage* pImage);
+	void SortObjects(GBillboardCamera* pCamera);
+
 	static int CompareByCameraDistance(GBillboardCamera* pCamera, MObject* pThis, MObject* pThat);
+
+protected:
+	int IdToIndex(int nID);
+	void SetTerrainMap(GImage* pImage);
+	void CheckObjects();
 };
 
 #endif // __MREALM_H__

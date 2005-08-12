@@ -277,6 +277,12 @@
 			RelativePath=".\ViewPort.h">
 		</File>
 		<File
+			RelativePath=".\VLoading.cpp">
+		</File>
+		<File
+			RelativePath=".\VLoading.h">
+		</File>
+		<File
 			RelativePath=".\VMainMenu.cpp">
 		</File>
 		<File

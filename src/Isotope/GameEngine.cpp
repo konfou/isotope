@@ -527,6 +527,16 @@ void LaunchProgram(int argc, char *argv[])
 	c.Run();
 }
 
+int FooComparer(void* pA, void* pB)
+{
+	if((int)pA > (int)pB)
+		return 1;
+	else if((int)pA < (int)pB)
+		return -1;
+	else
+		return 0;
+}
+
 void test()
 {
 	// Test GHttpClient
@@ -544,6 +554,15 @@ void test()
 	if(!LoadPng(&gi, (unsigned char*)pBuf, nSize))
 		GAssert(false, "Failed to load PNG");
 	gi.SaveBMPFile("c:\\test.bmp");*/
+
+	// Test GPointerArray::Sort
+	GPointerArray arr(64);
+	int n;
+	for(n = 34; n >= 0; n--)
+		arr.AddPointer((void*)n);
+	arr.Sort(FooComparer);
+	for(n = 0; n <= 34; n++)
+		GAssert((int)arr.GetPointer(n) == n, "broken");
 }
 
 int main(int argc, char *argv[])

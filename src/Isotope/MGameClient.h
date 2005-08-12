@@ -77,9 +77,6 @@ public:
 	// Load the XML realm file
 	void LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter);
 
-	// Unloads the current realm
-	void UnloadRealm();
-
 	const char* GetRemoteFolder() { return m_szRemoteFolder; }
 
 	// Tell the model to update itself (including synchronizing with the server).  You should
@@ -130,12 +127,16 @@ public:
 	void SelectObjects(float xMin, float yMin, float xMax, float yMax);
 	void DoActionOnSelectedObjects(float x, float y);
 	MObject* GetGoalFlag() { return m_pGoalFlag; }
+	void SaveState();
 
 protected:
 	void SynchronizeWithServer(double time);
 	void ProcessPacket(NRealmPacket* pPacket);
 	void UpdateObject(NUpdateObjectPacket* pPacket);
 	void LoadObjects(MRealm* pRealm, GXMLTag* pModelTag);
+
+	// Unloads the current realm
+	void UnloadRealm();
 
 	// Makes an intangible scenery object from an image in the global cache
 	MObject* MakeIntangibleGlobalObject(const char* szID, float x, float y, float z);

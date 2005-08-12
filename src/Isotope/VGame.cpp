@@ -94,10 +94,12 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 	int yn = 0;
 	GColor pix;
 	int nBytesPerPixel = pScreen->format->BytesPerPixel;
+	unsigned int nSkyImageWidth = m_pImageSky->GetWidth();
+	unsigned int nSkyImageHeight = m_pImageSky->GetHeight();
 	for(yn = 0; yn < pScreenRect->h; yn++)
 	{
-		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].x, &m_pVertGroundParams[yn].y, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x, y, pScreenRect);
-		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].dx, &m_pVertGroundParams[yn].dy, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x + pScreenRect->w, y, pScreenRect);
+		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].x, &m_pVertGroundParams[yn].y, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x, y, pScreenRect, nSkyImageWidth);
+		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].dx, &m_pVertGroundParams[yn].dy, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x + pScreenRect->w, y, pScreenRect, nSkyImageWidth);
 		m_pVertGroundParams[yn].dx -= m_pVertGroundParams[yn].x;
 		m_pVertGroundParams[yn].dy -= m_pVertGroundParams[yn].y;
 		m_pVertGroundParams[yn].dx /= pScreenRect->w;
@@ -111,6 +113,8 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 
 	// Draw the ground and sky
 	GImage* pImageGround = m_pImageGround;
+	unsigned int nGroundImageWidth = pImageGround->GetWidth();
+	unsigned int nGroundImageHeight = pImageGround->GetHeight();
 	VVertGroundParams* pMapParams;
 	float fMapX, fMapY, fMapDeltaX, fMapDeltaY;
 	int xImage, yImage;
@@ -132,8 +136,8 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 			{
 				for(xn = 0; xn < pScreenRect->w; xn++)
 				{
-					xImage = ((int)fMapX + 1342177480) % m_pImageSky->GetWidth();
-					yImage = ((int)fMapY) % m_pImageSky->GetHeight();
+					xImage = ((unsigned int)fMapX + 1342177) % nSkyImageWidth;
+					yImage = (nSkyImageHeight - (unsigned int)fMapY) % nSkyImageHeight;
 					*(pPix32++) = m_pImageSky->GetPixel(xImage, yImage);
 					fMapX += fMapDeltaX;
 					fMapY += fMapDeltaY;
@@ -147,8 +151,8 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 						pix = 0;
 					else
 					{
-						xImage = (((int)fMapX >> 2) + 1342177280) % m_pImageGround->GetWidth();
-						yImage = (((int)fMapY >> 2) + 1342177480) % m_pImageGround->GetHeight();
+						xImage = ((unsigned int)fMapX >> 2) % nGroundImageWidth;
+						yImage = ((unsigned int)fMapY >> 2) % nGroundImageHeight;
 						pix = pImageGround->GetPixel(xImage, yImage);
 					}
 					*(pPix32++) = pix;
@@ -164,8 +168,8 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 			{
 				for(xn = 0; xn < pScreenRect->w; xn++)
 				{
-					xImage = ((int)fMapX + 1342177480) % m_pImageSky->GetWidth();
-					yImage = ((int)fMapY + 1342177480) % m_pImageSky->GetHeight();
+					xImage = (unsigned int)fMapX % nSkyImageWidth;
+					yImage = (unsigned int)fMapY % nSkyImageHeight;
 					pix = m_pImageSky->GetPixel(xImage, yImage);
 					*pPix16 = SDL_MapRGB(pScreen->format, gRed(pix), gGreen(pix), gBlue(pix));
 					pPix16++;
@@ -181,8 +185,8 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 						pix = 0;
 					else
 					{
-						xImage = (((int)fMapX >> 2) + 1342177280) % m_pImageGround->GetWidth();
-						yImage = (((int)fMapY >> 2) + 1342177480) % m_pImageGround->GetHeight();
+						xImage = ((unsigned int)fMapX >> 2) % nGroundImageWidth;
+						yImage = ((unsigned int)fMapY >> 2) % nGroundImageHeight;
 						pix = pImageGround->GetPixel(xImage, yImage);
 					}
 					*pPix16 = SDL_MapRGB(pScreen->format, gRed(pix), gGreen(pix), gBlue(pix));
@@ -384,10 +388,14 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 
 void VGame::DrawSpritesNoTerrain(SDL_Surface* pScreen)
 {
-	MObject* pSprite;
+	MObject* pObj;
 	MRealm* pRealm = m_pGameClient->GetCurrentRealm();
-	for(pSprite = pRealm->GetFirstObject(); pSprite; pSprite = pSprite->GetNext())
-		DrawSprite(pScreen, pSprite);
+	int n;
+	for(n = pRealm->GetObjectCount() - 1; n >= 0; n--)
+	{
+		pObj = pRealm->GetObj(n);
+		DrawSprite(pScreen, pObj);
+	}
 }
 
 GColor MixColors(GColor a, GColor b, int n, int d)
@@ -414,10 +422,12 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 	int xn;
 	int yn = 0;
 	int nVertHeight = (int)(pScreenRect->h * TERRAIN_EXTRA_RATIO);
+	unsigned int nSkyImageWidth = m_pImageSky->GetWidth();
+	unsigned int nSkyImageHeight = m_pImageSky->GetHeight();
 	for(yn = 0; yn < nVertHeight; yn++)
 	{
-		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].x, &m_pVertGroundParams[yn].y, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x, y, pScreenRect);
-		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].dx, &m_pVertGroundParams[yn].dy, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x + pScreenRect->w, y, pScreenRect);
+		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].x, &m_pVertGroundParams[yn].y, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x, y, pScreenRect, nSkyImageWidth);
+		m_pCamera->ScreenToMap(&m_pVertGroundParams[yn].dx, &m_pVertGroundParams[yn].dy, &m_pVertGroundParams[yn].size, &m_pVertGroundParams[yn].sky, x + pScreenRect->w, y, pScreenRect, nSkyImageWidth);
 		m_pVertGroundParams[yn].dx -= m_pVertGroundParams[yn].x;
 		m_pVertGroundParams[yn].dy -= m_pVertGroundParams[yn].y;
 		m_pVertGroundParams[yn].dx /= pScreenRect->w;
@@ -429,8 +439,6 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 	// Draw the sky
 	VVertGroundParams* pMapParams;
 	float fMapX, fMapY, fMapDeltaX, fMapDeltaY;
-	int nSkyImageWidth = m_pImageSky->GetWidth();
-	int nSkyImageHeight = m_pImageSky->GetHeight();
 	Uint32* pPix;
 	y = pScreenRect->y;
 	for(yn = 0; ;yn++)
@@ -438,8 +446,8 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 		pMapParams = &m_pVertGroundParams[yn];
 		if(!pMapParams->sky)
 			break;
-		fMapX = pMapParams->x;// + 1342177; // todo: does adding this big number really guarantee it will never be negative?  Especially when close to horizon
-		fMapY = pMapParams->y;// + 1342177; // todo: does adding this big number really guarantee it will never be negative?  Especially when close to horizon
+		fMapX = pMapParams->x;
+		fMapY = pMapParams->y;
 		fMapDeltaX = pMapParams->dx;
 		fMapDeltaY = pMapParams->dy;
 		x = pScreenRect->x;
@@ -474,12 +482,15 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 	float fTerXFac = (pTerrainMap->GetWidth() - 1) / (nMapXMax - nMapXMin);
 	float fTerYFac = (pTerrainMap->GetHeight() - 1) / (nMapYMax - nMapYMin);
 	GImage* pImageGround = m_pImageGround;
-	int nGroundImageWidth = pImageGround->GetWidth();
-	int nGroundImageHeight = pImageGround->GetHeight();
+	unsigned int nGroundImageWidth = pImageGround->GetWidth();
+	unsigned int nGroundImageHeight = pImageGround->GetHeight();
 	float fMapZ;
 	int z;
 	GColor c, ter;
-	MObject* pSprite = pRealm->GetFirstObject();
+	int nObject = pRealm->GetObjectCount() - 1;
+	MObject* pSprite = NULL;
+	if(nObject >= 0)
+		pSprite = pRealm->GetObj(nObject--);
 	float fSpriteX, fSpriteY, fSpriteZ, currentZDepth;
 	if(pSprite)
 	{
@@ -548,14 +559,17 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 		while(fSpriteZ >= currentZDepth && pSprite)
 		{
 			DrawSprite(pScreen, pSprite);
-			pSprite = pSprite->GetNext();
-			if(pSprite)
+			if(nObject >= 0)
 			{
+				pSprite = pRealm->GetObj(nObject--);
 				pSprite->GetPos(&fSpriteX, &fSpriteY);
 				fSpriteZ = m_pCamera->CalculateDistanceFromCamera(fSpriteX, fSpriteY);
 			}
 			else
+			{
+				pSprite = NULL;
 				fSpriteZ = (float)-1e20; // somewhere way behind the camera
+			}
 		}
 
 		y++;
@@ -617,7 +631,7 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 void VGame::ScreenToMap(float* px, float* py, bool* pbSky, int x, int y)
 {
 	float size;
-	m_pCamera->ScreenToMap(px, py, &size, pbSky, x, y, &m_rect);
+	m_pCamera->ScreenToMap(px, py, &size, pbSky, x, y, &m_rect, 1);
 }
 
 void VGame::SetSelectionRect(float x1, float y1, float x2, float y2)

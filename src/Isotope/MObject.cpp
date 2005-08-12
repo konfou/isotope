@@ -46,8 +46,6 @@ MObject::MObject(MScriptEngine* pScriptEngine)
 {
 	GAssert(m_vh.m_szID = "MObject.m_vh", "");
 	m_pScriptEngine = pScriptEngine;
-	m_pNext = NULL;
-	m_pPrev = NULL;
 	m_bTangible = true;
 	m_bPanel = false;
 }

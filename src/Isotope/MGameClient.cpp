@@ -114,6 +114,8 @@ void MGameClient::LoadScript(Controller* pController, const char* szUrl)
 
 void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter)
 {
+	UnloadRealm();
+
 	// Download the file into memory
 	GAssert(m_pCamera == NULL && m_pAvatar == NULL && m_pConnection == NULL && m_pMap == NULL, "The realm was not unloaded");
 	if(strnicmp(szUrl, "http://", 7) != 0)
@@ -267,6 +269,24 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 		if(m_bFirstPerson)
 			m_pCamera->SetPos(x, y);
 	}
+
+	// Record URL in the account
+	GXMLTag* pStartTag = m_pAccountTag->GetChildTag("Start");
+	if(!pStartTag)
+	{
+		pStartTag = new GXMLTag("Start");
+		m_pAccountTag->AddChildTag(pStartTag);
+	}
+	GXMLAttribute* pAttrUrl = pStartTag->GetAttribute("url");
+	if(pAttrUrl)
+		pAttrUrl->SetValue(szUrl);
+	else
+		pStartTag->AddAttribute(new GXMLAttribute("url", szUrl));
+}
+
+void MGameClient::SaveState()
+{
+	m_pAccountTag->ToFile(m_szAccountFilename);
 }
 
 MObject* MGameClient::MakeIntangibleGlobalObject(const char* szID, float x, float y, float z)

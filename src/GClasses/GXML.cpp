@@ -516,6 +516,8 @@ void GXMLAttribute::SetName(const char* szName)
 
 void GXMLAttribute::SetValue(const char* szValue)
 {
+	if(szValue == m_pValue)
+		return;
 	delete(m_pValue);
 	m_pValue = new char[strlen(szValue) + 1];
 	strcpy(m_pValue, szValue);

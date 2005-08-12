@@ -30,11 +30,14 @@
 #include "MKeyPair.h"
 #include "VCharSelect.h"
 #include "VCharMake.h"
+#include "VLoading.h"
 #ifdef WIN32
 #include <direct.h>
 #else // WIN32
 #include <unistd.h>
 #endif // !WIN32
+
+//#define SERVER_HAS_VIEW
 
 Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 {
@@ -67,12 +70,21 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_pGameClient = NULL;
 	m_bLoner = false;
 	m_bQuit = false;
-	m_pView = new View();
+	if(eRunMode == SERVER)
+#ifdef SERVER_HAS_VIEW
+		m_pView = new View();
+#else // SERVER_HAS_VIEW
+		m_pView = NULL;
+#endif // !SERVER_HAS_VIEW
+	else
+		m_pView = new View();
 	switch(eRunMode)
 	{
 		case SERVER:
 			m_pModel = new MGameServer(szParam);
+#ifdef SERVER_HAS_VIEW
 			MakeServerView((MGameServer*)m_pModel);
+#endif // SERVER_HAS_VIEW
 			break;
 
 		case CLIENT:
@@ -103,6 +115,14 @@ Controller::~Controller()
 
 void Controller::Run()
 {
+#ifndef SERVER_HAS_VIEW
+	if(m_pModel->GetType() == Model::Server)
+	{
+		while(!m_bQuit)
+			m_pModel->Update(GameEngine::GetTime());
+		return;
+	}
+#endif // SERVER_HAS_VIEW
 	double timeOld = GameEngine::GetTime();
 	double time;
 	while(!m_bQuit)
@@ -169,7 +189,7 @@ void Controller::Update(double dTimeDelta)
 				break;
 
 			case SDL_QUIT:
-				m_bQuit = true;
+				ShutDown();
 				break;
 
 			default:
@@ -180,6 +200,15 @@ void Controller::Update(double dTimeDelta)
 	m_mouse[1] &= mouseButtonClearers[1];
 	m_mouse[3] &= mouseButtonClearers[3];
 	mouseButtonClearers[3] = 1;
+}
+
+void Controller::ShutDown()
+{
+	m_bQuit = true;
+	if(m_pModel->GetType() == Model::Client)
+	{
+		m_pGameClient->SaveState();
+	}
 }
 
 void Controller::SetMode(ControlModes newMode)
@@ -742,9 +771,14 @@ void Controller::ViewMap()
 
 void Controller::PopAllViewPorts()
 {
+	if(!m_pView)
+		return;
 	while(m_pView->GetViewPortCount() > 0)
 		delete(m_pView->PopViewPort());
 	m_pGameView = NULL;
+	m_pMainMenu = NULL;
+	m_pCharSelect = NULL;
+	m_pMakeNewChar = NULL;
 }
 
 void Controller::MakeServerView(MGameServer* pServer)
@@ -756,13 +790,24 @@ void Controller::MakeServerView(MGameServer* pServer)
 
 void Controller::GoToRealm(const char* szURL)
 {
+	// Show the "loading" page
+	SetMode(Controller::NOTHING);
 	PopAllViewPorts();
-	m_pGameClient->UnloadRealm();
+	ViewPort* pLoadingView = new VLoading(m_pView->GetScreenRect());
+	m_pView->PushViewPort(pLoadingView);
+	m_pView->Refresh(); // Redraw the loading page
+
+	// Load the new realm
 	m_pGameClient->LoadRealm(this, szURL, GameEngine::GetTime(), m_pView->GetScreenRect()->h / 2 - 75);
 	if(m_pGameClient->IsFirstPerson())
 		SetMode(Controller::FIRSTPERSON);
 	else
 		SetMode(Controller::THIRDPERSON);
+
+	// Show the game view
+	ViewPort* pViewPort = m_pView->PopViewPort();
+	GAssert(pViewPort == pLoadingView, "Unexpected view port");
+	delete(pViewPort);
 	GAssert(!m_pGameView, "The game view already exists");
 	m_pGameView = new VGame(m_pView->GetScreenRect(), m_pGameClient);
 	m_pView->PushViewPort(m_pGameView);

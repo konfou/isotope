@@ -18,13 +18,12 @@
 #include "MStore.h"
 #include "MGameClient.h"
 #include "MGameImage.h"
+#include "GameEngine.h"
 
 MRealm::MRealm(Model* pModel)
 {
 	GAssert(m_pModel, "Model can't be NULL");
 	m_pModel = pModel;
-	m_pFirstObject = NULL;
-	m_pNextObject = NULL;
 	m_pObjectsByID = NULL;
 	m_pClosestObject = NULL;
 	m_fXMin = -100000;
@@ -32,65 +31,34 @@ MRealm::MRealm(Model* pModel)
 	m_fYMin = -100000;
 	m_fYMax = 100000;
 	m_pTerrain = new GImage();
+	m_pObjects = new GPointerArray(64);
+	m_pObjectsByID = new GHashTable(107);
 }
 
 MRealm::~MRealm()
 {
-	UnloadAllObjects();
+	int n;
+	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
+	{
+		MObject* pOb = (MObject*)m_pObjects->GetPointer(n);
+		delete(pOb);
+	}
+	m_pObjects->Clear();
+	delete(m_pObjectsByID);
+	delete(m_pObjects);
 	delete(m_pTerrain);
 }
 
-void MRealm::UnloadAllObjects()
+int MRealm::GetObjectCount()
 {
-	while(m_pFirstObject)
-	{
-		MObject* pOb = m_pFirstObject;
-		UnlinkObject(pOb);
-		delete(pOb);
-	}
-	delete(m_pObjectsByID);
-	m_pObjectsByID = NULL;
+	return m_pObjects->GetSize();
 }
 
-void MRealm::LinkObject(MObject* pPrev, MObject* pOb)
+MObject* MRealm::GetObj(int n)
 {
-	if(pPrev)
-		pOb->m_pNext = pPrev->m_pNext;
-	else
-		pOb->m_pNext = m_pFirstObject;
-	pOb->m_pPrev = pPrev;
-	if(pPrev)
-		pPrev->m_pNext = pOb;
-	else
-		m_pFirstObject = pOb;
-	if(pOb->m_pNext)
-		pOb->m_pNext->m_pPrev = pOb;
+	return (MObject*)m_pObjects->GetPointer(n);
 }
 
-void MRealm::UnlinkObject(MObject* pOb)
-{
-	if(pOb->m_pPrev)
-		pOb->m_pPrev->m_pNext = pOb->m_pNext;
-	else
-	{
-		GAssert(m_pFirstObject = pOb, "That object is not in the list");
-		m_pFirstObject = pOb->m_pNext;
-	}
-	if(pOb->m_pNext)
-		pOb->m_pNext->m_pPrev = pOb->m_pPrev;
-	pOb->m_pPrev = NULL;
-	pOb->m_pNext = NULL;
-}
-/*
-// todo: remove this method and only use "ReplaceObject"
-void MRealm::AddObject(MObject* pOb)
-{
-	LinkObject(NULL, pOb);
-	if(!m_pObjectsByID)
-			m_pObjectsByID = new GHashTable(53);
-	m_pObjectsByID->Add(pOb->GetUid(), pOb);
-}
-*/
 /*static*/ int MRealm::CompareByCameraDistance(GBillboardCamera* pCamera, MObject* pThis, MObject* pThat)
 {
 	float x1, y1, x2, y2;
@@ -102,6 +70,50 @@ void MRealm::AddObject(MObject* pOb)
 		return 1;
 }
 
+GBillboardCamera* g_pCamera = NULL;
+
+int MObjectComparer(void* pA, void* pB)
+{
+	return MRealm::CompareByCameraDistance(g_pCamera, (MObject*)pA, (MObject*)pB);
+}
+
+void MRealm::SortObjects(GBillboardCamera* pCamera)
+{
+	// Sort the objects
+	GAssert(g_pCamera == NULL, "Looks like there are there multiple threads sorting the objects--yikes!");
+	g_pCamera = pCamera;
+	m_pObjects->Sort(MObjectComparer);
+	g_pCamera = NULL;
+
+	// Rebuild the uid table
+	delete(m_pObjectsByID);
+	m_pObjectsByID = new GHashTable(107); // todo: rebuild it lazily for perf
+	MObject* pOb;
+	int n;
+	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
+	{
+		pOb = (MObject*)m_pObjects->GetPointer(n);
+		m_pObjectsByID->Add(pOb->GetUid(), (void*)n);
+	}
+}
+
+void MRealm::CheckObjects()
+{
+#ifdef _DEBUG
+	int n, nIndex;
+	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
+	{
+		MObject* pOb = (MObject*)m_pObjects->GetPointer(n);
+		if(m_pObjectsByID->Get(pOb->GetUid(), (void**)&nIndex))
+		{
+			GAssert(nIndex == n, "ID wrong");
+		}
+		else
+			GAssert(false, "ID not in table");
+	}
+#endif // _DEBUG
+}
+
 // Note: this is called only by the client model.  The server model never calls it.
 void MRealm::Update(double time, GBillboardCamera* pCamera, MObject* pAvatarObject)
 {
@@ -109,18 +121,32 @@ void MRealm::Update(double time, GBillboardCamera* pCamera, MObject* pAvatarObje
 	float fDistance;
 	m_pClosestObject = NULL;
 	float fClosestDistance = (float)1e20;
-	MObject* pOb = m_pFirstObject;
-	while(pOb)
+	MObject* pNext;
+	MObject* pOb;
+	int nOutOfOrderCount = 0;
+	int nOutOfOrderMax = (int)(m_pObjects->GetSize() * .1);
+	int n;
+	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
 	{
+		pOb = (MObject*)m_pObjects->GetPointer(n);
+
 		// swap with neighbor if it's farther from the camera
-		m_pNextObject = pOb->GetNext();
-		if(m_pNextObject && CompareByCameraDistance(pCamera, pOb, m_pNextObject) < 0)
+		if(nOutOfOrderCount < nOutOfOrderMax && n > 0)
 		{
-			// Swap pOb with m_pNextObject
-			UnlinkObject(pOb);
-			LinkObject(m_pNextObject, pOb);
-			pOb = m_pNextObject;
-			m_pNextObject = pOb->GetNext();
+			pNext = (MObject*)m_pObjects->GetPointer(n - 1);
+			if(pNext && CompareByCameraDistance(pCamera, pOb, pNext) < 0)
+			{
+				int nObUid = pOb->GetUid();
+				int nNextUid = pNext->GetUid();
+				m_pObjectsByID->Remove(nObUid);
+				m_pObjectsByID->Remove(nNextUid);
+				m_pObjects->SetPointer(n, pNext);
+				m_pObjects->SetPointer(n - 1, pOb);
+				m_pObjectsByID->Add(nObUid, (void*)(n - 1));
+				m_pObjectsByID->Add(nNextUid, (void*)n);
+				pOb = pNext;
+				nOutOfOrderCount++;
+			}
 		}
 
 		// Check for closest object
@@ -137,17 +163,24 @@ void MRealm::Update(double time, GBillboardCamera* pCamera, MObject* pAvatarObje
 		// Update pOb
 		pOb->Update(time);
 
-		// Move to the next one
-		pOb = m_pNextObject;
+		// If several objects were removed in the call to Update, "n" might have a bogus value
+		if(n > m_pObjects->GetSize())
+			break;
 	}
+
+	// Sort objects if necessary
+	if(nOutOfOrderCount >= nOutOfOrderMax)
+		SortObjects(pCamera);
 }
 
 void MRealm::GetObjectsWithinBox(GPointerArray* pObjects, float xMin, float yMin, float xMax, float yMax)
 {
 	GPosSize* pPosSize;
 	MObject* pOb;
-	for(pOb = m_pFirstObject; pOb; pOb = pOb->GetNext())
+	int n;
+	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
 	{
+		pOb = (MObject*)m_pObjects->GetPointer(n);
 		pPosSize = pOb->GetGhostPos();
 		if(pPosSize->x + pPosSize->sx / 2 >= xMin && 
 			pPosSize->y + pPosSize->sy >= yMin &&
@@ -166,8 +199,10 @@ MObject* MRealm::GetClosestObject(float x, float y)
 	float f;
 	MObject* pClosest = NULL;
 	MObject* pOb;
-	for(pOb = m_pFirstObject; pOb; pOb = pOb->GetNext())
+	int n;
+	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
 	{
+		pOb = (MObject*)m_pObjects->GetPointer(n);
 		f = pOb->GetDistanceSquared(x, y);
 		if(f < fClosest)
 		{
@@ -178,68 +213,75 @@ MObject* MRealm::GetClosestObject(float x, float y)
 	return pClosest;
 }
 
+int MRealm::IdToIndex(int nID)
+{
+	int nIndex;
+	if(m_pObjectsByID->Get(nID, (void**)&nIndex))
+	{
+		GAssert(nIndex >= 0 && nIndex < m_pObjects->GetSize(), "out of range");
+		return nIndex;
+	}
+	return -1;
+}
+
 MObject* MRealm::GetObjectByID(int nID)
 {
-	MObject* pOb;
-	if(!m_pObjectsByID)
-		m_pObjectsByID = new GHashTable(53);
-	if(m_pObjectsByID->Get(nID, (void**)&pOb))
-		return pOb;
+	int nIndex = IdToIndex(nID);
+	if(nIndex >= 0)
+		return (MObject*)m_pObjects->GetPointer(nIndex);
 	return NULL;
 }
 
 void MRealm::RemoveObject(int nConnection, int uid)
 {
-	MObject* pOldOb = GetObjectByID(uid);
-	if(pOldOb)
+	int nIndex = IdToIndex(uid);
+	if(nIndex >= 0)
 	{
+		MObject* pOldOb = (MObject*)m_pObjects->GetPointer(nIndex);
 		if(!m_pModel->OnReplaceObject(nConnection, pOldOb, NULL))
 			return;
 		if(m_pClosestObject == pOldOb)
 			m_pClosestObject = NULL;
-		if(m_pNextObject == pOldOb)
-			m_pNextObject = NULL;
-		RemoveObject(pOldOb, uid);
+		RemoveObject(nIndex, pOldOb, uid);
 	}
 }
 
-MObject* MRealm::RemoveObject(MObject* pOldOb, int uid)
+void MRealm::RemoveObject(int nIndex, MObject* pOldOb, int uid)
 {
 	m_pObjectsByID->Remove(uid);
-	MObject* pPrev = pOldOb->GetPrev();
-	UnlinkObject(pOldOb);
+	m_pObjects->DeleteCell(nIndex);
 	delete(pOldOb);
-	return pPrev;
 }
 
 void MRealm::ReplaceObject(int nConnection, MObject* pNewOb)
 {
 	int uid = pNewOb->GetUid();
-	MObject* pOldOb = GetObjectByID(uid);
+	int nIndex = IdToIndex(uid);
+	MObject* pOldOb = NULL;
+	if(nIndex >= 0)
+		pOldOb = (MObject*)m_pObjects->GetPointer(nIndex);
 	if(!m_pModel->OnReplaceObject(nConnection, pOldOb, pNewOb))
 	{
 		delete(pNewOb);
 		return;
 	}
-	MObject* pPrev = NULL;
-	if(pOldOb)
+	if(nIndex >= 0)
 	{
 		if(m_pClosestObject == pOldOb)
 			m_pClosestObject = pNewOb;
-		if(m_pNextObject == pOldOb)
-			m_pNextObject = NULL;
 		GPosSize* pPosSize = pOldOb->GetGhostPos();
 		pNewOb->SetGhostPos(pPosSize->x, pPosSize->y);
-		pPrev = RemoveObject(pOldOb, uid);
+		delete(pOldOb);
+		m_pObjects->SetPointer(nIndex, pNewOb);
 	}
 	else
 	{
 		float x, y;
 		pNewOb->GetPos(&x, &y);
 		pNewOb->SetGhostPos(x, y);
+		m_pObjectsByID->Add(uid, (void*)m_pObjects->GetSize());
+		m_pObjects->AddPointer(pNewOb);
 	}
-	m_pObjectsByID->Add(uid, pNewOb);
-	LinkObject(pPrev, pNewOb);
 }
 
 void MRealm::SetTerrainMap(GImage* pImage)
@@ -324,6 +366,8 @@ void MRealm::FromXml(GXMLTag* pTag, MImageStore* pStore)
 	if(pAttr && pStore)
 	{
 		VarHolder* pVH = pStore->GetVarHolder(pAttr->GetValue());
+		if(!pVH)
+			GameEngine::ThrowError("The terrain is specified as \"%s\" but there is no image with that ID", pAttr->GetValue());
 		SetTerrainMap(&((MGameImage*)pVH->GetGObject())->m_value);
 	}
 	else

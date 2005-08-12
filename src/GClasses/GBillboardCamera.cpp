@@ -56,7 +56,7 @@ void GBillboardCamera::MapToScreen(float* pOutX, float* pOutY, float* pOutScale,
 	*pOutScale = t;
 }
 
-void GBillboardCamera::ScreenToMap(float* px, float* py, float* pSize, bool* pbSky, int xScr, int yScr, GRect* pScreenRect)
+void GBillboardCamera::ScreenToMap(float* px, float* py, float* pSize, bool* pbSky, int xScr, int yScr, GRect* pScreenRect, int nSkyImageWidth)
 {
 	xScr -= pScreenRect->x;
 	yScr -= pScreenRect->y;
@@ -66,8 +66,8 @@ void GBillboardCamera::ScreenToMap(float* px, float* py, float* pSize, bool* pbS
 	if(yScr > horiz)
 	{
 		*pbSky = true;
-		*px = xScr - m_direction * pScreenRect->w;
-		*py = horiz - yScr;
+		*px = xScr - m_direction * nSkyImageWidth / 6.28318;
+		*py = yScr - horiz;
 		*pSize = 1;
 	}
 	else
@@ -162,6 +162,12 @@ void GBillboardCamera::Move(float dx, float dy)
 	m_y += dy * m_cosDirection;
 }
 
+void GBillboardCamera::RecalcVertAjust(int nScreenVerticalCenter)
+{
+	// Move the camera vertically until the avatar is at the center of the screen
+	m_vertajust = m_backup * (m_horizonHeight / (m_horizonHeight + m_backup)) * m_zoom - nScreenVerticalCenter;
+}
+
 void GBillboardCamera::AjustZoom(float fac, int nScreenVerticalCenter)
 {
 	// Disallow excessive zooming
@@ -183,9 +189,7 @@ void GBillboardCamera::AjustZoom(float fac, int nScreenVerticalCenter)
 	// the camera seems to give the user a more useful control of the view than either of
 	// them alone.)
 	m_backup = (float)500 / m_zoom;
-
-	// Move the camera vertically until the avatar is at the center of the screen
-	m_vertajust = m_backup * (m_horizonHeight / (m_horizonHeight + m_backup)) * m_zoom - nScreenVerticalCenter;
+	RecalcVertAjust(nScreenVerticalCenter);
 }
 
 void GBillboardCamera::AjustHorizonHeight(float factor, int nScreenVerticalCenter)
@@ -201,6 +205,6 @@ void GBillboardCamera::AjustHorizonHeight(float factor, int nScreenVerticalCente
 			return;
 	}
 	m_horizonHeight *= factor;
-	AjustZoom(1, nScreenVerticalCenter);
+	RecalcVertAjust(nScreenVerticalCenter);
 }
 

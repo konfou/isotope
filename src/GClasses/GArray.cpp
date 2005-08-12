@@ -137,34 +137,26 @@ void GPointerArray::Sort(PointerComparer pCompareFunc)
 				i = nCount - n;
 			j = nStep;
 			if(n + nStep + j > nCount)
-				j = nCount - (n + nStep);
-			if(j > 0)
+				j = MAX(nCount - (n + nStep), 0);
+			end = i + j - 1;
+			for(k = end; k >= 0; k--)
 			{
-				end = i + j - 1;
-				for(k = end; k >= 0; k--)
+				if(!i)
+					cmp = -1;
+				else if(!j)
+					cmp = 1;
+				else
+					cmp = pCompareFunc(GetPointer(n + i - 1), GetPointer(n + nStep + j - 1));
+				if(cmp <= 0)
 				{
-					if(!i)
-						cmp = -1;
-					else if(!j)
-						cmp = 1;
-					else
-						cmp = pCompareFunc(GetPointer(n + i - 1), GetPointer(n + nStep + j - 1));
-					if(cmp <= 0)
-					{
-						pBuf[n + k] = GetPointer(n + nStep + j - 1);
-						j--;
-					}
-					else
-					{
-						pBuf[n + k] = GetPointer(n + i - 1);
-						i--;
-					}
+					pBuf[n + k] = GetPointer(n + nStep + j - 1);
+					j--;
 				}
-			}
-			else
-			{
-				for(k = i - 1; k >= 0; k--)
+				else
+				{
 					pBuf[n + k] = GetPointer(n + i - 1);
+					i--;
+				}
 			}
 		}
 		pTmp = pBuf;
