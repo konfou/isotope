@@ -68,7 +68,6 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_pMakeNewChar = NULL;
 	m_szNewUrl = NULL;
 	m_pGameClient = NULL;
-	m_bLoner = false;
 	m_bQuit = false;
 	if(eRunMode == SERVER)
 #ifdef SERVER_HAS_VIEW
@@ -88,12 +87,6 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 			break;
 
 		case CLIENT:
-			m_pModel = new NoModel();
-			MakeCharSelectView();
-			break;
-
-		case LONER:
-			m_bLoner = true;
 			m_pModel = new NoModel();
 			MakeCharSelectView();
 			break;
@@ -432,9 +425,18 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	if(m_mouse[1]) // left button
 	{
 		m_mouse[1] = 0;
-		bool bSky;
 		float mapX, mapY;
+		bool bSky;
 		m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseDownX, m_mouseDownY);
+		if(bSky)
+		{
+			int nSafety = 50;
+			while(bSky && nSafety--)
+			{
+				m_mouseDownY += 4;
+				m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseDownX, m_mouseDownY);
+			}
+		}
 		if(!bSky)
 			SetGoalSpot(mapX, mapY);
 	}
@@ -918,7 +920,7 @@ void Controller::LogIn(GXMLTag* pAccountRefTag, const char* szPassword)
 
 	// Start the game
 	delete(m_pModel);
-	m_pGameClient = new MGameClient(szFilename, pAccountTag, pAccountRefTag, m_bLoner);
+	m_pGameClient = new MGameClient(szFilename, pAccountTag, pAccountRefTag);
 	m_pModel = m_pGameClient;
 	GoToRealm(szStartUrl);
 }

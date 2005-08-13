@@ -41,7 +41,6 @@ public:
 	{
 		SERVER,
 		CLIENT,
-		LONER,
 		KEYPAIR,
 	};
 
@@ -82,7 +81,6 @@ protected:
 	double m_dMenuSlideOutAnimTime;
 	bool m_bMouseDown;
 	char* m_szNewUrl;
-	bool m_bLoner;
 
 public:
 	Controller(RunModes eRunMode, const char* szParam);

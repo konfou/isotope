@@ -258,6 +258,14 @@ SOURCE=.\ViewPort.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\VLoading.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\VLoading.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\VMainMenu.cpp
 # End Source File
 # Begin Source File

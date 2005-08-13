@@ -66,8 +66,8 @@ void GBillboardCamera::ScreenToMap(float* px, float* py, float* pSize, bool* pbS
 	if(yScr > horiz)
 	{
 		*pbSky = true;
-		*px = xScr - m_direction * nSkyImageWidth / 6.28318;
-		*py = yScr - horiz;
+		*px = xScr - m_direction * nSkyImageWidth / ((float)3.14159265359 * 2);
+		*py = yScr - horiz + 1;
 		*pSize = 1;
 	}
 	else

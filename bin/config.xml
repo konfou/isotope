@@ -1,6 +1,7 @@
 <config>
-	<Start url="http://proton.edumetrics.org/isotope/start.realm" />
+	<Start url="http://isotope.sourceforge.net/realms/start.realm" />
 	<Accounts>
+		<Account Anim="av1" Password="7fbfabe660638f095ef6bb3f82e325c4f63a02a42e8983d22674140dcd668323e682c214ebe524458d2870275c15a8c2a5c8c0f7e7ad9195a4e75b9354e3e17d" File="accounts/14427.xml" />
 	</Accounts>
 </config>
  

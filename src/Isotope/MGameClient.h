@@ -63,7 +63,7 @@ protected:
 	GXMLTag* m_pAccountRefTag;
 
 public:
-	MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag, bool loner);
+	MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag);
 	virtual ~MGameClient();
 
 	MImageStore* GetImages() { return m_pImageStore; }

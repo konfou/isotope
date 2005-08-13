@@ -473,8 +473,6 @@ void LaunchProgram(int argc, char *argv[])
 		bOK = true;
 		if(stricmp(argv[1], "client") == 0)
 			eRunMode = Controller::CLIENT;
-		else if(stricmp(argv[1], "loner") == 0)
-			eRunMode = Controller::LONER;
 		else
 			bOK = false;
 	}
@@ -494,20 +492,12 @@ void LaunchProgram(int argc, char *argv[])
 		printf("Valid values for [parameters] depend on the value for [command].\n");
 		printf("Possible values for [command]:\n");
 		printf("\n");
-		printf("client                  Run as a client.  (If you don't know what you're doing,\n");
-		printf("                        you want this one.)\n");
+		printf("client                  Run as a client (the default).\n");
 		printf("\n");
 		printf("server [WWW-Root-Path]  Run as a server.  The value of [WWW-Root-Path]\n");
 		printf("                        should be the web root used by your HTTP server\n");
 		printf("                        and all your .realm files and content should be\n");
 		printf("                        somewhere within that folder.\n");
-		printf("\n");
-		printf("loner [Url]             This is similar to \"client\" except it doesn't try to\n");
-		printf("                        communicate with an Isotope server.  The content must\n");
-		printf("                        still be made available via some HTTP server, but there\n");
-		printf("                        doesn't need to be an Isotope server running anywhere.\n");
-		printf("                        Consequently, you will be alone in any worlds you\n");
-		printf("                        visit.  This mode is useful while developing content.\n");
 		printf("\n");
 		printf("keypair [Output File]   Generate a key pair.\n");
 		printf("\n");

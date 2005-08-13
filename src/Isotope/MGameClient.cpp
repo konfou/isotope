@@ -33,7 +33,7 @@
 #include <unistd.h>
 #endif // WIN32
 
-MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag, bool loner)
+MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag)
 : Model()
 {
 	m_szAccountFilename = new char[strlen(szAccountFilename) + 1];
@@ -57,7 +57,6 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_pPlayer = new VWavePlayer();
 	m_pMap = NULL;
 	m_szScript = NULL;
-	m_bLoner = loner;
 	m_szRemoteFolder = NULL;
 
 	m_pImageStore = NULL;
@@ -66,6 +65,16 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_pSpotStore = NULL;
 	m_bFirstPerson = false;
 	m_pSelectedObjects = new GPointerArray(64);
+
+	// Check for the Mode attribute
+	m_bLoner = false;
+	GXMLTag* pConfigTag = GameEngine::GetConfig();
+	GXMLAttribute* pAttrMode = pConfigTag->GetAttribute("Mode");
+	if(pAttrMode)
+	{
+		if(stricmp(pAttrMode->GetValue(), "loner") == 0)
+			m_bLoner = true;
+	}
 }
 
 /*virtual*/ MGameClient::~MGameClient()
