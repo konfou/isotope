@@ -19,7 +19,10 @@
 #include "../Gash/BuiltIns/GashFloat.h"
 #include "../Gash/Engine/Error.h"
 #include "../Gash/CodeObjects/Project.h"
+#include "../Gash/CodeObjects/Class.h"
+#include "../Gash/CodeObjects/Interface.h"
 #include "../Gash/Engine/GCompiler.h"
+#include "../Gash/Engine/Disassembler.h"
 #include "GameEngine.h"
 #include "MObject.h"
 #include "MAnimation.h"
@@ -97,17 +100,14 @@ void RegisterIsotopeMachineClasses()
 // -------------------------------------------------------------------------------
 
 
-MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, MGameClient* pGameClient, Controller* pController)
+MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pObjectsTag, MGameClient* pGameClient, Controller* pController)
 {
 	// Parse the script into a project
 	Holder<COProject*> hProj(new COProject("*bogus*"));
-	char szGashLibPath[512];
-	strcpy(szGashLibPath, GameEngine::GetAppPath());
-	strcat(szGashLibPath, "../src/Gash/xlib");
-	if(!hProj.Get()->LoadLibraries(szGashLibPath, pErrorHandler))
+	if(!hProj.Get()->LoadLibraries(GameEngine::GetAppPath(), pErrorHandler))
 	{
 		GAssert(false, "The error handler should have thrown");
-		GameEngine::ThrowError("Failed to load Gash libraries from: %s", szGashLibPath);
+		GameEngine::ThrowError("Failed to load Gash libraries from: %s", GameEngine::GetAppPath());
 	}
 	const char* szFilename = "*The Script*";
 	if(!hProj.Get()->LoadSources(&szScript, &szFilename, 1, pErrorHandler))
@@ -118,20 +118,24 @@ MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler
 
 	// Build the project into a library
 	CompileError errorHolder;
-	m_pLibrary = GCompiler::Compile(hProj.Drop(), true, &errorHolder);
+	{
+		COProject* pProj = hProj.Drop();
+		GCompiler comp(pProj, &errorHolder);
+		if(pObjectsTag)
+			ImportObjectDependencies(&comp, pProj, pObjectsTag);
+        m_pLibrary = comp.Compile(true);
+	}
 	if(!m_pLibrary)
 	{
 		pErrorHandler->OnError(&errorHolder);
 		GAssert(false, "The error handler should have thrown");
 		GameEngine::ThrowError("Failed to compile the script");
 	}
-/*
-// todo: remove this code:	
-if(pGameClient)
-m_pLibrary->GetLibraryTag()->ToFile("client.xlib");
-else
-m_pLibrary->GetLibraryTag()->ToFile("server.xlib");
-*/
+
+//m_pLibrary->GetLibraryTag()->ToFile("c:\\dbg.xlib"); // todo: remove this code:	
+/*int nSize;
+Holder<char*> hDisassembly(Disassembler::DisassembleLibraryToText(m_pLibrary, &nSize));
+GFile::SaveBufferToFile((unsigned char*)hDisassembly.Get(), nSize, "c:\\tmp.txt");*/
 
 	// Load the library into a virtual machine
 	char szCurDir[512];
@@ -208,6 +212,100 @@ m_pLibrary->GetLibraryTag()->ToFile("server.xlib");
 	delete(m_pVM);
 	delete(m_pCBG);
 	delete(m_pLibrary);
+}
+
+void MScriptEngine::ImportMethodDependency(GCompiler* pCompiler, COClass* pClass, const char* szSig)
+{
+	EMethodSignature sig(szSig);
+	COMethod* pMethod = pClass->FindMethod(&sig);
+	if(pMethod)
+		pCompiler->AddImportMethod(pMethod);
+	else
+	{
+		//GAssert(false, "method not found");
+	}
+}
+
+// The Gash compiler optimizes by not including any uncalled methods in the library it builds.  But since
+// we're calling several methods from C++ code, we have to tell the compiler to explicitly import the methods
+// that we're expecting.
+void MScriptEngine::ImportObjectDependencies(GCompiler* pCompiler, COProject* pProject, GXMLTag* pObjectsTag)
+{
+	char szTmp1[32];
+	strcpy(szTmp1, "Param");
+	char szTmp2[32];
+	GXMLTag* pObjTag;
+	for(pObjTag = pObjectsTag->GetFirstChildTag(); pObjTag; pObjTag = pObjectsTag->GetNextChildTag(pObjTag))
+	{
+		GXMLAttribute* pClassAttr = pObjTag->GetAttribute("Class");
+		if(pClassAttr)
+		{
+			const char* szClassName = pClassAttr->GetValue();
+			COType* pType = pProject->FindType(szClassName);
+			//GAssert(pType, "type not found");
+			if(pType)
+			{
+				pCompiler->AddImportType(pType);
+				if(pType->GetTypeType() == COType::TT_CLASS)
+				{
+					COClass* pClass = (COClass*)pType;
+					
+					// Count the parameters to the new method
+					GQueue q;
+					q.Push("method !new(");
+					int n;
+					for(n = 1; n <= MAX_PARAMS; n++)
+					{
+						itoa(n, szTmp2, 10);
+						strcpy(szTmp1 + 5, szTmp2);
+						GXMLAttribute* pAttrParam = pObjTag->GetAttribute(szTmp1);
+						if(pAttrParam)
+						{
+							if(n > 1)
+								q.Push(", ");
+							q.Push("String");
+						}
+						else
+							break;
+					}
+					q.Push(")");
+					Holder<char*> hSigNew(q.DumpToString());
+
+					// Import all the methods
+					ImportMethodDependency(pCompiler, pClass, hSigNew.Get());
+					ImportMethodDependency(pCompiler, pClass, "method &update(Float)");
+					ImportMethodDependency(pCompiler, pClass, "method getFrame(!GImage, &Rect, Float)");
+					ImportMethodDependency(pCompiler, pClass, "method &doAction(Float, Float)");
+					ImportMethodDependency(pCompiler, pClass, "method &onGetFocus()");
+					ImportMethodDependency(pCompiler, pClass, "method &onLoseFocus()");
+					ImportMethodDependency(pCompiler, pClass, "method verify(&Bool, Integer, RealmObject)");
+				}
+				else
+				{
+					//GAssert(false, "expected a class");
+				}
+			}
+		}
+	}
+
+	// Built in stuff
+	pCompiler->AddImportType(pProject->FindMachineClass("GameMachine"));
+	COClass* pClass = pProject->FindClass("Avatar");
+	if(pClass)
+	{
+		pCompiler->AddImportType(pClass);
+		ImportMethodDependency(pCompiler, pClass, "method !new(String, String)");
+		ImportMethodDependency(pCompiler, pClass, "method &update(Float)");
+		ImportMethodDependency(pCompiler, pClass, "method getFrame(!GImage, &Rect, Float)");
+		ImportMethodDependency(pCompiler, pClass, "method &doAction(Float, Float)");
+		ImportMethodDependency(pCompiler, pClass, "method &onGetFocus()");
+		ImportMethodDependency(pCompiler, pClass, "method &onLoseFocus()");
+		ImportMethodDependency(pCompiler, pClass, "method verify(&Bool, Integer, RealmObject)");
+	}
+	else
+	{
+		GAssert(false, "Expected an Avatar class");
+	}
 }
 
 void MScriptEngine::FindMethod(struct MethodRef* pMethodRef, const char* szType, const char* szSig)

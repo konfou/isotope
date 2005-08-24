@@ -53,14 +53,14 @@ MRealmServer::~MRealmServer()
 	delete(m_pErrorHandler);
 }
 
-void MRealmServer::LoadScript(const char* szFilename)
+void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pObjectsTag)
 {
 	int nBufSize;
 	Holder<char*> hBuf(GFile::LoadFileToBuffer(szFilename, &nBufSize));
 	const char* pFile = hBuf.Get();
 	if(!pFile)
 		GameEngine::ThrowError("Failed to load script file: %s", szFilename);
-	m_pScriptEngine = new MScriptEngine(pFile, nBufSize, m_pErrorHandler, NULL, NULL);
+	m_pScriptEngine = new MScriptEngine(pFile, nBufSize, m_pErrorHandler, pObjectsTag, NULL, NULL);
 }
 
 /*static*/ MRealmServer* MRealmServer::LoadRealm(const char* szFilename, MGameServer* pGameServer)
@@ -96,7 +96,8 @@ void MRealmServer::LoadScript(const char* szFilename)
 	GTEMPBUF(pFullScriptName, strlen(pRS->m_szBase) + strlen(szScriptName) + 5);
 	strcpy(pFullScriptName, pRS->m_szBase);
 	strcat(pFullScriptName, szScriptName);
-	pRS->LoadScript(pFullScriptName);
+	GXMLTag* pObjectsTag = pModelTag->GetChildTag("Objects");
+	pRS->LoadScript(pFullScriptName, pObjectsTag);
 
 	// Make the new realm
 	pRS->m_pRealm = new MRealm(pGameServer);

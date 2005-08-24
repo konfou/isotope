@@ -677,6 +677,7 @@ void AjustIDAndAddMapEntry(GXMLTag* pTag, int* pnCounter, int* map, int nMaxID)
 						if(nOldID > 0)
 						{
 							GAssert(nOldID < nMaxTypeID, "out of range");
+							GAssert(pnTypeIDMap[nOldID] >= 0, "invalid new ID");
 							char szTmp[32];
 							itoa(pnTypeIDMap[nOldID], szTmp, 10);
 							pAttrID->SetValue(szTmp);

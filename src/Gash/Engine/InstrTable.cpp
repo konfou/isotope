@@ -24,6 +24,7 @@
 // O = dest object
 // o = source object
 // p = parameter count
+// s = constant string index
 // t = type id
 // v = integer value
 // V = virtual table index
@@ -79,6 +80,7 @@ static struct InstructionStruct TheMightyInstructionTable[INSTRUCTION_COUNT] =
 	{"SetFloatWithConst",	Instr_SetFloatWithConst,		Instr_NotImplYet,			3,				"Ovv"	},
 	{"ShiftLeft",			Instr_ShiftLeft,				Instr_NotImplYet,			2,				"Ii"	},
 	{"ShiftRight",			Instr_ShiftRight,				Instr_NotImplYet,			2,				"Ii"	},
+	{"GetConstString",		Instr_GetConstString,			Instr_NotImplYet,			2,				"Os"	},
 };
 
 struct InstructionStruct* GetInstructionStruct(unsigned char instruction)

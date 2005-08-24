@@ -319,6 +319,12 @@
 				RelativePath="GCrypto.h">
 			</File>
 			<File
+				RelativePath=".\GDaftLearner.cpp">
+			</File>
+			<File
+				RelativePath=".\GDaftLearner.h">
+			</File>
+			<File
 				RelativePath="GDataBase.cpp">
 				<FileConfiguration
 					Name="Release|Win32">

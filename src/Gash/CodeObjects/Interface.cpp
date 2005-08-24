@@ -94,7 +94,7 @@ GXMLTag* COInterface::SaveToXML()
 	for(n = 0; n < nCount; n++)
 	{
 		pMethodDecl = GetMethodDecl(n);
-		pInterfaceTag->AddChildTag(pMethodDecl->SaveToXML());
+		pInterfaceTag->AddChildTag(pMethodDecl->SaveToXML(NULL));
 	}
 	return pInterfaceTag;
 }
@@ -106,6 +106,7 @@ GXMLTag* COInterface::ToXMLForImplementationInLibrary()
 		pInterfaceTag = new GXMLTag(TAG_NAME_MACHINE);
 	else
 		pInterfaceTag = new GXMLTag(TAG_NAME_INTERFACE);
+	GAssert(GetID() >= 0, "bogus ID");
 	char szTmp[64];
 	itoa(GetID(), szTmp, 10);
 	pInterfaceTag->AddAttribute(new GXMLAttribute(ATTR_ID, szTmp));
@@ -113,7 +114,7 @@ GXMLTag* COInterface::ToXMLForImplementationInLibrary()
 	return pInterfaceTag;
 }
 
-GXMLTag* COInterface::ToXMLForLibrary()
+GXMLTag* COInterface::ToXMLForLibrary(GCompiler* pCompiler)
 {
 	GXMLTag* pInterfaceTag = ToXMLForImplementationInLibrary();
 	COMethodDecl* pMethDecl;
@@ -122,7 +123,7 @@ GXMLTag* COInterface::ToXMLForLibrary()
 	for(n = 0; n < nCount; n++)
 	{
 		pMethDecl = GetMethodDecl(n);
-		pInterfaceTag->AddChildTag(pMethDecl->SaveToXML());
+		pInterfaceTag->AddChildTag(pMethDecl->SaveToXML(pCompiler));
 	}
 	return pInterfaceTag;
 }

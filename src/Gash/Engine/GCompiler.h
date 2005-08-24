@@ -59,6 +59,7 @@ protected:
 	// Import stuff
 	GHashTable* m_pExternallyCalledMethods;
 	GHashTable* m_pExternallyReferencedTypes;
+	GConstStringHashTable* m_pAlreadyImportedTypes;
 
 	// Misc Members
 	EInstrArrayBuilder* m_pEInstrArrayBuilder;
@@ -89,16 +90,16 @@ protected:
 	};
 
 public:
-	// This takes a COProject and returns a Library.  You must delete
-	// the library when you're done with it.  On error it returns NULL.
-	static Library* Compile(COProject* pCOProject, bool bLibraryOwnsProject, CompileError* pErrorHolder);
-	static EInstrArray* PartialCompileMethod(COMethod* pMethod, COProject* pProject);
- 
-protected:
 	GCompiler(COProject* pCOProject, CompileError* pErrorHolder);
 	virtual ~GCompiler();
 
-public:
+	// This takes a COProject and returns a Library.  You must delete
+	// the library when you're done with it.  On error it returns NULL.
+	Library* Compile(bool bLibraryOwnsProject);
+	EInstrArray* PartialCompileMethod(COMethod* pMethod);
+ 
+
+
 	bool CompileMethodStart(COMethod* pMethod);
 	bool CompileMethodParameter(COVariable* pVariable);
 	bool CompileMethodPostParameters();
@@ -126,6 +127,8 @@ public:
 	bool PushStackVariable(COVariable* pVariable, bool bTakeOwnership);
 	void AddInstr(GVMInstrPointer pMeth, COInstruction* pInstruction);
 	void AddParam(int nParam);
+	void AddImportMethod(COMethodDecl* pMethod);
+	void AddImportType(COType* pType);
 
 protected:
 	bool AsmCmdSetMember(COCall* pCall, COVariable* pDest, COVariable* pSource, COVariable* pMember);
@@ -150,20 +153,19 @@ protected:
 	bool AddStartScope(COInstruction* pSymbolInstr);
 	bool AddEndScope(COInstruction* pSymbolInstr);
 	bool DoImporting();
-	void AddImportMethod(COMethodDecl* pMethod);
-	void AddImportType(COType* pType);
 	int AddConstantString(const char* szValue);
 	void AjustIDInDataAttr(GXMLAttribute* pPrevAttr, GXMLAttribute* pCurrAttr, int nPos, int nNewValue);
 	COMethod* FindMethodByID(GXMLTag* pLibraryTag, int nID);
 	const char* FindCallBackByID(COFile* pFile, GXMLTag* pLibraryTag, int nID);
-	bool ImportExternalMethod(Library* pExternalLibrary, int nMethodID, GConstStringHashTable* pImportedTypeTags);
-	GXMLTag* ImportExternalType(Library* pExternalLibrary, GXMLTag* pExternalTypeTag, GConstStringHashTable* pImportedTypeTags);
-	GXMLTag* ImportExternalType(COType* pCOType, GConstStringHashTable* pImportedTypeTags);
+	bool ImportExternalMethod(Library* pExternalLibrary, int nMethodID);
+	GXMLTag* ImportExternalType(Library* pExternalLibrary, GXMLTag* pExternalTypeTag);
+	GXMLTag* ImportExternalType(COType* pCOType);
 	bool CompileBegin();
 	bool CompileFinish();
 	void CompileFailed();
 	int GetCurrentOffset();
 	bool CompileProject();
+	void ImportMethods();
 };
 
 

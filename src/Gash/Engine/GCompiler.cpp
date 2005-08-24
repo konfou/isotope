@@ -66,7 +66,8 @@ GCompiler::GCompiler(COProject* pCOProject, CompileError* pErrorHolder)
 	m_pLibraryTag = NULL;
 	m_pStringTableTag = NULL;
 	m_pExternallyCalledMethods = new GHashTable(37);
-	m_pExternallyReferencedTypes = new GHashTable(13);
+	m_pExternallyReferencedTypes = new GHashTable(23);
+	m_pAlreadyImportedTypes = NULL;
 	m_bSymbolMode = false;
 }
 
@@ -85,21 +86,21 @@ GCompiler::~GCompiler()
 	delete(m_pStringTableTag);
 	delete(m_pExternallyCalledMethods);
 	delete(m_pExternallyReferencedTypes);
+	delete(m_pAlreadyImportedTypes);
 	delete(m_pEInstrArrayBuilder);
 }
 
-/*static*/ Library* GCompiler::Compile(COProject* pCOProject, bool bLibraryOwnsProject, CompileError* pErrorHolder)
+Library* GCompiler::Compile(bool bLibraryOwnsProject)
 {
-	GCompiler comp(pCOProject, pErrorHolder);
-	bool bSuccess = comp.CompileProject();
+	bool bSuccess = CompileProject();
 	if(bSuccess)
 	{
-		GXMLTag* pTmp = comp.m_pLibraryTag;
-		comp.m_pLibraryTag = NULL;
-		Library* pLibrary = Library::CreateFromXML(pTmp, pCOProject, bLibraryOwnsProject);
+		GXMLTag* pTmp = m_pLibraryTag;
+		m_pLibraryTag = NULL;
+		Library* pLibrary = Library::CreateFromXML(pTmp, m_pCOProject, bLibraryOwnsProject);
 		if(!pLibrary)
 		{
-			pErrorHolder->SetError(&Error::INTERNAL_ERROR, NULL);
+			m_pErrorHolder->SetError(&Error::INTERNAL_ERROR, NULL);
 			return NULL;
 		}
 		return pLibrary;
@@ -108,18 +109,10 @@ GCompiler::~GCompiler()
 		return NULL;
 }
 
-/*static*/ EInstrArray* GCompiler::PartialCompileMethod(COMethod* pMethod, COProject* pProject)
+EInstrArray* GCompiler::PartialCompileMethod(COMethod* pMethod)
 {
-	CompileError errorHolder;
-	GCompiler comp(pProject, &errorHolder);
-	comp.m_bSymbolMode = true;
-	EInstrArray* pMB = pMethod->Compile2(&comp);
-	if(!pMB)
-	{
-		GAssert(errorHolder.HaveError(), "error was not set");
-		return NULL;
-	}
-	return pMB;
+	m_bSymbolMode = true;
+	return pMethod->Compile2(this);
 }
 
 void GCompiler::AddInstr(GVMInstrPointer pMeth, COInstruction* pInstruction)
@@ -242,9 +235,9 @@ bool GCompiler::CompileBegin()
 		m_pLibraryTag->AddAttribute(new GXMLAttribute(ATTR_SOURCE, szFilename));
 
 	// Add built in classes to the library
-	m_pLibraryTag->AddChildTag(m_pCOProject->m_pObject->ToXMLForLibrary());
-	m_pLibraryTag->AddChildTag(m_pCOProject->m_pInteger->ToXMLForLibrary());
-	m_pLibraryTag->AddChildTag(m_pCOProject->m_pStackLayer->ToXMLForLibrary());
+	m_pLibraryTag->AddChildTag(m_pCOProject->m_pObject->ToXMLForLibrary(this));
+	m_pLibraryTag->AddChildTag(m_pCOProject->m_pInteger->ToXMLForLibrary(this));
+	m_pLibraryTag->AddChildTag(m_pCOProject->m_pStackLayer->ToXMLForLibrary(this));
 
 	// Add references to internally-referenced methods
 	COClass* pExceptionClass = m_pCOProject->FindClass("Exception");
@@ -340,28 +333,15 @@ void GCompiler::AddImportType(COType* pType)
 	void* pTmp;
 	if(m_pExternallyReferencedTypes->Get(pType, &pTmp))
 		return; // it's already in the table of types to import
+	if(m_pAlreadyImportedTypes && m_pAlreadyImportedTypes->Get(pType->GetName(), &pTmp))
+		return; // it's already been imported
 	m_pExternallyReferencedTypes->Add(pType, NULL);
 	if(pType->GetTypeType() == COType::TT_CLASS)
 		AddImportType(((COClass*)pType)->GetParent()); // Recursively add parents
 }
 
-bool GCompiler::DoImporting()
+void GCompiler::ImportMethods()
 {
-/*
-// This is debug code to save a list of the types that were marked for importing
-FILE* pFile = fopen("importtypes.txt", "w");
-GHashTableEnumerator hte(m_pExternallyReferencedTypes);
-while(true)
-{
-	COType* pType = (COType*)hte.GetNextKey();
-	if(!pType)
-		break;
-	fputs(pType->GetName(), pFile);
-	fputs("\n", pFile);
-}
-fclose(pFile);
-*/
-
 	// Copy the method hash table to an array so we can shrink it more efficiently
 	int nMethodCount = m_pExternallyCalledMethods->GetCount();
 	GTEMPBUF(pTmpMethods, nMethodCount * sizeof(COMethod*));
@@ -376,7 +356,6 @@ fclose(pFile);
 	}
 
 	// Import all the externally called methods
-	GConstStringHashTable htImportedTypeTags(17, true);
 	while(nMethodCount > 0)
 	{
 		// Make a hash table with ID's of all the methods that need to be imported from the same library as the first method
@@ -406,24 +385,57 @@ fclose(pFile);
 		int nMethodID;
 		while(hte.GetNextIntKey(&nMethodID))
 		{
-			ImportExternalMethod(pExternalLibrary, nMethodID, &htImportedTypeTags);
+			ImportExternalMethod(pExternalLibrary, nMethodID);
 		}
 	}
+}
+
+bool GCompiler::DoImporting()
+{
+/*
+// This is debug code to save a list of the types that were marked for importing
+FILE* pFile = fopen("importtypes.txt", "w");
+GHashTableEnumerator hte(m_pExternallyReferencedTypes);
+while(true)
+{
+	COType* pType = (COType*)hte.GetNextKey();
+	if(!pType)
+		break;
+	fputs(pType->GetName(), pFile);
+	fputs("\n", pFile);
+}
+fclose(pFile);
+*/
+
+	GAssert(!m_pAlreadyImportedTypes, "who allocated m_pAlreadyImportedTypes?");
+	delete(m_pAlreadyImportedTypes);
+	m_pAlreadyImportedTypes = new GConstStringHashTable(MAX(m_pExternallyReferencedTypes->GetCount() * 2, 23), false);
+
+	// Import the methods
+	ImportMethods();
 
 	// Import the remaining externally referenced types
-	GHashTableEnumerator hteTypes(m_pExternallyReferencedTypes);
 	while(true)
 	{
-		COType* pType = (COType*)hteTypes.GetNextKey();
+		// todo: this is a horribly inefficient loop because we make a new enumerator
+		// for each type in the hash table.  Surely we can write this better
+		COType* pType;
+		{
+			GHashTableEnumerator hteTypes(m_pExternallyReferencedTypes);
+			pType = (COType*)hteTypes.GetNextKey();
+		}
 		if(!pType)
 			break;
-		ImportExternalType(pType, &htImportedTypeTags);			
+		ImportExternalType(pType);			
 	}
+
+	delete(m_pAlreadyImportedTypes);
+	m_pAlreadyImportedTypes = NULL;
 
 	return true;
 }
 
-bool GCompiler::ImportExternalMethod(Library* pExternalLibrary, int nMethodID, GConstStringHashTable* pImportedTypeTags)
+bool GCompiler::ImportExternalMethod(Library* pExternalLibrary, int nMethodID)
 {
 	// Get the new type tag
 	EMethod* pExternalMethod = pExternalLibrary->GetEMethod(nMethodID);
@@ -435,9 +447,9 @@ bool GCompiler::ImportExternalMethod(Library* pExternalLibrary, int nMethodID, G
 		return false;
 	}
 	GXMLTag* pNewTypeTag;
-	if(!pImportedTypeTags->Get(pNameAttr->GetValue(), (void**)&pNewTypeTag))
+	if(!m_pAlreadyImportedTypes->Get(pNameAttr->GetValue(), (void**)&pNewTypeTag))
 	{
-		pNewTypeTag = ImportExternalType(pExternalLibrary, pExternalTypeTag, pImportedTypeTags);
+		pNewTypeTag = ImportExternalType(pExternalLibrary, pExternalTypeTag);
 		GAssert(pNewTypeTag, "todo: handle this case");
 	}
 
@@ -480,6 +492,15 @@ bool GCompiler::ImportExternalMethod(Library* pExternalLibrary, int nMethodID, G
 				}
 				break;
 
+			case 's':
+				{
+					int nOldID = pInstr->GetParam(i);
+					const char* szString = pExternalLibrary->GetStringFromTable(nOldID);
+					int nNewID = AddConstantString(szString);
+					pInstr->SetParam(i, nNewID);
+				}
+				break;
+
 			case 't':
 				{
 					int nOldID = pInstr->GetParam(i);
@@ -499,7 +520,7 @@ bool GCompiler::ImportExternalMethod(Library* pExternalLibrary, int nMethodID, G
 	return true;
 }
 
-GXMLTag* GCompiler::ImportExternalType(Library* pExternalLibrary, GXMLTag* pExternalTypeTag, GConstStringHashTable* pImportedTypeTags)
+GXMLTag* GCompiler::ImportExternalType(Library* pExternalLibrary, GXMLTag* pExternalTypeTag)
 {
 	GXMLAttribute* pAttrID = pExternalTypeTag->GetAttribute(ATTR_ID);
 	if(!pAttrID)
@@ -511,14 +532,20 @@ GXMLTag* GCompiler::ImportExternalType(Library* pExternalLibrary, GXMLTag* pExte
 	EType* pEType = pExternalLibrary->GetEType(nExternalID);
 	COType* pCOType = pEType->GetCOType(m_pCOProject);
 	m_pExternallyReferencedTypes->Remove(pCOType);
-	return ImportExternalType(pCOType, pImportedTypeTags);
+	return ImportExternalType(pCOType);
 }
 
-GXMLTag* GCompiler::ImportExternalType(COType* pCOType, GConstStringHashTable* pImportedTypeTags)
+GXMLTag* GCompiler::ImportExternalType(COType* pCOType)
 {
-	GXMLTag* pNewTag = pCOType->ToXMLForLibrary();
-	m_pLibraryTag->AddChildTag(pNewTag);
-	pImportedTypeTags->Add(pCOType->GetName(), pNewTag);
+	const char* szTypeName = pCOType->GetName();
+	GXMLTag* pNewTag = NULL;
+	if(!m_pAlreadyImportedTypes->Get(szTypeName, (void**)&pNewTag))
+	{
+		pNewTag = pCOType->ToXMLForLibrary(this);
+		m_pLibraryTag->AddChildTag(pNewTag);
+		m_pAlreadyImportedTypes->Add(szTypeName, pNewTag);
+	}
+	m_pExternallyReferencedTypes->Remove(pCOType);
 	return pNewTag;
 }
 
@@ -574,6 +601,7 @@ int GCompiler::AddConstantString(const char* szValue)
 	GXMLTag* pStringTag = NULL;
 	if(m_pStringTableTag)
 	{
+		// Look for an existing match
 		for(pStringTag = m_pStringTableTag->GetFirstChildTag(); pStringTag; pStringTag = m_pStringTableTag->GetNextChildTag(pStringTag))
 		{
 			GXMLAttribute* pName = pStringTag->GetAttribute(ATTR_VAL);
@@ -586,12 +614,14 @@ int GCompiler::AddConstantString(const char* szValue)
 	int nID = -1;
 	if(pStringTag)
 	{
+		// Get the ID from the existing match
 		GXMLAttribute* pID = pStringTag->GetAttribute(ATTR_ID);
 		GAssert(pID, "todo: handle this case");
 		nID = atoi(pID->GetValue());
 	}
 	else
 	{
+		// Add a new string to the table
 		nID = m_pStringTableTag->GetChildTagCount();
 		GXMLTag* pNewTag = new GXMLTag(TAG_NAME_STRING);
 		pNewTag->AddAttribute(new GXMLAttribute(ATTR_VAL, szValue));
@@ -719,22 +749,16 @@ COVariable* GCompiler::GetConstStringVar(const char* szValue, COInstruction* pSy
 		return NULL;
 	}
 
-	// Make the parameters
-	COExpressionArray paramList;
-	COVarRef* pParamString = new COVarRef(nLine, nCol, nWid, pNewVar);
-	const char* szTmpVarName;
-	pParamString->SetExpReadOnly(false, false, &szTmpVarName);
-	paramList.AddExpression(pParamString);
-	COVarRef* pParamID = new COVarRef(nLine, nCol, nWid, pID);
-	paramList.AddExpression(pParamID);
-
-	// Compile the call
-	EMethodSignature methodSig(SIG_STRING_GETCONSTANTSTRING); // todo: cache this
-	if(!COCall::CompileImplicitCall(this, pStringClass, &methodSig, &paramList, pSymbolInstr, (COInstrArray*)pSymbolInstr->GetParent()))
+	// Call the GetConstString instruction
+	int nOffset;
+	if(!FindVarOnStack(&nOffset, pNewVar, pSymbolInstr))
 	{
 		CheckError();
 		return NULL;
 	}
+	AddInstr(Instr_GetConstString, pSymbolInstr);
+	AddParam(nOffset);
+	AddParam(nID);
 
 	return pNewVar;
 }
@@ -962,7 +986,7 @@ bool GCompiler::CompileSetDeclFromParam(COVariable* pDest, int nParam, COInstruc
 bool GCompiler::CompileClassStart(COClass* pClass)
 {
 	GAssert(!m_bSymbolMode, "Shouldn't be called in symbol mode");
-	m_pCurrentClassTag = pClass->ToXMLForLibrary();
+	m_pCurrentClassTag = pClass->ToXMLForLibrary(this);
 	m_pLibraryTag->AddChildTag(m_pCurrentClassTag);
 	AddImportType(pClass->GetParent());
 	return true;
@@ -970,7 +994,7 @@ bool GCompiler::CompileClassStart(COClass* pClass)
 
 bool GCompiler::CompileInterface(COInterface* pInterface)
 {
-	GXMLTag* pInterfaceTag = pInterface->ToXMLForLibrary();
+	GXMLTag* pInterfaceTag = pInterface->ToXMLForLibrary(this);
 	m_pLibraryTag->AddChildTag(pInterfaceTag);
 	return true;
 }

@@ -33,6 +33,7 @@ class MGameClient;
 class Controller;
 class MImageStore;
 class MScriptEngine;
+class COClass;
 
 
 // This class just provids a callback function to use when an error occurs.
@@ -131,7 +132,7 @@ protected:
 	VarHolder* m_pParams[MAX_PARAMS + 1];
 
 public:
-	MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, MGameClient* pGameClient, Controller* pController);
+	MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pObjectsTag, MGameClient* pGameClient, Controller* pController);
 	virtual ~MScriptEngine();
 
 	// Copies the values from a GRect structure into a Gash Rect object
@@ -188,6 +189,8 @@ public:
 
 protected:
 	void FindMethod(struct MethodRef* pMethodRef, const char* szType, const char* szSig);
+	void ImportObjectDependencies(GCompiler* pCompiler, COProject* pProject, GXMLTag* pObjectsTag);
+	void ImportMethodDependency(GCompiler* pCompiler, COClass* pClass, const char* szSig);
 };
 
 

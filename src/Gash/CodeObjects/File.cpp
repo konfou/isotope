@@ -13,6 +13,7 @@
 #include "File.h"
 #include "../Engine/TagNames.h"
 #include "../Engine/GCompiler.h"
+#include "../Engine/ClassicSyntax.h"
 #include "Class.h"
 #include "Interface.h"
 #include "../../GClasses/GXML.h"

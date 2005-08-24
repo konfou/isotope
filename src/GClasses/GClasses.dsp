@@ -175,6 +175,14 @@ SOURCE=.\GCrypto.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GDaftLearner.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GDaftLearner.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GDataBase.cpp
 # End Source File
 # Begin Source File

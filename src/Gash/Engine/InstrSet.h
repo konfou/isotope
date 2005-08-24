@@ -27,6 +27,7 @@ void Instr_CopyVar(GVM* pEngine);
 void Instr_DecrementInteger(GVM* pEngine);
 void Instr_DivideInteger(GVM* pEngine);
 void Instr_EndScope(GVM* pEngine);
+void Instr_GetConstString(GVM* pEngine);
 void Instr_GetMember(GVM* pEngine);
 void Instr_ICall(GVM* pEngine);
 void Instr_IncrementInteger(GVM* pEngine);

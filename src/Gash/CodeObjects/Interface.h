@@ -45,7 +45,7 @@ public:
 
 	void LoadMethodDecls(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	GXMLTag* SaveToXML();
-	virtual GXMLTag* ToXMLForLibrary();
+	virtual GXMLTag* ToXMLForLibrary(GCompiler* pCompiler);
 	GXMLTag* ToXMLForImplementationInLibrary();
 	void SaveToClassicSyntax(GQueue* pQ);
 };

@@ -147,15 +147,19 @@ Library* BuildProject(ErrorHandler* pErrorHandler, const char* szSourceFilename,
 
 	// Compile the project to a library
 	CompileError errorHolder;
-	Holder<Library*> hLibrary(GCompiler::Compile(hProject.Drop(), true, &errorHolder));
-	if(!hLibrary.Get())
+	Library* pLib;
+	{
+		GCompiler comp(hProject.Drop(), &errorHolder);
+		pLib = comp.Compile(true);
+	}
+	if(!pLib)
 	{
 		if(pErrorHandler)
 			pErrorHandler->OnError(&errorHolder);
 		return NULL;
 	}
 	
-	return hLibrary.Drop();
+	return pLib;
 }
 
 Library* BuildFileRefs(ErrorHandler* pErrorHandler, const char** ppFiles, const char** pszFilenames, int nFileCount, const char* szLibrariesPath, bool bSaveProjectFile)
@@ -176,15 +180,19 @@ Library* BuildFileRefs(ErrorHandler* pErrorHandler, const char** ppFiles, const 
 
 	// Compile the project to a library
 	CompileError errorHolder;
-	Holder<Library*> hLibrary(GCompiler::Compile(hProject.Drop(), true, &errorHolder));
-	if(!hLibrary.Get())
+	Library* pLib;
+	{
+		GCompiler comp(hProject.Drop(), &errorHolder);
+		pLib = comp.Compile(true);
+	}
+	if(!pLib)
 	{
 		if(pErrorHandler)
 			pErrorHandler->OnError(&errorHolder);
 		return NULL;
 	}
 	
-	return hLibrary.Drop();
+	return pLib;
 }
 
 class VarHolderArray
@@ -332,7 +340,6 @@ void BuildAndRunFile(ErrorHandler* pErrorHandler, const char* szFilename, const 
 void GetLibrariesPath(char* szLibrariesPath, const char* szAppPath)
 {
 	strcpy(szLibrariesPath, szAppPath);
-	strcat(szLibrariesPath, "../src/Gash/xlib/");
 #ifdef WIN32
 	int i;
 	for(i = 0; szLibrariesPath[i] != '\0'; i++)

@@ -1,3 +1,14 @@
+/*
+	Copyright (C) 2006, Mike Gashler
+
+	This library is free software; you can redistribute it and/or
+	modify it under the terms of the GNU Lesser General Public
+	License as published by the Free Software Foundation; either
+	version 2.1 of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/lesser.html
+*/
+
 #include "GMacros.h"
 #include "GPolynomial.h"
 #ifdef DARWIN
@@ -6,6 +17,7 @@
 #include <malloc.h>
 #endif // !DARWIN
 #include "GArff.h"
+#include <math.h>
 
 GPolynomial::GPolynomial(int nDimensions, int nControlPoints)
 {
@@ -97,12 +109,16 @@ double GPolynomial::MeasureMeanSquareError(GArffRelation* pRelation, GArffData* 
 	double dError;
 	int n, i;
 	int nCount = pData->GetRowCount();
+	double dTargetVal;
+	double dEstimatedVal;
 	for(n = 0; n < nCount; n++)
 	{
 		pRow = pData->GetRow(n);
 		for(i = 0; i < nInputs; i++)
 			pVariables[i] = pRow[pRelation->GetInputIndex(i)];
-		dError = pRow[nOutputAttr] - Eval(pVariables);
+		dTargetVal = pRow[nOutputAttr];
+		dEstimatedVal = Eval(pVariables);
+		dError = dTargetVal - dEstimatedVal;
 		dError *= dError;
 		dSum += dError;
 	}
@@ -115,6 +131,7 @@ double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* p
 	GArffData d1(nCount);
 	GArffData d2(nCount);
 	int nInputs = pRelation->GetInputCount();
+	int nLastInput = pRelation->GetInputIndex(nInputs - 1);
 	GAssert(m_nDimensions == nInputs - 1, "unexpected number of inputs");
 	double* pInputs = (double*)alloca(sizeof(double) * (nInputs - 1));
 	int n, i;
@@ -125,7 +142,7 @@ double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* p
 		for(i = 0; i < nInputs - 1; i++)
 			pInputs[i] = pRow[pRelation->GetInputIndex(i)];
 		dThresh = Eval(pInputs);
-		if(dThresh >= 0)
+		if(dThresh >= pRow[nLastInput])
 			d1.AddRow(pRow);
 		else
 			d2.AddRow(pRow);
@@ -146,6 +163,11 @@ double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* p
 	return dError1 + dError2;
 }
 
+inline double RandomDouble()
+{
+	return (double)rand() / RAND_MAX;
+}
+
 /*static*/ GPolynomial* GPolynomial::FitData(GArffRelation* pRelation, GArffData* pData, int nOutputAttr, int nControlPoints)
 {
 	GArffAttribute* pAttr = pRelation->GetAttribute(nOutputAttr);
@@ -155,24 +177,26 @@ double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* p
 	double dBestError = pPolynomial->MeasureMeanSquareError(pRelation, pData, nOutputAttr);
 	double dError;
 	double dStep;
+	double d;
 	int nCoefficients = pPolynomial->m_nCoefficients;
 	int n;
 	bool bGotOne;
-	for(dStep = 1000; dStep > .000001; dStep *= .95)
+	for(dStep = 100; dStep > .001; dStep *= .95)
 	{
+		d = RandomDouble() * dStep;
 		bGotOne = false;
 		for(n = 0; n < nCoefficients; n++)
 		{
-			pPolynomial->m_pCoefficients[n] += dStep;
+			pPolynomial->m_pCoefficients[n] += d;
 			dError = pPolynomial->MeasureMeanSquareError(pRelation, pData, nOutputAttr);
 			if(dError >= dBestError)
 			{
-				pPolynomial->m_pCoefficients[n] -= dStep;
-				pPolynomial->m_pCoefficients[n] -= dStep;
+				pPolynomial->m_pCoefficients[n] -= d;
+				pPolynomial->m_pCoefficients[n] -= d;
 				dError = pPolynomial->MeasureMeanSquareError(pRelation, pData, nOutputAttr);
 			}
 			if(dError >= dBestError)
-				pPolynomial->m_pCoefficients[n] += dStep;
+				pPolynomial->m_pCoefficients[n] += d;
 			else
 			{
 				dBestError = dError;
@@ -180,7 +204,7 @@ double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* p
 			}
 		}
 		if(!bGotOne)
-			dStep *= .6;
+			dStep *= .5;
 	}
 	return pPolynomial;
 }
@@ -195,24 +219,26 @@ double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* p
 	double dBestError = pPolynomial->DivideAndMeasureError(pRelation, pData, nOutputAttr);
 	double dError;
 	double dStep;
+	double d;
 	int nCoefficients = pPolynomial->m_nCoefficients;
 	int n;
 	bool bGotOne;
-	for(dStep = 1000; dStep > .000001; dStep *= .95)
+	for(dStep = 100; dStep > .01; dStep *= .95)
 	{
+		d = RandomDouble() * dStep;
 		bGotOne = false;
 		for(n = 0; n < nCoefficients; n++)
 		{
-			pPolynomial->m_pCoefficients[n] += dStep;
+			pPolynomial->m_pCoefficients[n] += d;
 			dError = pPolynomial->DivideAndMeasureError(pRelation, pData, nOutputAttr);
 			if(dError >= dBestError)
 			{
-				pPolynomial->m_pCoefficients[n] -= dStep;
-				pPolynomial->m_pCoefficients[n] -= dStep;
+				pPolynomial->m_pCoefficients[n] -= d;
+				pPolynomial->m_pCoefficients[n] -= d;
 				dError = pPolynomial->DivideAndMeasureError(pRelation, pData, nOutputAttr);
 			}
 			if(dError >= dBestError)
-				pPolynomial->m_pCoefficients[n] += dStep;
+				pPolynomial->m_pCoefficients[n] += d;
 			else
 			{
 				dBestError = dError;
@@ -220,7 +246,99 @@ double GPolynomial::DivideAndMeasureError(GArffRelation* pRelation, GArffData* p
 			}
 		}
 		if(!bGotOne)
-			dStep *= .6;
+			dStep *= .5;
 	}
 	return pPolynomial;
 }
+
+// todo: merge with CalcIndex
+inline int GetValueIndex(int nDimensions, int nControlPoints, int* pCoords)
+{
+	int nIndex = 0;
+	int n;
+	for(n = nDimensions - 1; n >= 0; n--)
+	{
+		nIndex *= nControlPoints;
+		nIndex += pCoords[n];
+	}
+	return nIndex;
+}
+
+/*static*/ /*GPolynomial* GPolynomial::Newton(int nDimensions, int nControlPoints, double* pControlPoints, double* pValues)
+{
+	int* pCoords = (int*)alloca(nDimensions);
+	int n, i;
+	int nCoords = 1;
+	for(n = nDimensions; n > 0; n--)
+		nCoords *= nControlPoints;
+	int nDim, nPoint;
+	for(nPoint = 1; nPoint < nControlPoints; n++)
+	{
+		// Do a differencing pass in each dimension
+		for(nDim = nDimensions - 1; nDim >= 0; nDim--)
+		{
+			// Initialize coord
+			for(n = 0; n < nDimensions; n++)
+				pCoords[n] = nControlPoints - 1;
+
+			// Iterate through all coords
+			for(n = nCoords - 1; n >= 0; n--)
+			{
+				// Difference on this dimension
+				if(pCoords[nDim] >= nPoint)
+				{
+					xxx
+				}
+
+				// Move to next coord
+				i = 0;
+				while(true)
+				{
+					if(pCoords[i]-- == 0)
+					{
+						pCoords[i] = nControlPoints - 1;
+						if(++i < nControlPoints)
+							continue;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+
+xxx
+
+	// Calculate the coefficients to Newton's blending functions
+	double* pNC = (double*)alloca(nPoints * sizeof(double));
+	memcpy(pNC, pFuncValues, nPoints * sizeof(double));
+	int n, i;
+	for(n = 1; n < nPoints; n++)
+	{
+		for(i = nPoints - n - 1; i >= 0; i--)
+		{
+			pNC[n + i] -= pNC[n + i - 1];
+			pNC[n + i] /= (pTValues[n + i] - pTValues[i]);
+		}
+	}
+
+	// Accumulate into polynomial coefficients
+	double* pBlending = (double*)alloca(nPoints * sizeof(double));
+	for(n = 1; n < nPoints; n++)
+	{
+		pBlending[n] = 0;
+		pFuncValues[n] = 0;
+	}
+	pBlending[0] = 1;
+	pFuncValues[0] = pNC[0];
+	for(n = 1; n < nPoints; n++)
+	{
+		for(i = n; i > 0; i--)
+			pBlending[i] -= pTValues[n - 1] * pBlending[i - 1];
+		for(i = 0; i <= n; i++)
+			pFuncValues[n - i] += pNC[n] * pBlending[i];
+	}
+
+}
+
+*/

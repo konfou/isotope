@@ -72,7 +72,7 @@ public:
 	MSpotStore* GetSpots() { return m_pSpotStore; }
 
 	// Loads the script that contains logic for the objects
-	void LoadScript(Controller* pController, const char* szUrl);
+	void LoadScript(Controller* pController, const char* szUrl, GXMLTag* pObjectsTag);
 
 	// Load the XML realm file
 	void LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter);

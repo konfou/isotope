@@ -27,6 +27,7 @@ protected:
 	static MImageStore* s_pImageStore;
 	static MAnimationStore* s_pAnimationStore;
 	static GXMLTag* s_pConfigTag;
+	static int s_nNextUid;
 
 public:
 	static void ThrowError(const char* szMessage);

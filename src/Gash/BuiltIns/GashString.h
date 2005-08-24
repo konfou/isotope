@@ -71,13 +71,17 @@ public:
 		pOutLength->pIntObject->m_value = m_value.GetLength();
 	}
 
+	static GashString* getConstString(Engine* pEngine, unsigned int nIndex)
+	{
+		const char* szAnsi = pEngine->GetLibrary()->GetStringFromTable(nIndex);
+		GashString* pThis = new GashString(pEngine);
+		pThis->m_value.Copy(szAnsi);
+		return pThis;
+	}
+
 	void getConstantString(Engine* pEngine, EVar* pIndex)
 	{
-		const char* szAnsi = pEngine->GetLibrary()->GetStringFromTable(pIndex->pIntObject->m_value);
-		ConvertAnsiToUnicode(szAnsi, wszUnicode);
-		GashString* pThis = new GashString(pEngine);
-		pThis->m_value.Copy(wszUnicode);
-		pEngine->SetThis(pThis);
+		pEngine->SetThis(getConstString(pEngine, pIndex->pIntObject->m_value));
 	}
 
 	void copy(Engine* pEngine, EVar* pOther)

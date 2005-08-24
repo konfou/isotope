@@ -21,6 +21,8 @@
 #include "../Engine/ClassicSyntax.h"
 #include "../Engine/GCompiler.h"
 #include "../Engine/EInstrArray.h"
+#include "../../GClasses/GString.h"
+#include "../Engine/ClassicSyntax.h"
 #ifdef DARWIN
 #include <sys/malloc.h>
 #else // DARWIN
@@ -73,7 +75,7 @@ void COMethodDecl::SetSignature(EMethodSignature* pSig)
 	m_pSignature = pSig;
 }
 
-/*virtual*/ GXMLTag* COMethodDecl::SaveToXML()
+/*virtual*/ GXMLTag* COMethodDecl::SaveToXML(GCompiler* pCompiler)
 {
 	// Save the method tag and name attribute
 	GXMLTag* pTag;
@@ -89,6 +91,8 @@ void COMethodDecl::SetSignature(EMethodSignature* pSig)
 			szModifier = "!";
 		else if(!pThisVar->IsObjReadOnly())
 			szModifier = "&";
+		if(pCompiler)
+			pCompiler->AddImportType(pThisVar->GetType());
 	}
 	char* szMethodName = (char*)alloca(strlen(m_szName) + 2);
 	strcpy(szMethodName, szModifier);
@@ -102,6 +106,8 @@ void COMethodDecl::SetSignature(EMethodSignature* pSig)
 	for( ; n < nCount; n++)
 	{
 		pVariable = GetParameter(n);
+		if(pCompiler)
+			pCompiler->AddImportType(pVariable->GetType());
 		pTag->AddChildTag(pVariable->SaveToXML());
 	}
 	return pTag;
@@ -323,9 +329,9 @@ void COMethodDecl::LoadAllParams(COType* pThisType, GXMLTag* pTag, char cModifie
 		SetSignature(new EMethodSignature(pTag)); // get the signature now since we won't be able to make later it with the bogus partial params
 }
 
-/*virtual*/ GXMLTag* COMethod::SaveToXML()
+/*virtual*/ GXMLTag* COMethod::SaveToXML(GCompiler* pCompiler)
 {
-	GXMLTag* pTag = COMethodDecl::SaveToXML();
+	GXMLTag* pTag = COMethodDecl::SaveToXML(pCompiler);
 
 	// Save all the Instructions
 	GXMLTag* pInstructionsTag = new GXMLTag(TAG_NAME_INSTRUCTIONS);

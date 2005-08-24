@@ -16,6 +16,7 @@ class Library;
 class Disassembly;
 class GXMLTag;
 class EInstrArray;
+class COInstruction;
 
 #include "../../GClasses/GQueue.h"
 
@@ -25,6 +26,7 @@ protected:
    	GQueue m_q;
 	Library* m_pLibrary;
 	int m_nCurrentLine;
+	COInstruction* m_pPrevInstruction;
 
 public:
 	// Disassembles a .xlib file (to a text file)

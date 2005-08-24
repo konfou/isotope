@@ -21,12 +21,14 @@
 #include "../../GClasses/GQueue.h"
 #include "../../GClasses/GXML.h"
 #include "../Include/GashEngine.h"
+#include "../CodeObjects/Instruction.h"
 #include <stdlib.h>
 
 Disassembler::Disassembler(Library* pLibrary)
 {
 	m_pLibrary = pLibrary;
 	m_nCurrentLine = 1;
+	m_pPrevInstruction = NULL;
 }
 
 Disassembler::~Disassembler()
@@ -162,6 +164,19 @@ void Disassembler::MethodToText(int nMethodID)
 
 void Disassembler::InstructionToText(EInstrArray* pEInstrArray, int nInstr)
 {
+	// Show COInstruction
+	COInstruction* pCOInstr = pEInstrArray->GetCOInstruction(nInstr);
+	if(pCOInstr && pCOInstr != m_pPrevInstruction)
+	{
+		m_pPrevInstruction = pCOInstr;
+		Add("//### ");
+		GQueue q;
+		pCOInstr->SaveToClassicSyntax(&q, 0, true);
+		Holder<char*> hInstrText(q.DumpToString());
+		Add(hInstrText.Get());
+		Add("\n");
+	}
+
 	// Tabulate scope
 	int nPos = 0;
 	Add("  ", &nPos);

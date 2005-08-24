@@ -158,7 +158,7 @@ bool EngineTests::RunGashTest(const char* szFilename, bool bPositive, bool bDebu
 	}
 
 	if(bRebuildMainLib && bRet)
-		bRet = GFile::CpyFile("../src/Gash/MainLib/MainLib.xlib", "../src/Gash/xlib/MainLib.xlib");
+		bRet = GFile::CpyFile("../src/Gash/MainLib/MainLib.xlib", "./MainLib.xlib");
 
 	return bRet;
 }

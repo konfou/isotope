@@ -1,0 +1,470 @@
+<Library Source="Untitled.proj">
+	<Class Name="Object" ID="1" />
+	<Class Name="Integer" ID="2" ParID="0" Parent="Object" />
+	<Class Name="StackLayer" ID="3" ParID="0" Parent="Object">
+		<Var Exp="!Object:catcher" />
+	</Class>
+	<Machine ID="4" Name="GImage">
+		<Method Name="!makeTextImage">
+			<Var Exp="String:text" />
+		</Method>
+		<Method Name="&amp;setSize">
+			<Var Exp="Integer:width" />
+			<Var Exp="Integer:height" />
+		</Method>
+		<Method Name="&amp;setPixel">
+			<Var Exp="Integer:x" />
+			<Var Exp="Integer:y" />
+			<Var Exp="Color:c" />
+		</Method>
+		<Method Name="getPixel">
+			<Var Exp="&amp;Color:c" />
+			<Var Exp="Integer:x" />
+			<Var Exp="Integer:y" />
+		</Method>
+		<Method Name="getRect">
+			<Var Exp="&amp;Rect:r" />
+		</Method>
+		<Method Name="getSize">
+			<Var Exp="&amp;Integer:w" />
+			<Var Exp="&amp;Integer:h" />
+		</Method>
+		<Method Name="&amp;load">
+			<Var Exp="String:filename" />
+		</Method>
+		<Method Name="save">
+			<Var Exp="String:filename" />
+		</Method>
+		<Method Name="&amp;setText">
+			<Var Exp="String:text" />
+		</Method>
+	</Machine>
+	<Machine ID="5" Name="Animation">
+		<Method Name="getFrame">
+			<Var Exp="!GImage:i" />
+			<Var Exp="&amp;Rect:r" />
+		</Method>
+		<Method Name="getColumnFrame">
+			<Var Exp="!GImage:i" />
+			<Var Exp="&amp;Rect:r" />
+			<Var Exp="Float:cameraDirection" />
+		</Method>
+		<Method Name="&amp;advanceTime">
+			<Var Exp="&amp;Bool:looped" />
+			<Var Exp="Float:dt" />
+		</Method>
+		<Method Name="!newCopy">
+			<Var Exp="Animation:that" />
+		</Method>
+	</Machine>
+	<Machine ID="6" Name="GameMachine">
+		<Method Name="&amp;update">
+			<Var Exp="Float:time" />
+			<Var Exp="&amp;Avatar:avatar" />
+		</Method>
+		<Method Name="getAnimation">
+			<Var Exp="!Animation:anim" />
+			<Var Exp="String:id" />
+		</Method>
+		<Method Name="getImage">
+			<Var Exp="!GImage:image" />
+			<Var Exp="String:id" />
+		</Method>
+		<Method Name="getAvatar">
+			<Var Exp="!Avatar:avatar" />
+		</Method>
+		<Method Name="getObjectById">
+			<Var Exp="!RealmObject:obj" />
+			<Var Exp="Integer:id" />
+		</Method>
+		<Method Name="getClosestObject">
+			<Var Exp="!RealmObject:obj" />
+			<Var Exp="Float:x" />
+			<Var Exp="Float:y" />
+		</Method>
+		<Method Name="followLink">
+			<Var Exp="String:url" />
+		</Method>
+		<Method Name="getUid">
+			<Var Exp="&amp;Integer:uid" />
+		</Method>
+		<Method Name="getTime">
+			<Var Exp="&amp;Float:time" />
+		</Method>
+		<Method Name="addObject">
+			<Var Exp="RealmObject:obj" />
+		</Method>
+		<Method Name="removeObject">
+			<Var Exp="Integer:id" />
+		</Method>
+		<Method Name="playSound">
+			<Var Exp="String:id" />
+		</Method>
+		<Method Name="notifyServerAboutObjectUpdate">
+			<Var Exp="RealmObject:obj" />
+		</Method>
+	</Machine>
+	<Interface ID="7" Name="IObject">
+		<Method Name="&amp;update">
+			<Var Exp="Float:time" />
+		</Method>
+		<Method Name="getFrame">
+			<Var Exp="!GImage:i" />
+			<Var Exp="&amp;Rect:r" />
+			<Var Exp="Float:cameraDirection" />
+		</Method>
+		<Method Name="&amp;doAction">
+			<Var Exp="Float:x" />
+			<Var Exp="Float:y" />
+		</Method>
+		<Method Name="&amp;onGetFocus" />
+		<Method Name="&amp;onLoseFocus" />
+		<Method Name="verify">
+			<Var Exp="&amp;Bool:ok" />
+			<Var Exp="Integer:client" />
+			<Var Exp="RealmObject:newObj" />
+		</Method>
+	</Interface>
+	<Class Name="RealmObject" ID="8" ParID="0" Parent="Object" Source="..\src\Isotope\isotope.gash">
+		<Var Exp="!Integer:uid" />
+		<Var Exp="!Float:time" />
+		<Var Exp="!Float:x" />
+		<Var Exp="!Float:y" />
+		<Var Exp="!Float:z" />
+		<Var Exp="!Float:sx" />
+		<Var Exp="!Float:sy" />
+		<Var Exp="!Float:sz" />
+		<Interface ID="7" Name="IObject" />
+		<Method Name="&amp;init" ID="0">
+			<Sym Data="0000000000000000ffffffff1000000010000000100000001000000010000000100000001000000010000000200000002000000020000000200000002000000020000000ffffffffffffffff2000000030000000300000003000000030000000300000003000000030000000400000004000000040000000400000004000000040000000ffffffffffffffff40000000500000005000000050000000500000005000000050000000ffffffffffffffff50000000600000006000000060000000600000006000000060000000ffffffffffffffff60000000700000007000000070000000700000007000000070000000ffffffffffffffff70000000800000008000000080000000800000008000000080000000ffffffffffffffff80000000900000009000000090000000900000009000000090000000ffffffffffffffff90000000ffffffff" />
+			<Bin Data="02e10000000042cfffffff0000000000000000020002d030000000cfffffff00000000221000000022300000009140000000600000007000000010000222300000009140000000e0000000c100000080e000000040000000a0300000004000000080e00000003000000042cfffffff1000000030000000100002d030000000cfffffff10000000221000000022300000009140000000600000008000000010000222300000009140000000e0000000c100000080e000000040000000a0300000004000000080e00000003000000042cfffffff200000003000000010000222300000009140000000e0000000c100000080e000000040000000a0300000004000000080e00000003000000042cfffffff300000003000000010000222300000009140000000e0000000c100000080e000000040000000a0300000004000000080e00000003000000042cfffffff400000003000000010000222300000009140000000e0000000c100000080e000000040000000a0300000004000000080e00000003000000042cfffffff500000003000000010000222300000009140000000e0000000c100000080e000000040000000a0300000004000000080e00000003000000042cfffffff600000003000000010000222300000009140000000e0000000c100000080e000000040000000a0300000004000000080e00000003000000042" />
+			<Bin Data="cfffffff70000000300000001032" />
+		</Method>
+	</Class>
+	<Class Name="Avatar" ID="9" ParID="8" Parent="RealmObject" Source="..\src\Isotope\isotope.gash">
+		<Var Exp="!Float:dx" />
+		<Var Exp="!Float:dy" />
+		<Var Exp="!Float:speed" />
+		<Var Exp="!Float:stepRate" />
+		<Var Exp="!Float:reach" />
+		<Var Exp="!Float:actionTime" />
+		<Var Exp="!Animation:anim" />
+		<Var Exp="!Animation:animaction" />
+		<Method Name="!new" ID="1">
+			<Var Exp="String:animID" />
+			<Var Exp="String:animActionID" />
+			<Sym Data="0000000010000000100000001000000010000000200000002000000020000000200000002000000020000000ffffffffffffffff20000000300000003000000030000000300000003000000030000000ffffffffffffffff30000000400000004000000040000000400000004000000040000000ffffffffffffffff40000000500000005000000050000000500000005000000050000000500000005000000050000000500000005000000050000000600000006000000060000000600000006000000060000000ffffffffffffffff60000000700000007000000070000000700000007000000070000000700000007000000070000000700000007000000070000000800000008000000080000000800000008000000080000000ffffffffffffffff80000000900000009000000090000000900000009000000090000000900000009000000090000000900000009000000090000000a0000000a0000000a0000000a0000000a0000000a0000000ffffffffffffffffa0000000b0000000b0000000b0000000b0000000b0000000b0000000b0000000b0000000b0000000ffffffffffffffffb0000000c0000000c0000000c0000000c0000000c0000000c0000000c0000000c0000000c0000000ffffffffffffffffc0000000ffffffff" />
+			<Bin Data="f1afffffff900000000022afffffff600000000010000222100000009120000000e0000000c100000080e000000020000000a0100000002000000080e00000001000000042afffffff800000001000000010000222100000009120000000e0000000c100000080e000000020000000a0100000002000000080e00000001000000042afffffff900000001000000010000222100000009120000000e0000000c100000080e000000020000000a0100000002000000080e00000001000000042afffffffa000000010000000100002d010000000afffffffa00000000202e130000000523000000000000000f22000000000000000221000000022200000009140000000e0000000e000000010000222100000009120000000e0000000c100000080e000000020000000a0100000002000000080e00000001000000042afffffffb000000010000000100002d010000000afffffffb00000000202e130000000523000000010000000f22000000010000000221000000022200000009140000000e0000000e000000010000222100000009120000000e0000000c100000080e000000020000000a0100000002000000080e00000001000000042afffffffc000000010000000100002d010000000afffffffc00000000202e130000000523000000020000000f22000000020000000221000000022200000009140000000e00000" />
+			<Bin Data="00e000000010000222100000009120000000e0000000c100000080e000000020000000a0100000002000000080e00000001000000042afffffffd000000010000000100200022200000000222000000022bfffffff91300000006000000010000000805000000040000000a0200000004000000080500000002000000042afffffffe000000020000000100200022210000000223000000022cfffffff91400000006000000010000000805000000050000000a0300000005000000080500000003000000042affffffff0000000300000001032" />
+		</Method>
+		<Method Name="&amp;update" ID="2">
+			<Var Exp="Float:time" />
+			<Sym Data="0000000000000000000000000000000000000000000000000000000000000000100000001000000010000000100000001000000010000000100000002000000020000000200000002000000020000000200000002000000030000000300000003000000030000000300000003000000030000000300000004000000040000000400000004000000040000000400000004000000050000000500000005000000050000000500000005000000050000000600000006000000060000000600000006000000060000000600000006000000070000000700000007000000070000000700000007000000070000000800000008000000080000000800000008000000080000000800000009000000090000000a0000000a0000000a0000000a0000000a0000000a0000000a0000000b0000000b0000000c0000000c0000000c0000000c0000000c0000000c0000000c0000000d0000000d0000000e0000000e0000000e0000000e0000000e0000000e0000000e0000000e0000000f0000000f0000000f0000000f0000000f0000000f0000000f00000000100000001000000010000000100000001000000010000000100000001000000d0000000b000000011000000110000001100000011000000110000001100000011000000ffffffff" />
+			<Bin Data="0200220000000022cfffffff9120000000e0000000e100000080e000000020000000a00000000020000000100002d020000000bfffffff10000000220000000022200000009130000000e000000051000000100002d020000000bfffffffd0000000222000000022000000009130000000e000000051000000100200221000000022000000009130000000e0000000e100000080e000000030000000a01000000030000000100002d030000000bfffffff80000000221000000022300000009140000000e000000011000000100002d030000000bfffffff20000000223000000022100000009140000000e000000000000000100200222000000022000000009140000000e0000000e100000080e000000040000000a02000000040000000100002d040000000bfffffff90000000222000000022400000009150000000e000000011000000100002d040000000bfffffff30000000224000000022200000009150000000e0000000000000001002e1300000000002d050000000bfffffff80000000225000000022300000009160000000e0000000b00000001040300000003b000000000002d060000000bfffffff90000000226000000022300000009170000000e0000000b000000010403000000018000000000200226000000022000000009180000000e0000000e100000080e000000080000000a060000000800000" />
+			<Bin Data="00100002d080000000bfffffffb0000000226000000022800000009190000000e000000011000000100002d080000000bfffffffe0000000228000000022300000002260000000919000000050000000200000001010100002d050000000bfffffff10000000225000000022000000009160000000e0000000000000001032" />
+		</Method>
+		<Method Name="getFrame" ID="3">
+			<Var Exp="!GImage:i" />
+			<Var Exp="&amp;Rect:r" />
+			<Var Exp="Float:cameraDirection" />
+			<Sym Data="00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000000000000000000000000000300000003000000030000000300000003000000030000000300000003000000030000000300000003000000000000000ffffffff" />
+			<Bin Data="02d0000000009fffffffd0000000020022100000009130000000e0000000c100000080e000000030000000a0100000003000000010c210000000000000000000000002e120000000002200000000222000000022100000009140000000e0000000b1000000104020000000a4000000000002d0500000009ffffffff0000000225000000022afffffff22bfffffff22cfffffff91600000005000000010000000804000000070000000a0afffffff7000000010107154000000000002d0500000009fffffffe0000000225000000022afffffff22bfffffff22cfffffff91600000005000000010000000804000000070000000a0afffffff70000000101032" />
+		</Method>
+		<Method Name="&amp;doAction" ID="4">
+			<Var Exp="Float:x" />
+			<Var Exp="Float:y" />
+			<Sym Data="0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffff" />
+			<Bin Data="02000202e130000000523000000030000000f2200000003000000022000000002220000000914000000081000000000000001032" />
+		</Method>
+		<Method Name="&amp;onGetFocus" ID="5">
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+		<Method Name="&amp;onLoseFocus" ID="6">
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+		<Method Name="verify" ID="7">
+			<Var Exp="&amp;Bool:ok" />
+			<Var Exp="Integer:client" />
+			<Var Exp="RealmObject:newObj" />
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+	</Class>
+	<Class Name="Scenery" ID="10" ParID="8" Parent="RealmObject" Source="..\src\Isotope\isotope.gash">
+		<Var Exp="!GImage:image" />
+		<Method Name="!new" ID="8">
+			<Var Exp="String:imageID" />
+			<Sym Data="0000000010000000100000001000000010000000200000002000000020000000200000002000000020000000200000002000000020000000ffffffffffffffff20000000ffffffff" />
+			<Bin Data="f1bfffffffa00000000022bfffffff6000000000100200022200000000222000000022cfffffff91300000006000000020000000804000000040000000a0200000004000000080400000002000000042bfffffff80000000200000001032" />
+		</Method>
+		<Method Name="&amp;update" ID="9">
+			<Var Exp="Float:time" />
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+		<Method Name="getFrame" ID="10">
+			<Var Exp="!GImage:i" />
+			<Var Exp="&amp;Rect:r" />
+			<Var Exp="Float:cameraDirection" />
+			<Sym Data="000000000000000000000000000000001000000010000000100000001000000010000000ffffffff" />
+			<Bin Data="02d0000000009fffffff80000000804000000000000000a0afffffff000000000022afffffff22bfffffff912000000040000000400000001032" />
+		</Method>
+		<Method Name="&amp;doAction" ID="11">
+			<Var Exp="Float:x" />
+			<Var Exp="Float:y" />
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+		<Method Name="&amp;onGetFocus" ID="12">
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+		<Method Name="&amp;onLoseFocus" ID="13">
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+		<Method Name="verify" ID="14">
+			<Var Exp="&amp;Bool:ok" />
+			<Var Exp="Integer:client" />
+			<Var Exp="RealmObject:newObj" />
+			<Sym Data="ffffffff" />
+			<Bin Data="32" />
+		</Method>
+	</Class>
+	<Class Name="Bogus" ID="11" ParID="0" Parent="Object" Source="..\src\Isotope\isotope.gash">
+		<Procedure Name="main" ID="15">
+			<Sym Data="000000000000000000000000000000000000000000000000100000001000000010000000100000001000000010000000100000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000ffffffff" />
+			<Bin Data="020022000000006001000000a00000000020000000100200221000000091300000000100000000000000800100000030000000a010000000300000001002000202e150000000525000000040000000f2400000004000000022200000002240000000916000000081000000000000001032" />
+		</Procedure>
+	</Class>
+	<Class Name="Rect" ID="12" ParID="0" Parent="Object" Source="Image.gash">
+		<Var Exp="!Integer:x" />
+		<Var Exp="!Integer:y" />
+		<Var Exp="!Integer:w" />
+		<Var Exp="!Integer:h" />
+		<Method Name="!new" ID="16">
+			<Sym Data="000000001000000010000000ffffffff2000000020000000ffffffff3000000030000000ffffffff4000000040000000ffffffffffffffff" />
+			<Bin Data="f1cfffffffc000000002e10000000042cfffffff000000000000000002e11000000042cfffffff100000001000000002e12000000042cfffffff200000002000000002e13000000042cfffffff300000003000000032" />
+		</Method>
+	</Class>
+	<Class Name="Exception" ID="13" ParID="0" Parent="Object" Source="Exception.gash">
+		<Var Exp="!String:message" />
+		<Method Name="!new" ID="17">
+			<Var Exp="String:message" />
+			<Sym Data="00000000100000001000000010000000100000001000000010000000ffffffffffffffff1000000020000000200000002000000020000000200000002000000020000000ffffffff" />
+			<Bin Data="f1bfffffffd00000000002221000000091200000003100000000000000803100000020000000a0100000002000000080310000001000000042bfffffff0000000010000000100002d010000000bfffffff00000000221000000022cfffffff912000000031000000500000001032" />
+		</Method>
+	</Class>
+	<Machine ID="14" Name="Float">
+		<Method Name="&amp;add">
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="add">
+			<Var Exp="!Float:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;add">
+			<Var Exp="Integer:that" />
+		</Method>
+		<Method Name="compareTo">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;cosine">
+			<Var Exp="Float:radians" />
+		</Method>
+		<Method Name="&amp;divide">
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="divide">
+			<Var Exp="!Float:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;divide">
+			<Var Exp="Integer:that" />
+		</Method>
+		<Method Name="&amp;fromInteger">
+			<Var Exp="Integer:int" />
+		</Method>
+		<Method Name="isZero">
+			<Var Exp="&amp;Bool:result" />
+		</Method>
+		<Method Name="isPositive">
+			<Var Exp="&amp;Bool:result" />
+		</Method>
+		<Method Name="isNonZero">
+			<Var Exp="&amp;Bool:result" />
+		</Method>
+		<Method Name="toInteger">
+			<Var Exp="&amp;Integer:value" />
+		</Method>
+		<Method Name="toString">
+			<Var Exp="&amp;String:s" />
+		</Method>
+		<Method Name="&amp;fromString">
+			<Var Exp="String:s" />
+		</Method>
+		<Method Name="max">
+			<Var Exp="!Float:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="min">
+			<Var Exp="!Float:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;multiply">
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="multiply">
+			<Var Exp="!Float:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;multiply">
+			<Var Exp="Integer:that" />
+		</Method>
+		<Method Name="&amp;sine">
+			<Var Exp="Float:radians" />
+		</Method>
+		<Method Name="&amp;subtract">
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="subtract">
+			<Var Exp="!Float:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;subtract">
+			<Var Exp="Integer:that" />
+		</Method>
+		<Method Name="isEqual">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="isNotEqual">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="isLessThan">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="isGreaterThan">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="!new" />
+		<Method Name="compareTo">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="Float:that" />
+			<Var Exp="Float:tolerance" />
+		</Method>
+		<Method Name="!newcopy">
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;copy">
+			<Var Exp="Float:that" />
+		</Method>
+		<Method Name="&amp;copy">
+			<Var Exp="Integer:that" />
+		</Method>
+		<Method Name="&amp;abs" />
+	</Machine>
+	<Class Name="Bool" ID="15" ParID="2" Parent="Integer" Source="Bool.gash">
+		<Const Name="true" Val="1" />
+		<Const Name="false" Val="0" />
+	</Class>
+	<Machine ID="16" Name="Stream">
+		<Method Name="!new" />
+		<Method Name="getSize">
+			<Var Exp="&amp;Integer:size" />
+		</Method>
+		<Method Name="&amp;writeObject">
+			<Var Exp="Object:obj" />
+		</Method>
+		<Method Name="&amp;readObject">
+			<Var Exp="!Object:obj" />
+		</Method>
+	</Machine>
+	<Class Name="IOException" ID="17" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<Class Name="NullReferenceException" ID="18" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<Machine ID="19" Name="String">
+		<Method Name="!new" />
+		<Method Name="toInteger">
+			<Var Exp="&amp;Integer:int" />
+		</Method>
+		<Method Name="&amp;fromInteger">
+			<Var Exp="Integer:int" />
+		</Method>
+		<Method Name="getLength">
+			<Var Exp="&amp;Integer:length" />
+		</Method>
+		<Method Name="!getConstantString">
+			<Var Exp="Integer:index" />
+		</Method>
+		<Method Name="&amp;copy">
+			<Var Exp="String:that" />
+		</Method>
+		<Method Name="&amp;copySub">
+			<Var Exp="String:that" />
+			<Var Exp="Integer:index" />
+			<Var Exp="Integer:length" />
+		</Method>
+		<Method Name="&amp;add">
+			<Var Exp="String:that" />
+		</Method>
+		<Method Name="compare">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="String:that" />
+		</Method>
+		<Method Name="compareIgnoringCase">
+			<Var Exp="&amp;Bool:result" />
+			<Var Exp="String:that" />
+		</Method>
+		<Method Name="&amp;clear" />
+		<Method Name="find">
+			<Var Exp="&amp;Integer:index" />
+			<Var Exp="String:s" />
+		</Method>
+		<Method Name="findIgnoringCase">
+			<Var Exp="&amp;Integer:index" />
+			<Var Exp="String:s" />
+		</Method>
+		<Method Name="&amp;toUpper" />
+		<Method Name="&amp;toLower" />
+		<Method Name="getChar">
+			<Var Exp="&amp;Integer:char" />
+			<Var Exp="Integer:index" />
+		</Method>
+		<Method Name="&amp;setChar">
+			<Var Exp="Integer:index" />
+			<Var Exp="Integer:char" />
+		</Method>
+	</Machine>
+	<Class Name="EngineException" ID="20" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<Class Name="CastException" ID="21" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<Class Name="DeserializationException" ID="22" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<Class Name="Color" ID="23" ParID="2" Parent="Integer" Source="Image.gash" />
+	<Machine ID="24" Name="Console">
+		<Method Name="print">
+			<Var Exp="String:s" />
+		</Method>
+		<Method Name="print">
+			<Var Exp="Integer:i" />
+		</Method>
+		<Method Name="print">
+			<Var Exp="Float:f" />
+		</Method>
+	</Machine>
+	<Class Name="SdlException" ID="25" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<Class Name="XmlException" ID="26" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<Class Name="CompileException" ID="27" ParID="13" Parent="Exception" Source="Exception.gash" />
+	<StringTable>
+		<String Val="350" ID="0" />
+		<String Val="22" ID="1" />
+		<String Val="300" ID="2" />
+		<String Val="Avatar:doAction" ID="3" />
+		<String Val="Hello World" ID="4" />
+	</StringTable>
+</Library>
+ 

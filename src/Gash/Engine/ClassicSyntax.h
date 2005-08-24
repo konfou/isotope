@@ -18,7 +18,7 @@
 class ClassicSyntaxError;
 class GXMLTag;
 
-//#define NEWPARSER
+#define NEWPARSER
 
 #ifdef NEWPARSER
 

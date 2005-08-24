@@ -447,9 +447,19 @@ extern const char* g_stdDel;
 			}
 		}
 		GQueue q;
+		int nParenNests = 0;
 		while(true)
 		{
-			if(pTok->StartsWith(",") || pTok->StartsWith(")"))
+			if(pTok->StartsWith("("))
+				nParenNests++;
+			else if(pTok->StartsWith(")"))
+			{
+				if(nParenNests > 0)
+					nParenNests--;
+				else
+					break;
+			}
+			else if(pTok->StartsWith(","))
 				break;
 			q.Push((unsigned char*)pTok->GetValue(), pTok->GetLength());
 			pParser->Advance();

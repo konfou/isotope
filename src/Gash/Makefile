@@ -39,6 +39,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GBitTable.cpp\
                    $(GCLASSES_PATH)/GCompress.cpp\
                    $(GCLASSES_PATH)/GCrypto.cpp\
+                   $(GCLASSES_PATH)/GDaftLearner.cpp\
                    $(GCLASSES_PATH)/GDataBase.cpp\
                    $(GCLASSES_PATH)/GDate.cpp\
                    $(GCLASSES_PATH)/GDiff.cpp\
@@ -91,6 +92,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GBuffer.h\
                    $(GCLASSES_PATH)/GCompress.h\
                    $(GCLASSES_PATH)/GCrypto.h\
+                   $(GCLASSES_PATH)/GDaftLearner.h\
                    $(GCLASSES_PATH)/GDataBase.h\
                    $(GCLASSES_PATH)/GEZSocket.h\
                    $(GCLASSES_PATH)/GFile.h\

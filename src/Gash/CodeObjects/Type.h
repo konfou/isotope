@@ -44,7 +44,7 @@ public:
 	COFile* GetFile() { return m_pFile; }
 	bool CanCastTo(COType* pDestType, bool* pbNeedCast = NULL, ErrorStruct** ppErrorStruct = NULL);
 	Library* GetLibrary();
-	virtual GXMLTag* ToXMLForLibrary() = 0;
+	virtual GXMLTag* ToXMLForLibrary(GCompiler* pCompiler) = 0;
 
 protected:
 	void SetID(int nID) { m_nID = nID; }

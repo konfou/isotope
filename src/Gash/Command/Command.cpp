@@ -142,22 +142,22 @@ bool RebuildMainLib(const char* szAppPath)
 
 	// Compile the project to a library
 	CompileError errorHolder;
-	Holder<Library*> hLibrary(GCompiler::Compile(pProject, true, &errorHolder));
-	Library* pLibrary = hLibrary.Get();
+	Library* pLibrary;
+	{
+		GCompiler comp(pProject, &errorHolder);
+		pLibrary = comp.Compile(true);
+	}
 	if(!pLibrary)
 	{
 		errorHandler.OnError(&errorHolder);
 		return false;
 	}
+	Holder<Library*> hLibrary(pLibrary);
 
 	// Save the library
-	const char* szSubPath = "../src/Gash/xlib/";
-	char* pLibrariesDir = (char*)alloca(strlen(szAppPath) + strlen(szSubPath) + 1);
-	strcpy(pLibrariesDir, szAppPath);
-	strcat(pLibrariesDir, szSubPath);
-	if(chdir(pLibrariesDir) != 0)
+	if(chdir(szAppPath) != 0)
 	{
-	    fprintf(stderr, "couldn't change to libraries folder");
+	    fprintf(stderr, "couldn't change to AppPath folder");
 		return false;
 	}
 	if(!pLibrary->GetLibraryTag()->ToFile("MainLib.xlib"))

@@ -46,7 +46,7 @@ public:
 	MScriptEngine* GetScriptEngine() { return m_pScriptEngine; }
 
 protected:
-	void LoadScript(const char* szFilename);
+	void LoadScript(const char* szFilename, GXMLTag* pObjectsTag);
 };
 
 struct MClientRecord

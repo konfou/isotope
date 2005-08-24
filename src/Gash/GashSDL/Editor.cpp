@@ -33,10 +33,7 @@ void EditFile(const char* szFilename, const char* szAppPath, ErrorHandler* pErro
 {
 	// Parse the script into a project
 	COProject proj("*bogus*");
-	char szGashLibPath[360];
-	strcpy(szGashLibPath, szAppPath);
-	strcat(szGashLibPath, "../src/Gash/xlib");
-	if(!proj.LoadLibraries(szGashLibPath, pErrorHandler)) // todo: don't hard-code this path
+	if(!proj.LoadLibraries(szAppPath, pErrorHandler))
 		return;
 	int nSize;
 	const char* szScript = GFile::LoadFileToBuffer(szFilename, &nSize);

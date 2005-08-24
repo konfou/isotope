@@ -44,6 +44,7 @@
 /*static*/ MImageStore* GameEngine::s_pImageStore = NULL;
 /*static*/ MAnimationStore* GameEngine::s_pAnimationStore = NULL;
 /*static*/ GXMLTag* GameEngine::s_pConfigTag = NULL;
+/*static*/ int GameEngine::s_nNextUid = -2000000000;
 
 /*static*/ void GameEngine::ThrowError(const char* szMessage)
 {
@@ -79,14 +80,7 @@
 
 /*static*/ int GameEngine::GetUid()
 {
-	// todo: rewrite this function so it won't produce duplicate uids
-	while(true)
-	{
-		int uid = (rand() << 16) | rand(); // todo: "rand()" isn't reentrant which can cause concurrency issues with the server.  So use some other RNG (if we use an RNG at all)
-		if(uid == 0x80000000)
-			continue;
-		return uid;
-	}
+	return s_nNextUid++;
 }
 
 /*static*/ void GameEngine::MakePasswordHash(char* pOutHash, const char* szPassword)
@@ -251,40 +245,6 @@
 }
 
 const char* g_szBogusScript = "\
-class Rect(Object)\n\
-{\n\
-	method !new()\n\
-	{\n\
-	}\n\
-}\n\
-\n\
-machine GImage\n\
-{\n\
-}\n\
-\n\
-machine Animation\n\
-{\n\
-	method getFrame(!GImage:i, &Rect:r)\n\
-	method getColumnFrame(!GImage:i, &Rect:r, Float:cameraDirection)\n\
-	method &advanceTime(&Bool:looped, Float:dt)\n\
-	method !newCopy(Animation:that)\n\
-}\n\
-\n\
-interface IObject\n\
-{\n\
-	method &update(Float:time)\n\
-	method getFrame(!GImage:i, &Rect:r, Float:cameraDirection)\n\
-	method &doAction(Float:x, Float:y)\n\
-	method &onGetFocus()\n\
-	method &onLoseFocus()\n\
-	method verify(&Bool:ok, Integer:client, RealmObject:newObj)\n\
-}\n\
-\n\
-class RealmObject(Object)\n\
-{\n\
-	interface IObject\n\
-}\n\
-\n\
 class Bogus(Object)\n\
 {\n\
 	proc main()\n\
@@ -292,6 +252,9 @@ class Bogus(Object)\n\
 		!Rect:r.new()\n\
 		!Float:f.new()\n\
 		!Stream:s.new()\n\
+		!GImage:i.load(\"foo\")\n\
+		!Animation:a.newCopy(null)\n\
+		!RealmObject:o.set(null)\n\
 	}\n\
 }";
 
@@ -310,7 +273,7 @@ class Bogus(Object)\n\
 		ThrowError("Error loading XML file: %s\n%s\n", szMediaListFile, szErrorMessage);
 
 	// Make a bogus script engine
-	MScriptEngine* pBogusScriptEngine = new MScriptEngine(g_szBogusScript, strlen(g_szBogusScript), new IsotopeErrorHandler(), NULL, NULL);
+	MScriptEngine* pBogusScriptEngine = new MScriptEngine(g_szBogusScript, strlen(g_szBogusScript), new IsotopeErrorHandler(), NULL, NULL, NULL);
 
 	// Load the image store
 	GXMLTag* pImages = pRootTag->GetChildTag("Images");

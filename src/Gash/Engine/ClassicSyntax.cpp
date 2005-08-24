@@ -54,7 +54,10 @@ bool CSToken::StartsWith(const char* szString)
 		if((m_pFile[m_nStart + n] | 32) != (szString[n] | 32))
 			return false;
 	}
-	return true;
+	if(szString[n] == '\0')
+		return true;
+	else
+		return false;
 }
 
 bool CSToken::Equals(const char* szString)
@@ -369,7 +372,13 @@ void ClassicSyntax::FindNextToken(int* pnStart, int* pnLength, int* pnLine, int*
 	else
 		nPos++;
 */
-	*pnLength = nPos - *pnStart;
+
+	// Remove trailing whitespace from the token
+	int nTokenLength = nPos - *pnStart;
+	while(nTokenLength > 1 && pFile[*pnStart + nTokenLength - 1] <= ' ')
+		nTokenLength--;
+
+	*pnLength = nTokenLength;
 	m_nPos = nPos;
 }
 
@@ -631,13 +640,13 @@ GXMLTag* ClassicSyntax::ParseFile()
 	m_pCurrentFileTag = NULL;
 	if(m_pErrorHolder->HaveError())
 		return NULL;
-	//GAssert(hFileTag->ToFile("c:\\mike\\debugme.xml"), "Failed to dump to file");
+	//GAssert(hFileTag->ToFile("c:\\dbg.xml"), "Failed to dump to file");
 	return hFileTag.Drop();
 }
 
 void ClassicSyntax::ParseInterface(bool bMachine)
 {
-	const char* szTok = bMachine ? "machine" : "interface";
+	const char* szTok = bMachine ? "machine " : "interface ";
 	if(!EatToken(szTok))
 	{
 		GAssert(false, "names inconsistent");
@@ -686,7 +695,7 @@ void ClassicSyntax::ParseInterfaceRef()
 	pInterfaceTag->SetLineNumber(m_nLineNumber);
 	int nStartCol = m_nPos - m_nLineStartPos + 1;
 	m_pCurrentClassTag->AddChildTag(pInterfaceTag);
-	bool b = EatToken("interface");
+	bool b = EatToken("interface ");
 	GAssert(b, "unexpected state");
 	CSToken* pTok = GetToken(0);
 	if(pTok->GetLength() <= 0)
@@ -708,7 +717,7 @@ void ClassicSyntax::ParseConstant(GXMLTag* pParentTag)
 	int nStartCol = m_nPos - m_nLineStartPos + 1;
 
 	pParentTag->AddChildTag(pConstTag);
-	bool b = EatToken("const");
+	bool b = EatToken("const ");
 	GAssert(b, "unexpected state");
 	CSToken* pTok = GetToken(0);
 	if(pTok->GetLength() <= 0)
@@ -744,7 +753,7 @@ void ClassicSyntax::ParseConstant(GXMLTag* pParentTag)
 
 void ClassicSyntax::ParseMethodDecl()
 {
-	if(!EatToken("method"))
+	if(!EatToken("method "))
 	{
 		SetError(&Error::EXPECTED_METHOD_TOKEN);
 		return;

@@ -14,10 +14,8 @@
 
 #include "Scope.h"
 #include "../Engine/TagNames.h"
-#include "../../GClasses/GArray.h"
 #include "../../GClasses/GMacros.h"
-#include "../../GClasses/GString.h"
-#include "../Engine/ClassicSyntax.h"
+#include "../../GClasses/GArray.h"
 
 class COProject;
 class COClass;
@@ -28,6 +26,7 @@ class COVariable;
 class COInstrArray;
 class EInstrArray;
 class GCompilerBase;
+class ClassicSyntax;
 
 class COMethodDecl : public COScope
 {
@@ -57,7 +56,7 @@ public:
 	virtual ScopeType GetScopeType() { return ST_METHOD; }
 	COType* GetType() { return m_pType; }
 	void LoadAllParams(COType* pThisType, GXMLTag* pTag, char cModifier, COProject* pCOProject, bool bPartial);
-	virtual GXMLTag* SaveToXML();
+	virtual GXMLTag* SaveToXML(GCompiler* pCompiler); // pCompiler is an optional parameter used only when compiling to an XLIB
 	void SaveToClassicSyntax(GQueue* pQ);
 	COVariable* FindVariable(const char* pName, int nLength);
 	bool CheckParams(GPointerArray* pParams, ErrorStruct** ppError, int* pnErrorParam, COProject* pProject);
@@ -92,7 +91,7 @@ public:
 	COInstrArray* GetInstructions() { return m_pInstrArray; }
 
 	// Methods for loading/saving
-	virtual GXMLTag* SaveToXML();
+	virtual GXMLTag* SaveToXML(GCompiler* pCompiler); // pCompiler is an optional parameter used only when compiling to an XLIB
 	void SaveToClassicSyntax(GQueue* pQ);
 	static void FromClassicSyntax(ClassicSyntax* pParser, bool bStatic);
 

@@ -194,6 +194,8 @@ void ParseError::ToString(GString* pString)
 		pString->Add(nCol);
 		pString->Add(" length: ");
 		pString->Add(nWid);
+		if(nWid == 0)
+			nWid = 40;
 	}
 	pString->Add("\n");
 	AddMessage(pString);

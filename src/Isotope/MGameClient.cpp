@@ -113,12 +113,12 @@ void MGameClient::UnloadRealm()
 	m_szRemoteFolder = NULL;
 }
 
-void MGameClient::LoadScript(Controller* pController, const char* szUrl)
+void MGameClient::LoadScript(Controller* pController, const char* szUrl, GXMLTag* pObjectsTag)
 {
 	int nBufSize;
 	delete(m_szScript);
 	m_szScript = GameEngine::LoadFileFromUrl(m_szRemoteFolder, szUrl, &nBufSize);
-	m_pScriptEngine = new MScriptEngine(m_szScript, nBufSize, m_pErrorHandler, this, pController);
+	m_pScriptEngine = new MScriptEngine(m_szScript, nBufSize, m_pErrorHandler, pObjectsTag, this, pController);
 }
 
 void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter)
@@ -196,7 +196,8 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 	GXMLAttribute* pAttrScript = m_pMap->GetAttribute("Script");
 	if(!pAttrScript)
 		GameEngine::ThrowError("Expected a \"Script\" attribute in file: %s", szUrl);
-	LoadScript(pController, pAttrScript->GetValue());
+	GXMLTag* pObjectsTag = m_pMap->GetChildTag("Objects");
+	LoadScript(pController, pAttrScript->GetValue(), pObjectsTag);
 
 	// Connect to the server
 	if(!m_bLoner)

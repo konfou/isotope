@@ -319,7 +319,7 @@ GXMLTag* COClass::SaveToXML()
 	for(n = 0; n < nCount; n++)
 	{
 		COMethod* pProcedure = GetProcedure(n);
-		pClass->AddChildTag(pProcedure->SaveToXML());
+		pClass->AddChildTag(pProcedure->SaveToXML(NULL));
 	}
 
 	// Methods
@@ -327,12 +327,12 @@ GXMLTag* COClass::SaveToXML()
 	for(n = 0; n < nCount; n++)
 	{
 		COMethod* pMethod = GetMethod(n);
-		pClass->AddChildTag(pMethod->SaveToXML());
+		pClass->AddChildTag(pMethod->SaveToXML(NULL));
 	}
 	return pClass;
 }
 
-GXMLTag* COClass::ToXMLForLibrary()
+GXMLTag* COClass::ToXMLForLibrary(GCompiler* pCompiler)
 {
 	GXMLTag* pClassTag = new GXMLTag(TAG_NAME_CLASS);
 	pClassTag->AddAttribute(new GXMLAttribute(ATTR_NAME, GetName()));
@@ -369,13 +369,20 @@ GXMLTag* COClass::ToXMLForLibrary()
 	for(n = 0; n < nCount; n++)
 	{
 		COVariable* pMember = GetExtendedMember(n);
+		if(pCompiler)
+			pCompiler->AddImportType(pMember->GetType());
 		pClassTag->AddChildTag(pMember->SaveToXML());
 	}
 
 	// Interface refs
 	nCount = GetInterfaceCount();
 	for(n = 0; n < nCount; n++)
-		pClassTag->AddChildTag(GetInterface(n)->ToXMLForImplementationInLibrary());
+	{
+		COInterface* pInterface = GetInterface(n);
+		if(pCompiler)
+			pCompiler->AddImportType(pInterface);
+		pClassTag->AddChildTag(pInterface->ToXMLForImplementationInLibrary());
+	}
 
 	return pClassTag;
 }

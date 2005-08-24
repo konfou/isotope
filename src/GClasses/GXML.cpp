@@ -21,6 +21,8 @@
 class GXMLParser
 {
 protected:
+	static const char* s_szCommentError;
+
 	GXMLTag* m_pRootTag;
 	GXMLTag* m_pCurrentTag;
 	int m_nPos;
@@ -49,6 +51,8 @@ protected:
 	GXMLAttribute* ParseAttribute();
 	bool UnescapeAttrValue(const char* pValue, int nLength, char* pBuffer);
 };
+
+/*static*/ const char* GXMLParser::s_szCommentError = "The tag is a comment";
 
 GXMLParser::GXMLParser(const char* pFile, int nSize)
 {
@@ -134,6 +138,26 @@ GXMLTag* GXMLParser::ParseTag()
 		SetError("Expected a tag name");
 		return NULL;
 	}
+	if(nNameLength >= 3 && strncmp(&m_pFile[nNameStart], "!--", 3) == 0)
+	{
+		// Skip to the end of the comment
+		while(true)
+		{
+			if(m_nPos + 3 >= m_nLength)
+				break;
+			if(strncmp(&m_pFile[m_nPos], "-->", 3) == 0)
+				break;
+			else if(m_pFile[m_nPos] == '\n')
+			{
+				m_nLine++;
+				m_nLineStart = m_nPos + 1;
+			}
+			m_nPos++;
+		}
+		m_nPos += 3;
+		SetError(s_szCommentError);
+		return NULL;
+	}
 	GXMLTag* pNewTag = new GXMLTag(&m_pFile[nNameStart], nNameLength);
 	pNewTag->SetLineNumber(m_nLine);
 	int nStartColumn = m_nPos - m_nLineStart + 1;
@@ -169,8 +193,16 @@ GXMLTag* GXMLParser::ParseTag()
 			GXMLTag* pChildTag = ParseTag();
 			if(!pChildTag)
 			{
-				delete(pNewTag);
-				return NULL;
+				if(m_szErrorMessage == s_szCommentError)
+				{
+					m_szErrorMessage = NULL;
+					continue;
+				}
+				else
+				{
+					delete(pNewTag);
+					return NULL;
+				}
 			}
 			pNewTag->AddChildTag(pChildTag);
 		}
@@ -647,6 +679,7 @@ GXMLTag::GXMLTag(const char* pName, int nLength) : GBucket()
 	memcpy(m_pName, pName, nLength);
 	m_pName[nLength] = '\0';
 	m_nLineNumber = 0;
+	m_nColumnAndWidth = 0;
 #ifdef _DEBUG
 	m_DEBUG_ONLY_attributes[0] = NULL;
 	m_DEBUG_ONLY_attributes[1] = NULL;

@@ -88,7 +88,11 @@ void GashEngine::buildProject(Engine* pEngine, EVar* pLibrary, EVar* pProject)
 
 	// Build it
 	CompileError errorHolder;
-	Library* pLib = GCompiler::Compile(hProj.Drop(), true, &errorHolder);
+	Library* pLib;
+	{
+		GCompiler comp(hProj.Drop(), &errorHolder);
+		pLib = comp.Compile(true);
+	}
 	if(!pLib)
 		pEngine->ThrowCompileError(&errorHolder);
 	pEngine->SetVar(pLibrary, new MLibrary(pEngine, pLib));

@@ -366,6 +366,13 @@ void Instr_EndScope(GVM* pEngine)
 	}
 }
 
+void Instr_GetConstString(GVM* pEngine)
+{
+	EVar* pDest = pEngine->GetVarParam();
+	unsigned int nIndex = pEngine->GetUIntParam();
+	pEngine->SetVar(pDest, GashString::getConstString(pEngine, nIndex));
+}
+
 void Instr_GetMember(GVM* pEngine)
 {
 	// todo: check the range and make sure it's really a class object

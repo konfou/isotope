@@ -79,7 +79,7 @@ public:
 	void LoadAllMethodDefinitions(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	void LoadAllInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	GXMLTag* SaveToXML();
-	virtual GXMLTag* ToXMLForLibrary();
+	virtual GXMLTag* ToXMLForLibrary(GCompiler* pCompiler);
 	void SaveToClassicSyntax(GQueue* pQ);
 	static void FromClassicSyntax(ClassicSyntax* pParser);
 
