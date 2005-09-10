@@ -346,6 +346,7 @@ int COFileSet::FindClass(COClass* pClass)
 
 COInterface* COFileSet::FindInterface(const char* szName)
 {
+	// First search non-XLib files (so code types get precidence over imported types)
 	COInterface* pInterface;
 	COFile* pFile;
 	int nCount = GetFileCount();
@@ -353,15 +354,30 @@ COInterface* COFileSet::FindInterface(const char* szName)
 	for(n = 0; n < nCount; n++)
 	{
 		pFile = GetFile(n);
+		if(pFile->GetFileType() == FT_XLIB)
+			continue;
 		pInterface = pFile->FindInterface(szName);
 		if(pInterface)
 			return pInterface;
 	}
+
+	// Now search XLib files
+	for(n = 0; n < nCount; n++)
+	{
+		pFile = GetFile(n);
+		if(pFile->GetFileType() != FT_XLIB)
+			continue;
+		pInterface = pFile->FindInterface(szName);
+		if(pInterface)
+			return pInterface;
+	}
+
 	return NULL;
 }
 
 COMachineClass* COFileSet::FindMachineClass(const char* szName)
 {
+	// First search non-XLib files (so code types get precidence over imported types)
 	COMachineClass* pMachineClass;
 	COFile* pFile;
 	int nCount = GetFileCount();
@@ -369,6 +385,19 @@ COMachineClass* COFileSet::FindMachineClass(const char* szName)
 	for(n = 0; n < nCount; n++)
 	{
 		pFile = GetFile(n);
+		if(pFile->GetFileType() == FT_XLIB)
+			continue;
+		pMachineClass = pFile->FindMachineClass(szName);
+		if(pMachineClass)
+			return pMachineClass;
+	}
+
+	// Now search XLib files
+	for(n = 0; n < nCount; n++)
+	{
+		pFile = GetFile(n);
+		if(pFile->GetFileType() != FT_XLIB)
+			continue;
 		pMachineClass = pFile->FindMachineClass(szName);
 		if(pMachineClass)
 			return pMachineClass;

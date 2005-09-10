@@ -24,6 +24,8 @@ class NUpdateObjectPacket;
 class MObject;
 class Controller;
 class View;
+class GObject;
+class MScriptEngine;
 
 // This is the base class for the client and server models.  Anything common between them should
 // go in this class.
@@ -53,6 +55,8 @@ public:
 
 	virtual ModelType GetType() = 0;
 
+	virtual void SendObject(GObject* pObj, int nConnection) = 0;
+
 protected:
 
 };
@@ -67,6 +71,7 @@ public:
 	virtual void Update(double time) {}
 	virtual bool OnReplaceObject(int nConnection, MObject* pOld, MObject* pNew) { return true; }
 	virtual ModelType GetType() { return None; }
+	virtual void SendObject(GObject* pObj, int nConnection) {}
 };
 
 #endif // __MODEL_H__

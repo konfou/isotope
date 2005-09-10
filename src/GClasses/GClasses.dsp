@@ -195,6 +195,10 @@ SOURCE=.\GDate.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\GDate.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GDecisionTree.cpp
 # End Source File
 # Begin Source File
@@ -487,6 +491,10 @@ SOURCE=.\GStream.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\GStream.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GString.cpp
 # End Source File
 # Begin Source File
@@ -516,6 +524,10 @@ SOURCE=.\GTime.h
 # Begin Source File
 
 SOURCE=.\GTimer.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GTimer.h
 # End Source File
 # Begin Source File
 

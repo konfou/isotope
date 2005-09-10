@@ -84,13 +84,18 @@ void MRealm::SortObjects(GBillboardCamera* pCamera)
 	g_pCamera = pCamera;
 	m_pObjects->Sort(MObjectComparer);
 	g_pCamera = NULL;
+	RebuildIDTable();
+}
 
-	// Rebuild the uid table
+void MRealm::RebuildIDTable() // todo: rebuild it lazily for perf
+{
+	// Rebuild the id table
 	delete(m_pObjectsByID);
-	m_pObjectsByID = new GHashTable(107); // todo: rebuild it lazily for perf
+	int nSize = m_pObjects->GetSize();
+	m_pObjectsByID = new GHashTable(MAX(107, nSize * 2));
 	MObject* pOb;
 	int n;
-	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
+	for(n = nSize - 1; n >= 0; n--)
 	{
 		pOb = (MObject*)m_pObjects->GetPointer(n);
 		m_pObjectsByID->Add(pOb->GetUid(), (void*)n);
@@ -248,9 +253,9 @@ void MRealm::RemoveObject(int nConnection, int uid)
 
 void MRealm::RemoveObject(int nIndex, MObject* pOldOb, int uid)
 {
-	m_pObjectsByID->Remove(uid);
 	m_pObjects->DeleteCell(nIndex);
 	delete(pOldOb);
+	RebuildIDTable();
 }
 
 void MRealm::ReplaceObject(int nConnection, MObject* pNewOb)

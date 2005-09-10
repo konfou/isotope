@@ -51,10 +51,9 @@ VCharSelect::VCharSelect(GRect* pRect, const char* szTypeBuffer)
 	m_pImage->SetSize(620, 460);
 
 	m_szTypeBuffer = szTypeBuffer;
-	m_pWidgetStyle = new GWidgetStyle();
-	m_pNewCharButton = MakeNewButton(m_pWidgetStyle, 10, 180, 150, 24, L"Make New Character");
-	m_pClickWidget = NULL;
-	m_pOKButton = MakeNewButton(m_pWidgetStyle, 235, 390, 150, 24, L"OK");
+	m_pWidgetContainer = new GWidgetContainer(620, 460);
+	m_pNewCharButton = MakeNewButton(m_pWidgetContainer, 10, 180, 150, 24, L"Make New Character");
+	m_pOKButton = MakeNewButton(m_pWidgetContainer, 235, 390, 150, 24, L"OK");
 	m_dTime = GameEngine::GetTime();
 	m_fCameraDirection = 0;
 	m_nFirstAvatar = 0;
@@ -68,7 +67,7 @@ VCharSelect::VCharSelect(GRect* pRect, const char* szTypeBuffer)
 
 /*virtual*/ VCharSelect::~VCharSelect()
 {
-	delete(m_pWidgetStyle);
+	delete(m_pWidgetContainer);
 	delete(m_pImage);
 	ClearAvatarAnimations();
 	delete(m_pAvatarAnimations);
@@ -231,15 +230,6 @@ void VCharSelect::RefreshEntireImage()
 	m_pNewCharButton->Draw(m_pImage);
 }
 
-void VCharSelect::PressButton(GWidgetButton* pButton)
-{
-	pButton->SetPressed(true);
-	pButton->Update();
-	pButton->Draw(m_pImage);
-	// todo: Refresh this portion of the view port now so that the reaction time
-	//       will feel snappy.  Currently it waits until the next call to View::Update
-}
-
 void VCharSelect::AttemptLogin(Controller* pController)
 {
 	// Check the password
@@ -262,17 +252,8 @@ void VCharSelect::AttemptLogin(Controller* pController)
 	}
 }
 
-void VCharSelect::ReleaseButton(Controller* pController, GWidgetButton* pButton)
+void VCharSelect::ReleaseButton(Controller* pController, GWidgetTextButton* pButton)
 {
-	if(!pButton->IsPressed())
-		return; // The user moved the mouse to another button while holding down the mouse button
-
-	// Unpress the button
-	pButton->SetPressed(false);
-	pButton->Update();
-	pButton->Draw(m_pImage);
-
-	// Do the action
 	if(pButton == m_pNewCharButton && m_eState == PickCharacter)
 		pController->MakeNewCharView();
 	else if(pButton == m_pOKButton)
@@ -295,28 +276,32 @@ void VCharSelect::OnMouseDown(Controller* pController, int x, int y)
 		return;
 	}
 
-	m_pClickWidget = m_pWidgetStyle->FindWidget(x, y);
-	if(!m_pClickWidget)
+	// Normal widget handling
+	GWidgetAtomic* pNewWidget = m_pWidgetContainer->FindAtomicWidget(x, y);
+	if(!pNewWidget)
 		return;
-	switch(m_pClickWidget->GetType())
-	{
-		case GWidget::Button:
-			PressButton((GWidgetButton*)m_pClickWidget);
-			break;
-	}
+	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
+	if(pOldWidget == pNewWidget)
+		pOldWidget = NULL;
+	m_pWidgetContainer->GrabWidget(pNewWidget);
+	if(pOldWidget)
+		pOldWidget->Draw(m_pImage);
+	pNewWidget->Draw(m_pImage);
 }
 
 void VCharSelect::OnMouseUp(Controller* pController, int x, int y)
 {
 	x -= m_rect.x;
 	y -= m_rect.y;
-	m_pClickWidget = m_pWidgetStyle->FindWidget(x, y);
-	if(!m_pClickWidget)
+	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
+	m_pWidgetContainer->ReleaseWidget();
+	if(!pOldWidget)
 		return;
-	switch(m_pClickWidget->GetType())
+	pOldWidget->Draw(m_pImage);
+	switch(pOldWidget->GetType())
 	{
-		case GWidget::Button:
-			ReleaseButton(pController, (GWidgetButton*)m_pClickWidget);
+		case GWidget::TextButton:
+			ReleaseButton(pController, (GWidgetTextButton*)pOldWidget);
 			break;
 	}
 }

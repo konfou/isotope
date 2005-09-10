@@ -19,7 +19,7 @@
 //
 // ------------------------------------
 
-#define MAX_PACKET_SIZE 1024
+#define MAX_PACKET_SIZE 16384
 #define DEFAULT_PORT 4748
 
 class GEZSocketServer;
@@ -29,7 +29,9 @@ class MObject;
 class MGameClient;
 class MGameServer;
 class MScriptEngine;
-
+class VarHolder;
+class Engine;
+class GObject;
 
 // This is the base class of all communication packets for this protocol
 class NRealmPacket
@@ -40,6 +42,7 @@ public:
 		SET_PATH,
 		SEND_ME_UPDATES,
 		UPDATE_OBJECT,
+		SEND_OBJECT,
 	};
 
 protected:
@@ -132,6 +135,28 @@ protected:
 	static NUpdateObjectPacket* Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize);
 };
 
+
+
+// This packet is used when either the client or server script wants to send a GObject to
+// the other one
+class NSendObjectPacket : public NRealmPacket
+{
+friend class NRealmPacket;
+protected:
+	VarHolder* m_pVH;
+
+public:
+	NSendObjectPacket(Engine* pEngine);
+	virtual ~NSendObjectPacket();
+
+	virtual RealmPacketType GetPacketType() { return SEND_OBJECT; }
+	GObject* GetGObject();
+	void SetObject(GObject* pObject);
+
+protected:
+	virtual int Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuffer, int nBufferSize);
+	static NSendObjectPacket* Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize);
+};
 
 
 

@@ -19,6 +19,7 @@ class GWidgetListBox;
 class EditorList;
 class COProject;
 class GWidgetStyle;
+class GWidgetContainer;
 class ErrorHandler;
 class EditorController;
 
@@ -48,7 +49,7 @@ protected:
 	int m_nScreenHeight;
 	SDL_Surface* m_pScreen;
 	GRect m_screenRect;
-	GWidgetStyle* m_pWidgetStyle;
+	GWidgetContainer* m_pWidgetContainer;
 	EditorList* m_pLists[EDITOR_VIEW_MAX_LIST_COUNT];
 	int m_nLists;
 	int m_nCursorCol;
@@ -62,7 +63,8 @@ public:
 	void Update();
 	void MoveRow(int dy);
 	void MoveCol(int dx);
-	GWidgetStyle* GetWidgetStyle() { return m_pWidgetStyle; }
+	GWidgetStyle* GetWidgetStyle();
+	GWidgetContainer* GetWidgetContainer() { return m_pWidgetContainer; }
 	bool OnChar(char c);
 
 protected:
@@ -110,6 +112,7 @@ public:
 	void HandleKeyPress(SDLKey eKey);
 	void HandleMouseClick();
 	GWidgetStyle* GetWidgetStyle() { return m_pView->GetWidgetStyle(); }
+	GWidgetContainer* GetWidgetContainer() { return m_pView->GetWidgetContainer(); }
 	COProject* GetProject() { return m_pModel; }
 };
 

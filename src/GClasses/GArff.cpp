@@ -378,6 +378,11 @@ GArffAttribute::~GArffAttribute()
 	delete(m_szValues);
 }
 
+GArffAttribute* GArffAttribute::NewCopy()
+{
+	return new GArffAttribute(m_bIsInput, m_nValues, (const char**)m_szValues);
+}
+
 /*static*/ GArffAttribute* GArffAttribute::Parse(const char* szFile, int nLen)
 {
 	// Eat whitespace
@@ -604,17 +609,52 @@ GArffData* GArffData::SplitByPivot(int nColumn, double dPivot)
 	return pNewSet;
 }
 
+int DoubleRefComparer(void* pA, void* pB)
+{
+	if(*(double*)pA > *(double*)pB)
+		return 1;
+	if(*(double*)pA < *(double*)pB)
+		return -1;
+	return 0;
+}
+
 GArffData** GArffData::SplitByAttribute(GArffRelation* pRelation, int nAttribute)
 {
 	GArffAttribute* pAttr = pRelation->GetAttribute(nAttribute);
 	GAssert(pAttr->IsInput(), "Expected an input");
 	int nCount = pAttr->GetValueCount();
-	GArffData** ppParts = new GArffData*[nCount];
-	int n;
-	for(n = 0; n < nCount; n++)
-		ppParts[n] = SplitByPivot(nAttribute, (double)n);
-	GAssert(GetRowCount() == 0, "some data out of range");
-	return ppParts;
+	if(nCount > 0)
+	{
+		// Split by each discreet attribute value
+		GArffData** ppParts = new GArffData*[nCount];
+		int n;
+		for(n = 0; n < nCount; n++)
+			ppParts[n] = SplitByPivot(nAttribute, (double)n);
+		GAssert(GetRowCount() == 0, "some data out of range");
+		return ppParts;
+	}
+	else
+	{
+		// Find the median
+		GPointerArray arr(GetRowCount());
+		int nRows = GetRowCount();
+		int n;
+		for(n = 0; n < nRows; n++)
+		{
+			double* pRow = GetRow(n);
+			arr.AddPointer(&pRow[nAttribute]);
+		}
+		arr.Sort(DoubleRefComparer);
+		double dMedian = *(double*)arr.GetPointer(nRows / 2);
+
+		// Split the data
+		GArffData** ppParts = new GArffData*[2];
+		ppParts[0] = SplitByPivot(nAttribute, dMedian);
+		ppParts[1] = new GArffData(MAX(8, GetRowCount()));
+		while(GetRowCount() > 0)
+			ppParts[1]->AddRow(DropRow(0));
+		return ppParts;
+	}
 }
 
 GArffData* GArffData::SplitBySize(int nRows)
@@ -681,4 +721,48 @@ void GArffData::Unanalogize(GArffRelation* pRelation)
 			}
 		}
 	}
+}
+
+void GArffData::GetMinAndRange(int nAttribute, double* pMin, double* pRange)
+{
+	int nCount = GetRowCount();
+	GAssert(nCount > 0, "No data");
+	double* pRow = GetRow(0);
+	double dMin = pRow[nAttribute];
+	double dMax = dMin;
+	int n;
+	for(n = 1; n < nCount; n++)
+	{
+		pRow = GetRow(n);
+		if(pRow[nAttribute] < dMin)
+			dMin = pRow[nAttribute];
+		if(pRow[nAttribute] > dMax)
+			dMax = pRow[nAttribute];
+	}
+	*pMin = dMin;
+	*pRange = dMax - dMin;
+}
+
+void GArffData::Normalize(int nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange)
+{
+	int nCount = GetRowCount();
+	double* pRow;
+	double dScale = dOutputRange / dInputRange;
+	int n;
+	for(n = 0; n < nCount; n++)
+	{
+		pRow = GetRow(n);
+		pRow[nAttribute] -= dInputMin;
+		pRow[nAttribute] *= dScale;
+		pRow[nAttribute] += dOutputMin;
+	}
+}
+
+/*static*/ double GArffData::Normalize(double dVal, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange)
+{
+	dVal -= dInputMin;
+	dVal /= dInputRange;
+	dVal *= dOutputRange;
+	dVal += dOutputMin;
+	return dVal;
 }

@@ -127,4 +127,16 @@ public:
 	void SetFloat(int nCell, float f) { _SetCellByRef(nCell, &f); }
 };
 
+// Dynamic array of doubles
+class GDoubleArray : public GSmallArray
+{
+public:
+	GDoubleArray(int nGrowBy) : GSmallArray(sizeof(double), nGrowBy) { }
+	virtual ~GDoubleArray() { }
+
+	double GetDouble(int nIndex) { return *(double*)_GetCellRef(nIndex); }
+	void AddDouble(double d) { _AddCellByRef(&d); }
+	void SetDouble(int nCell, double d) { _SetCellByRef(nCell, &d); }
+};
+
 #endif // __GARRAY_H__

@@ -169,6 +169,9 @@
 			RelativePath="GameEngine.h">
 		</File>
 		<File
+			RelativePath=".\isotope.gash">
+		</File>
+		<File
 			RelativePath=".\MAnimation.cpp">
 		</File>
 		<File
@@ -185,6 +188,12 @@
 		</File>
 		<File
 			RelativePath=".\MGameImage.h">
+		</File>
+		<File
+			RelativePath=".\MInductionPuzzle.cpp">
+		</File>
+		<File
+			RelativePath=".\MInductionPuzzle.h">
 		</File>
 		<File
 			RelativePath=".\MKeyPair.cpp">

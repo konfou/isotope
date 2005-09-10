@@ -42,6 +42,7 @@ MRealmServer::MRealmServer(const char* szPath, MGameServer* pGameServer)
 	m_dLatestSentUpdates = 0;
 	m_pScriptEngine = NULL;
 	m_pErrorHandler = new IsotopeErrorHandler();
+	m_pRemoteVar = NULL;
 }
 
 MRealmServer::~MRealmServer()
@@ -49,21 +50,22 @@ MRealmServer::~MRealmServer()
 	delete(m_pRealm);
 	delete(m_szPath);
 	delete(m_szBase);
+	delete(m_pRemoteVar);
 	delete(m_pScriptEngine);
 	delete(m_pErrorHandler);
 }
 
-void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pObjectsTag)
+void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pMapTag, Controller* pController, MRealm* pRealm)
 {
 	int nBufSize;
 	Holder<char*> hBuf(GFile::LoadFileToBuffer(szFilename, &nBufSize));
 	const char* pFile = hBuf.Get();
 	if(!pFile)
 		GameEngine::ThrowError("Failed to load script file: %s", szFilename);
-	m_pScriptEngine = new MScriptEngine(pFile, nBufSize, m_pErrorHandler, pObjectsTag, NULL, NULL);
+	m_pScriptEngine = new MScriptEngine(pFile, nBufSize, m_pErrorHandler, pMapTag, NULL, pController, pRealm);
 }
 
-/*static*/ MRealmServer* MRealmServer::LoadRealm(const char* szFilename, MGameServer* pGameServer)
+/*static*/ MRealmServer* MRealmServer::LoadRealm(const char* szFilename, MGameServer* pGameServer, Controller* pController)
 {
 	// Download the file
 	int nSize;
@@ -88,6 +90,9 @@ void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pObjectsTag)
 	Holder<MRealmServer*> hRS(new MRealmServer(szFilename, pGameServer));
 	MRealmServer* pRS = hRS.Get();
 
+	// Make the new realm
+	pRS->m_pRealm = new MRealm(pGameServer);
+
 	// Load the script
 	GXMLAttribute* pAttrScript = pModelTag->GetAttribute("Script");
 	if(!pAttrScript)
@@ -96,11 +101,18 @@ void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pObjectsTag)
 	GTEMPBUF(pFullScriptName, strlen(pRS->m_szBase) + strlen(szScriptName) + 5);
 	strcpy(pFullScriptName, pRS->m_szBase);
 	strcat(pFullScriptName, szScriptName);
-	GXMLTag* pObjectsTag = pModelTag->GetChildTag("Objects");
-	pRS->LoadScript(pFullScriptName, pObjectsTag);
+	pRS->LoadScript(pFullScriptName, pModelTag, pController, pRS->m_pRealm);
 
-	// Make the new realm
-	pRS->m_pRealm = new MRealm(pGameServer);
+	// Make the remote var
+	delete(pRS->m_pRemoteVar);
+	pRS->m_pRemoteVar = NULL;
+	GXMLAttribute* pRemoteAttr = pModelTag->GetAttribute("Remote");
+	if(pRemoteAttr)
+	{
+		pRS->m_pRemoteVar = new VarHolder(pRS->m_pScriptEngine->GetEngine());
+		pRS->m_pScriptEngine->MakeRemoteObject(pRS->m_pRemoteVar, pRemoteAttr->GetValue());
+	}
+
 	return hRS.Drop();
 }
 
@@ -165,11 +177,22 @@ void MRealmServer::UpdateObject(NUpdateObjectPacket* pPacket, double time, MClie
 	m_pRealm->ReplaceObject(pPacket->GetConnection(), pOb);
 }
 
+void MRealmServer::ReceiveObject(NSendObjectPacket* pPacket, int nConnection)
+{
+	if(!m_pRemoteVar)
+		return;
+	GObject* pRemoteObj = m_pRemoteVar->GetGObject();
+	if(!pRemoteObj)
+		return;
+	m_pScriptEngine->CallReceiveFromClient(pRemoteObj, pPacket->GetGObject(), nConnection);
+}
+
 // -------------------------------------------------------------------------
 
-MGameServer::MGameServer(const char* szBasePath)
+MGameServer::MGameServer(const char* szBasePath, Controller* pController)
 : Model()
 {
+	m_pController = pController;
 	m_pConnection = new NRealmServerConnection(this);
 	int n;
 	for(n = 0; n < SERVER_LOAD_CHECKS; n++)
@@ -184,6 +207,7 @@ MGameServer::MGameServer(const char* szBasePath)
 	strcpy(m_szBasePath, szBasePath);
 	if(m_szBasePath[m_nBasePathLen - 1] == '/' || m_szBasePath[m_nBasePathLen - 1] == '\\')
 		m_szBasePath[--m_nBasePathLen] = '\0';
+	fprintf(stderr, "Server waiting for clients to connect...\n");
 }
 
 /*virtual*/ MGameServer::~MGameServer()
@@ -251,6 +275,10 @@ void MGameServer::ProcessPacket(NRealmPacket* pPacket, double time)
 			UpdateObject((NUpdateObjectPacket*)pPacket, time);
 			break;
 
+		case NRealmPacket::SEND_OBJECT:
+			ReceiveObject((NSendObjectPacket*)pPacket);
+			break;
+
 		default:
 			GAssert(false, "Unrecognized packet type");
 	}
@@ -281,7 +309,7 @@ MRealmServer* MGameServer::FindOrLoadRealmServer(const char* szUrl)
 	MRealmServer* pRS = NULL;
 	try
 	{
-		pRS = MRealmServer::LoadRealm(szPath, this);
+		pRS = MRealmServer::LoadRealm(szPath, this, m_pController);
 	}
 	catch(const char* szMessage)
 	{
@@ -367,6 +395,24 @@ void MGameServer::UpdateObject(NUpdateObjectPacket* pPacket, double time)
 	pRS->UpdateObject(pPacket, time, pRecord);
 }
 
+void MGameServer::ReceiveObject(NSendObjectPacket* pPacket)
+{
+	int nConnection = pPacket->GetConnection();
+	MClientRecord* pRecord = GetClientRecord(nConnection, false);
+	if(!pRecord)
+	{
+		GAssert(false, "path not set yet--todo: handle this case");
+		return;
+	}
+	MRealmServer* pRS = pRecord->pRealmServer;
+	if(!pRS)
+	{
+		GAssert(false, "path not set yet--todo: handle this case");
+		return;
+	}
+	pRS->ReceiveObject(pPacket, nConnection);
+}
+
 /*virtual*/ bool MGameServer::OnReplaceObject(int nConnection, MObject* pOld, MObject* pNew)
 {
 	if(!pNew || !pOld || nConnection <= 0)
@@ -374,4 +420,15 @@ void MGameServer::UpdateObject(NUpdateObjectPacket* pPacket, double time)
 	// todo: if the server load is high, just return true
 
 	return pNew->m_pScriptEngine->CallVerify(nConnection, pOld, pNew);
+}
+
+/*virtual*/ void MGameServer::SendObject(GObject* pObj, int nConnection)
+{
+	MClientRecord* pRecord = GetClientRecord(nConnection, false);
+	if(!pRecord)
+		return;
+	MScriptEngine* pScriptEngine = pRecord->pRealmServer->GetScriptEngine();
+	NSendObjectPacket packet(pScriptEngine->GetEngine());
+	packet.SetObject(pObj);
+	m_pConnection->SendPacket(&packet, nConnection);
 }

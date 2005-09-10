@@ -23,6 +23,8 @@ class IsotopeErrorHandler;
 class GPointerArray;
 class MGameServer;
 struct MClientRecord;
+class VarHolder;
+class NSendObjectPacket;
 
 // An MRealmServer is a daemon for a single realm
 class MRealmServer
@@ -34,19 +36,21 @@ protected:
 	double m_dLatestSentUpdates;
 	MScriptEngine* m_pScriptEngine;
 	IsotopeErrorHandler* m_pErrorHandler;
+	VarHolder* m_pRemoteVar;
 
 	MRealmServer(const char* szPath, MGameServer* pGameServer);
 public:
 	~MRealmServer();
 
-	static MRealmServer* LoadRealm(const char* szFilename, MGameServer* pGameServer);
+	static MRealmServer* LoadRealm(const char* szFilename, MGameServer* pGameServer, Controller* pController);
 	const char* GetPath() { return m_szPath; }
+	MScriptEngine* GetScriptEngine() { return m_pScriptEngine; }
 	void SendUpdates(NSendMeUpdatesPacket* pPacketIn, NRealmServerConnection* pConnection, double time);
 	void UpdateObject(NUpdateObjectPacket* pPacket, double time, MClientRecord* pRecord);
-	MScriptEngine* GetScriptEngine() { return m_pScriptEngine; }
+	void ReceiveObject(NSendObjectPacket* pPacket, int nConnection);
 
 protected:
-	void LoadScript(const char* szFilename, GXMLTag* pObjectsTag);
+	void LoadScript(const char* szFilename, GXMLTag* pMapTag, Controller* pController, MRealm* pRealm);
 };
 
 struct MClientRecord
@@ -61,6 +65,7 @@ class MGameServer : public Model
 {
 friend class MRealmServer;
 protected:
+	Controller* m_pController;
 	NRealmServerConnection* m_pConnection;
 	int m_nLoadChecks[SERVER_LOAD_CHECKS];
 	int m_nLoadCheckPos;
@@ -70,12 +75,13 @@ protected:
 	int m_nBasePathLen;
 
 public:
-	MGameServer(const char* szBasePath);
+	MGameServer(const char* szBasePath, Controller* pController);
 	virtual ~MGameServer();
 
 	virtual void Update(double time);
 	virtual bool OnReplaceObject(int nConnection, MObject* pOld, MObject* pNew);
 	virtual ModelType GetType() { return Server; }
+	virtual void SendObject(GObject* pObj, int nConnection);
 	float MeasureLoad();
 	MRealmServer* GetRealmServer(int nConnection);
 
@@ -86,6 +92,7 @@ protected:
 	MRealmServer* FindOrLoadRealmServer(const char* szUrl);
 	void SendUpdates(NSendMeUpdatesPacket* pPacket, double time);
 	void UpdateObject(NUpdateObjectPacket* pPacket, double time);
+	void ReceiveObject(NSendObjectPacket* pPacket);
 };
 
 #endif // __MREALMSERVER_H__

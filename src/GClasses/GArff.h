@@ -82,6 +82,9 @@ public:
 	
 	~GArffAttribute();
 
+	// Makes a deep copy of this object
+	GArffAttribute* NewCopy();
+
 	// Parse the attribute section of a ".arff" file
 	static GArffAttribute* Parse(const char* szFile, int nLen);
 
@@ -170,6 +173,15 @@ public:
 
 	// This undoes what Analogize does
 	void Unanalogize(GArffRelation* pRelation);
+
+	// Finds the min and the range of the values of the specified attribute
+	void GetMinAndRange(int nAttribute, double* pMin, double* pRange);
+
+	// Normalizes the specified attribute values
+	void Normalize(int nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
+
+	static double Normalize(double dVal, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
+
 };
 
 

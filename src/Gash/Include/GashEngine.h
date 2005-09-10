@@ -641,7 +641,7 @@ public:
 	int GetStackSize() { return m_nStackPointer; }
 	int GetSizeAboveBase() { return m_nStackPointer - m_nBasePointer; }
 	void GetCallStack(GCallStackLayerArray* pOutCallStack, unsigned char* pInstructionPointer);
-	void DumpObject(GString* pString, const char* szVarName, GObject* pOb, Library* pLibrary, int nCurrentDepth, int nMaxDepth, bool bIncludeRefCounts);
+	void DumpObject(GString* pString, const char* szPrefix, const char* szVarName, GObject* pOb, Library* pLibrary, int nCurrentDepth, int nMaxDepth, bool bIncludeRefCounts);
 	void DumpStack(GString* pString, GVM* pVM, int nMaxObjectDepth, bool bIncludeRefCounts);
 
 	inline void PushBasePointerAndInstructionPointer(unsigned char* pInstructionPointer)

@@ -17,9 +17,10 @@
 struct GRect;
 class GPointerArray;
 class GWidgetStyle;
-class GWidgetButton;
+class GWidgetTextButton;
 class GWidget;
 class Controller;
+class GWidgetContainer;
 
 // This shows a screen where you can select your character
 class VCharMake : public ViewPort
@@ -36,10 +37,9 @@ protected:
 	const char* m_szTypeBuffer;
 	GImage* m_pImage;
 	GPointerArray* m_pAvatarAnimations;
-	GWidgetStyle* m_pWidgetStyle;
-	GWidgetButton* m_pCancelButton;
-	GWidgetButton* m_pOKButton;
-	GWidget* m_pClickWidget;
+	GWidgetContainer* m_pWidgetContainer;
+	GWidgetTextButton* m_pCancelButton;
+	GWidgetTextButton* m_pOKButton;
 	double m_dTime;
 	float m_fCameraDirection;
 	int m_nFirstAvatar;
@@ -59,8 +59,7 @@ protected:
 	void RefreshEntireImage();
 	void MakeAvatarList();
 	void DrawAvatars();
-	void PressButton(GWidgetButton* pButton);
-	void ReleaseButton(Controller* pController, GWidgetButton* pButton);
+	void ReleaseButton(Controller* pController, GWidgetTextButton* pButton);
 };
 
 #endif // __VCHARMAKE_H__

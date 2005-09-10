@@ -34,6 +34,7 @@ class Controller;
 class MImageStore;
 class MScriptEngine;
 class COClass;
+class MRealm;
 
 
 // This class just provids a callback function to use when an error occurs.
@@ -112,6 +113,7 @@ protected:
 	CallBackGetter* m_pCBG;
 	ErrorHandler* m_pErrorHandler;
 	Library* m_pLibrary;
+	MRealm* m_pRealm;
 
 	struct MethodRef m_mrUpdate;
 	struct MethodRef m_mrVerify;
@@ -119,6 +121,8 @@ protected:
 	struct MethodRef m_mrDoAction;
 	struct MethodRef m_mrOnGetFocus;
 	struct MethodRef m_mrOnLoseFocus;
+	struct MethodRef m_mrReceiveFromClient;
+	struct MethodRef m_mrReceiveFromServer;
 	VarHolder* m_pTempVar;
 	VarHolder* m_pTempVar2;
 	VarHolder* m_pIntVar;
@@ -132,7 +136,7 @@ protected:
 	VarHolder* m_pParams[MAX_PARAMS + 1];
 
 public:
-	MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pObjectsTag, MGameClient* pGameClient, Controller* pController);
+	MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm);
 	virtual ~MScriptEngine();
 
 	// Copies the values from a GRect structure into a Gash Rect object
@@ -167,14 +171,20 @@ public:
 	// Calls "loseFocus" on the specified object
 	void CallOnLoseFocus(MObject* pObject);
 
+	void CallReceiveFromServer(GObject* pRemoteObj, GObject* pObj);
+	void CallReceiveFromClient(GObject* pRemoteObj, GObject* pObj, int nConnection);
+
 	// Serializes the specified MObject
-	int SerializeObject(MObject* pObject, unsigned char* pBuf, int nBufSize);
+	int SerializeObject(GObject* pObject, unsigned char* pBuf, int nBufSize);
 
 	// Deserializes a blob into an MObject
-	MObject* DeserializeObject(const unsigned char* pBuf, int nBufSize);
+	GObject* DeserializeObject(const unsigned char* pBuf, int nBufSize);
 
 	// Allocates a new MObject (including the Gash object that it wraps)
 	MObject* NewObject(const char* szClass, float x, float y, float z, float sx, float sy, float sz, const char** szParams, int nParamCount);
+
+	// Allocates the remote object
+	void MakeRemoteObject(VarHolder* pVH, const char* szClassName);
 
 	// loads a bitmap image into a Gash Image object
 	VarHolder* LoadPNGImage(const char* szRemotePath, const char* szUrl, const char* szID);
@@ -187,10 +197,13 @@ public:
 
 	static void DoAvatarActionAnimation(MObject* pAvatar);
 
+	MRealm* GetRealm() { return m_pRealm; }
+
 protected:
 	void FindMethod(struct MethodRef* pMethodRef, const char* szType, const char* szSig);
 	void ImportObjectDependencies(GCompiler* pCompiler, COProject* pProject, GXMLTag* pObjectsTag);
 	void ImportMethodDependency(GCompiler* pCompiler, COClass* pClass, const char* szSig);
+	void ImportRealmObject(const char* szTypeName, GCompiler* pCompiler, COProject* pProject, int nConstructorParams);
 };
 
 
@@ -242,6 +255,10 @@ public:
 	// Call this method after you make changes to an object so the changes can be
 	// sent to the server and it can propagate them to all other clients
 	void notifyServerAboutObjectUpdate(Engine* pEngine, EVar* pObj);
+
+	void sendToClient(Engine* pEngine, EVar* pObj, EVar* pConnection);
+	void sendToServer(Engine* pEngine, EVar* pObj);
+	void addInventoryItem(Engine* pEngine, EVar* pString);
 };
 
 

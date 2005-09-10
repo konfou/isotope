@@ -251,6 +251,8 @@ void GDecisionTree::BuildNode(GDecisionTreeNode* pNode, GArffData* pData)
 	GAssert(pAttr->IsInput(), "Expected an input");
 	GArffData** ppParts = pData->SplitByAttribute(m_pRelation, nBestAttribute);
 	int nChildCount = pAttr->GetValueCount();
+	if(nChildCount == 0)
+		nChildCount = 2; // Real-valued attributes are split at the median
 	pNode->m_nChildren = nChildCount;
 	pNode->m_ppChildren = new GDecisionTreeNode*[nChildCount];
 	for(n = 0; n < nChildCount; n++)

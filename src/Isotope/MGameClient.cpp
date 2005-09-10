@@ -63,18 +63,10 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_pAnimationStore = NULL;
 	m_pSoundStore = NULL;
 	m_pSpotStore = NULL;
+	m_pRemoteVar = NULL;
 	m_bFirstPerson = false;
 	m_pSelectedObjects = new GPointerArray(64);
-
-	// Check for the Mode attribute
-	m_bLoner = false;
-	GXMLTag* pConfigTag = GameEngine::GetConfig();
-	GXMLAttribute* pAttrMode = pConfigTag->GetAttribute("Mode");
-	if(pAttrMode)
-	{
-		if(stricmp(pAttrMode->GetValue(), "loner") == 0)
-			m_bLoner = true;
-	}
+	m_bLoner = true;
 }
 
 /*virtual*/ MGameClient::~MGameClient()
@@ -101,6 +93,8 @@ void MGameClient::UnloadRealm()
 	m_pGoalFlag = NULL;
 	m_pInfoCloud = NULL;
 	UnloadMedia();
+	delete(m_pRemoteVar);
+	m_pRemoteVar = NULL;
 	delete(m_pScriptEngine);
 	m_pScriptEngine = NULL;
 	delete(m_pConnection);
@@ -113,12 +107,17 @@ void MGameClient::UnloadRealm()
 	m_szRemoteFolder = NULL;
 }
 
-void MGameClient::LoadScript(Controller* pController, const char* szUrl, GXMLTag* pObjectsTag)
+char* MGameClient::LoadFileFromUrl(const char* szUrl, int* pnBufSize)
+{
+	return GameEngine::LoadFileFromUrl(m_szRemoteFolder, szUrl, pnBufSize);
+}
+
+void MGameClient::LoadScript(Controller* pController, MRealm* pRealm, const char* szUrl, GXMLTag* pMapTag)
 {
 	int nBufSize;
 	delete(m_szScript);
-	m_szScript = GameEngine::LoadFileFromUrl(m_szRemoteFolder, szUrl, &nBufSize);
-	m_pScriptEngine = new MScriptEngine(m_szScript, nBufSize, m_pErrorHandler, pObjectsTag, this, pController);
+	m_szScript = LoadFileFromUrl(szUrl, &nBufSize);
+	m_pScriptEngine = new MScriptEngine(m_szScript, nBufSize, m_pErrorHandler, pMapTag, this, pController, pRealm);
 }
 
 void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter)
@@ -174,6 +173,15 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 		}
 	}
 
+	// Set the multiplayer flag
+	GXMLAttribute* pAttrMultiplayer = m_pMap->GetAttribute("Multiplayer");
+	if(!pAttrMultiplayer)
+		GameEngine::ThrowError("Expected a \"Multiplayer\" attribute in the realm file");
+	if(stricmp(pAttrMultiplayer->GetValue(), "true") == 0)
+		m_bLoner = false;
+	else
+		m_bLoner = true;
+
 	// Set the point of view
 	m_bFirstPerson = false;
 	GXMLTag* pCameraTag = m_pMap->GetChildTag("Camera");
@@ -193,11 +201,21 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 	}
 
 	// Load the script
+	m_pCurrentRealm = new MRealm(this);
 	GXMLAttribute* pAttrScript = m_pMap->GetAttribute("Script");
 	if(!pAttrScript)
 		GameEngine::ThrowError("Expected a \"Script\" attribute in file: %s", szUrl);
-	GXMLTag* pObjectsTag = m_pMap->GetChildTag("Objects");
-	LoadScript(pController, pAttrScript->GetValue(), pObjectsTag);
+	LoadScript(pController, m_pCurrentRealm, pAttrScript->GetValue(), m_pMap);
+
+	// Make the remote var
+	delete(m_pRemoteVar);
+	m_pRemoteVar = NULL;
+	GXMLAttribute* pRemoteAttr = m_pMap->GetAttribute("Remote");
+	if(pRemoteAttr)
+	{
+		m_pRemoteVar = new VarHolder(m_pScriptEngine->GetEngine());
+		m_pScriptEngine->MakeRemoteObject(m_pRemoteVar, pRemoteAttr->GetValue());
+	}
 
 	// Connect to the server
 	if(!m_bLoner)
@@ -210,8 +228,7 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 	// Load the media
 	LoadMedia(m_pMap);
 
-	// Make the new realm
-	m_pCurrentRealm = new MRealm(this);
+	// Load the realm
 	m_pCurrentRealm->FromXml(m_pMap, m_pImageStore);
 
 	// Find the starting spot
@@ -491,12 +508,20 @@ void MGameClient::ProcessPacket(NRealmPacket* pPacket)
 {
 	switch(pPacket->GetPacketType())
 	{
+		case NRealmPacket::SET_PATH:
+			GAssert(false, "Why is the server asking the client for a connection?");
+			break;
+
 		case NRealmPacket::SEND_ME_UPDATES:
 			GAssert(false, "Why is the server asking the client for updates?");
 			break;
 
 		case NRealmPacket::UPDATE_OBJECT:
 			UpdateObject((NUpdateObjectPacket*)pPacket);
+			break;
+
+		case NRealmPacket::SEND_OBJECT:
+			ReceiveObject((NSendObjectPacket*)pPacket);
 			break;
 
 		default:
@@ -507,9 +532,14 @@ void MGameClient::ProcessPacket(NRealmPacket* pPacket)
 void MGameClient::UpdateObject(NUpdateObjectPacket* pPacket)
 {
 	MObject* pOb = pPacket->GetMObject();
+	if(!pOb)
+	{
+		GAssert(false, "no object");
+		return;
+	}
 	if(pOb->GetTime() > m_nextUpdateTime)
 		m_nextUpdateTime = pOb->GetTime();
-	if(pOb->GetUid() == m_pAvatar->GetUid())
+	if(m_pAvatar && pOb->GetUid() == m_pAvatar->GetUid())
 	{
 		// todo: determine whether it's necessary to update the avatar
 	}
@@ -518,6 +548,16 @@ void MGameClient::UpdateObject(NUpdateObjectPacket* pPacket)
 		pPacket->SetObject(NULL);
 		m_pCurrentRealm->ReplaceObject(pPacket->GetConnection(), pOb);
 	}
+}
+
+void MGameClient::ReceiveObject(NSendObjectPacket* pPacket)
+{
+	if(!m_pRemoteVar)
+		return;
+	GObject* pRemoteObj = m_pRemoteVar->GetGObject();
+	if(!pRemoteObj)
+		return;
+	m_pScriptEngine->CallReceiveFromServer(pRemoteObj, pPacket->GetGObject());
 }
 
 void MGameClient::MoveGoalFlag(float x, float y, bool bVisible)
@@ -714,4 +754,26 @@ void MGameClient::AddObject(const char* szFilename)
 	sprintf(szTmp, "%f", pPosSize->sz);
 	pNewObjectTag->AddAttribute(new GXMLAttribute("sz", szTmp));
 	pObjectsTag->AddChildTag(pNewObjectTag);
+}
+
+/*virtual*/ void MGameClient::SendObject(GObject* pObj, int nConnection)
+{
+	if(!m_pConnection)
+		return;
+	NSendObjectPacket packet(m_pScriptEngine->GetEngine());
+	packet.SetObject(pObj);
+	m_pConnection->SendPacket(&packet);
+}
+
+void MGameClient::AddInventoryItem(GXMLTag* pTag)
+{
+	// Get the inventory tag
+	GXMLTag* pInventoryTag = m_pAccountTag->GetChildTag("Inventory");
+	if(!pInventoryTag)
+	{
+		pInventoryTag = new GXMLTag("Inventory");
+		m_pAccountTag->AddChildTag(pInventoryTag);
+	}
+
+	pInventoryTag->AddChildTag(pTag);
 }

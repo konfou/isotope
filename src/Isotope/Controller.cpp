@@ -80,7 +80,7 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	switch(eRunMode)
 	{
 		case SERVER:
-			m_pModel = new MGameServer(szParam);
+			m_pModel = new MGameServer(szParam, this);
 #ifdef SERVER_HAS_VIEW
 			MakeServerView((MGameServer*)m_pModel);
 #endif // SERVER_HAS_VIEW
@@ -598,11 +598,23 @@ void Controller::BringUpMainMenu()
 	r.y = pScreenRect->y + pScreenRect->h;
 	r.w = 50;
 	r.h = 50;
-	m_pMainMenu = new VMainMenu(&r, pScreenRect);
+	m_pMainMenu = new VMainMenu(&r, pScreenRect, m_pGameClient->GetAccountTag());
 	m_pView->PushViewPort(m_pMainMenu);
 	SetMode(MAINMENU);
 	m_dMenuSlideInAnimTime = 0;
 	m_dMenuSlideOutAnimTime = 0;
+}
+
+void Controller::RemoveMainMenu()
+{
+	ViewPort* pPort = m_pView->PopViewPort();
+	GAssert(pPort == m_pMainMenu, "unexpected view port");
+	delete(pPort);
+	m_pMainMenu = NULL;
+	if(m_pGameClient->IsFirstPerson())
+		SetMode(FIRSTPERSON);
+	else
+		SetMode(THIRDPERSON);
 }
 
 #define MENU_SLIDE_ANIMATION_TIME .3
@@ -640,15 +652,7 @@ void Controller::ControlMainMenu(double dTimeDelta)
 		SlideMenu(fac);
 		if(m_dMenuSlideOutAnimTime <= 0)
 		{
-			// Remove the main menu and switch back to Avatar mode
-			ViewPort* pPort = m_pView->PopViewPort();
-			GAssert(pPort == m_pMainMenu, "unexpected view port");
-			delete(pPort);
-			m_pMainMenu = NULL;
-			if(m_pGameClient->IsFirstPerson())
-				SetMode(FIRSTPERSON);
-			else
-				SetMode(THIRDPERSON);
+			RemoveMainMenu();
 			return;
 		}
 	}
@@ -947,4 +951,16 @@ void Controller::ControlEntropyCollector(double dTimeDelta)
 		pModel->SaveKeyPair();
 		m_bQuit = true;
 	}
+}
+
+void Controller::SendToClient(GObject* pObj, int nConnection)
+{
+	GAssert(m_pModel->GetType() == Model::Server, "Only the server should send to the client");
+	m_pModel->SendObject(pObj, nConnection);
+}
+
+void Controller::SendToServer(GObject* pObj)
+{
+	GAssert(m_pModel->GetType() == Model::Client, "Only the client should send to the server");
+	m_pModel->SendObject(pObj, 0);
 }

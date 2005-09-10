@@ -14,29 +14,37 @@
 
 class GDaftNode;
 class GImage;
+class GArffRelation;
+class GArffData;
+class GNeuralNet;
 
 // Uses the Divide And Fit Technique for learning
 class GDaftLearner
 {
 protected:
-	GDaftNode* m_pRed;
-	GDaftNode* m_pGreen;
-	GDaftNode* m_pBlue;
-	GDaftNode* m_pAlpha;
-	int m_nControlPoints;
+	GArffRelation* m_pRelation;
+	GArffRelation* m_pDivideRelation;
+	GDaftNode* m_pRoot;
+	GArffData* m_pTrainingData;
 	double m_dAcceptableError;
+	double m_dGoodDivideWeight;
 
 public:
-	GDaftLearner();
+	GDaftLearner(GArffRelation* pRelation);
 	~GDaftLearner();
 
-	void SetControlPoints(int n) { m_nControlPoints = n; }
 	void SetAcceptableError(double d) { m_dAcceptableError = d; }
-	void Train(GImage* pImage);
-//	void Eval(GArffRelation* pRelation, double* pRow);
+	void SetGoodDivideWeight(double d) { m_dGoodDivideWeight = d; }
+	void Train(GArffData* pData);
+	void Eval(double* pRow);
+	double CriticizeDivision(GNeuralNet* pNeuralNet);
 
 protected:
-	GDaftNode* BuildBranch(GImage* pImage, int* pPixels, int nPixelCount, int nChannel);
+	GDaftNode* BuildBranch(GArffData* pData, double dScale);
+	GNeuralNet* FindBestDivision(GArffData* pData);
+	void DivideData(GNeuralNet* pNNDivide, GArffData* pData, GArffData* pPositive, GArffData* pNegative);
+	GNeuralNet* FitData(GArffData* pData, int nHiddenNodes, int nMaxIterations);
+	void EvalHelper(double* pRow, GDaftNode* pNode, double* pSample);
 };
 
 

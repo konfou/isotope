@@ -199,6 +199,7 @@ bool Library::LoadTypesAndCountMethods()
 		GXMLAttribute* pNameAttr = pTag->GetAttribute(ATTR_NAME);
 		GAssert(pNameAttr, "todo: handle this case");
 		GAssert(nID != 0 || stricmp(pNameAttr->GetValue(), "Object") == 0, "Object should have ID 0--todo: handle this case");
+		GAssert(!m_pTypeTableByName->Get(pNameAttr->GetValue(), (void**)&nID), "Duplicate types!");
 		m_pTypeTableByName->Add(pNameAttr->GetValue(), (void*)nID);
 
 		// Instantiate the object

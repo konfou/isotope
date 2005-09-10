@@ -44,7 +44,6 @@
 /*static*/ MImageStore* GameEngine::s_pImageStore = NULL;
 /*static*/ MAnimationStore* GameEngine::s_pAnimationStore = NULL;
 /*static*/ GXMLTag* GameEngine::s_pConfigTag = NULL;
-/*static*/ int GameEngine::s_nNextUid = -2000000000;
 
 /*static*/ void GameEngine::ThrowError(const char* szMessage)
 {
@@ -80,7 +79,14 @@
 
 /*static*/ int GameEngine::GetUid()
 {
-	return s_nNextUid++;
+	// todo: rewrite this function so it won't produce duplicate uids
+	while(true)
+	{
+		int uid = (rand() << 16) | rand(); // todo: "rand()" isn't reentrant which can cause concurrency issues with the server.  So use some other RNG (if we use an RNG at all)
+		if(uid == 0x80000000)
+			continue;
+		return uid;
+	}
 }
 
 /*static*/ void GameEngine::MakePasswordHash(char* pOutHash, const char* szPassword)
@@ -273,7 +279,7 @@ class Bogus(Object)\n\
 		ThrowError("Error loading XML file: %s\n%s\n", szMediaListFile, szErrorMessage);
 
 	// Make a bogus script engine
-	MScriptEngine* pBogusScriptEngine = new MScriptEngine(g_szBogusScript, strlen(g_szBogusScript), new IsotopeErrorHandler(), NULL, NULL, NULL);
+	MScriptEngine* pBogusScriptEngine = new MScriptEngine(g_szBogusScript, strlen(g_szBogusScript), new IsotopeErrorHandler(), NULL, NULL, NULL, NULL);
 
 	// Load the image store
 	GXMLTag* pImages = pRootTag->GetChildTag("Images");

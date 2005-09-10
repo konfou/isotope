@@ -35,10 +35,9 @@ VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer)
 	m_pImage->SetSize(620, 460);
 
 	m_szTypeBuffer = szTypeBuffer;
-	m_pWidgetStyle = new GWidgetStyle();
-	m_pCancelButton = MakeNewButton(m_pWidgetStyle, 235, 420, 150, 24, L"Cancel");
-	m_pOKButton = MakeNewButton(m_pWidgetStyle, 235, 390, 150, 24, L"OK");
-	m_pClickWidget = NULL;
+	m_pWidgetContainer = new GWidgetContainer(620, 460);
+	m_pCancelButton = MakeNewButton(m_pWidgetContainer, 235, 420, 150, 24, L"Cancel");
+	m_pOKButton = MakeNewButton(m_pWidgetContainer, 235, 390, 150, 24, L"OK");
 	m_dTime = GameEngine::GetTime();
 	m_fCameraDirection = 0;
 	m_nFirstAvatar = 0;
@@ -52,7 +51,7 @@ VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer)
 
 /*virtual*/ VCharMake::~VCharMake()
 {
-	delete(m_pWidgetStyle);
+	delete(m_pWidgetContainer);
 	delete(m_pImage);
 	delete(m_pAvatarAnimations);
 }
@@ -185,26 +184,8 @@ void VCharMake::DrawAvatars()
 	}
 }
 
-void VCharMake::PressButton(GWidgetButton* pButton)
+void VCharMake::ReleaseButton(Controller* pController, GWidgetTextButton* pButton)
 {
-	pButton->SetPressed(true);
-	pButton->Update();
-	pButton->Draw(m_pImage);
-	// todo: Refresh this portion of the view port now so that the reaction time
-	//       will feel snappy.  Currently it waits until the next call to View::Update
-}
-
-void VCharMake::ReleaseButton(Controller* pController, GWidgetButton* pButton)
-{
-	if(!pButton->IsPressed())
-		return; // The user moved the mouse to another button while holding down the mouse button
-
-	// Unpress the button
-	pButton->SetPressed(false);
-	pButton->Update();
-	pButton->Draw(m_pImage);
-
-	// Do the action
 	if(pButton == m_pCancelButton)
 		pController->CancelMakeNewChar();
 	else if(pButton == m_pOKButton)
@@ -230,29 +211,32 @@ void VCharMake::OnMouseDown(Controller* pController, int x, int y)
 		return;
 	}
 
-	// Check for clicking on a widget
-	m_pClickWidget = m_pWidgetStyle->FindWidget(x, y);
-	if(!m_pClickWidget)
+	// Normal widget handling
+	GWidgetAtomic* pNewWidget = m_pWidgetContainer->FindAtomicWidget(x, y);
+	if(!pNewWidget)
 		return;
-	switch(m_pClickWidget->GetType())
-	{
-		case GWidget::Button:
-			PressButton((GWidgetButton*)m_pClickWidget);
-			break;
-	}
+	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
+	if(pOldWidget == pNewWidget)
+		pOldWidget = NULL;
+	m_pWidgetContainer->GrabWidget(pNewWidget);
+	if(pOldWidget)
+		pOldWidget->Draw(m_pImage);
+	pNewWidget->Draw(m_pImage);
 }
 
 void VCharMake::OnMouseUp(Controller* pController, int x, int y)
 {
 	x -= m_rect.x;
 	y -= m_rect.y;
-	m_pClickWidget = m_pWidgetStyle->FindWidget(x, y);
-	if(!m_pClickWidget)
+	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
+	m_pWidgetContainer->ReleaseWidget();
+	if(!pOldWidget)
 		return;
-	switch(m_pClickWidget->GetType())
+	pOldWidget->Draw(m_pImage);
+	switch(pOldWidget->GetType())
 	{
-		case GWidget::Button:
-			ReleaseButton(pController, (GWidgetButton*)m_pClickWidget);
+		case GWidget::TextButton:
+			ReleaseButton(pController, (GWidgetTextButton*)pOldWidget);
 			break;
 	}
 }

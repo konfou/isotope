@@ -498,10 +498,12 @@ bool GSocket::GoIntoHostMode(unsigned short nListenPort, int nMaxConnections)
 		return false;
 	}
 
-#ifndef WIN32
 	// Tell the socket that it's okay to reuse an old crashed socket that hasn't timed out yet
 	int flag;
 	flag = 1;
+#ifdef WIN32
+	setsockopt(m_s, SOL_SOCKET, SO_REUSEADDR, (const char*)&flag, sizeof(flag)); 
+#else
 	setsockopt(m_s, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)); 
 #endif // WIN32
 

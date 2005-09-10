@@ -69,7 +69,7 @@ public:
 	{
 		m_pController = pController;
 		m_pItems = new GPointerArray(64);
-		m_pListBox = new GWidgetListBox(pController->GetWidgetStyle(), m_pItems, 0, 0, 0, 0);
+		m_pListBox = new GWidgetListBox(pController->GetWidgetContainer(), m_pItems, 0, 0, 0, 0);
 		m_nStoredSelection = 0;
 	}
 
@@ -1100,7 +1100,7 @@ EditorView::EditorView(COProject* pModel)
 	m_nScreenWidth = 800;
 	m_nScreenHeight = 600;
 	SetScreenSize(m_nScreenWidth, m_nScreenHeight);
-	m_pWidgetStyle = new GWidgetStyle();
+	m_pWidgetContainer = new GWidgetContainer(800, 600);
 	m_nLists = 0;
 	m_nCursorCol = 0;
 	m_nCursorRow = 0;
@@ -1109,7 +1109,12 @@ EditorView::EditorView(COProject* pModel)
 EditorView::~EditorView()
 {
 	delete(m_pLists[0]);
-	delete(m_pWidgetStyle);
+	delete(m_pWidgetContainer);
+}
+
+GWidgetStyle* EditorView::GetWidgetStyle()
+{
+	return m_pWidgetContainer->GetStyle();
 }
 
 void EditorView::MakeRootList(EditorController* pController)
@@ -1200,13 +1205,13 @@ void EditorView::AjustListPositions()
 			else
 				rNew.x = nSquishedListCount * nSquishedWidth + (n - nSquishedListCount) * EDITOR_VIEW_LIST_WIDTH;
 		}
-		rNew.h = m_pWidgetStyle->GetListBoxLineHeight() * pListBox->GetItems()->GetSize() + 2;
+		rNew.h = m_pWidgetContainer->GetStyle()->GetListBoxLineHeight() * pListBox->GetItems()->GetSize() + 2;
 		if(rNew.h > m_screenRect.h)
 			rNew.h = m_screenRect.h;
 		rNew.y = 0;
 		if(n > 0)
 		{
-			nRunningHeight += m_pLists[n - 1]->GetStoredSelection() * m_pWidgetStyle->GetListBoxLineHeight();
+			nRunningHeight += m_pLists[n - 1]->GetStoredSelection() * m_pWidgetContainer->GetStyle()->GetListBoxLineHeight();
 			if(nRunningHeight + rNew.h > m_screenRect.h)
 				nRunningHeight = 0;
 			rNew.y = nRunningHeight;

@@ -15,6 +15,9 @@
 class GArffRelation;
 class GArffData;
 class GPointerArray;
+class GNeuralNet;
+
+typedef double (*CriticFunc)(void* pThis, GNeuralNet* pNeuralNet);
 
 
 class GNeuralNet
@@ -31,6 +34,7 @@ protected:
 	int m_nPasses;
 	double m_dSigmoidSteepness;
 	double m_dLearningRate;
+	double m_dLearningDecay;
 	double m_dMomentum;
 	double m_dHopefulness;
 	double m_dAcceptableMeanSquareError;
@@ -59,6 +63,11 @@ public:
 
 	// Set the rate of convergence
 	void SetLearningRate(double d) { m_dLearningRate = d; }
+
+	// Set the rate at which the learning rate decays.  (The learning
+	// rate will be multiplied by this value after every pass through
+	// the training data.)
+	void SetLearningDecay(double d) { m_dLearningDecay = d; }
 
 	// Momentum has the effect of speeding convergence and helping
 	// the gradient descent algorithm move past some local minimums
@@ -121,11 +130,19 @@ public:
 	// corresponding discreet values.
 	void Evaluate(double* pRow);
 
+	void EvaluateTraining(double* pRow);
+
+	void TrainByCritic(CriticFunc pCritic, void* pThis);
+
+	double GetMeanSquareError(GArffData* pData);
+
 protected:
 	void UpdateWeights(double* pRow, double* pSample);
 	void EvaluateHelper(double* pRow, GPointerArray* pLayers);
-	double MeasureError(GArffData* pData, double* pSample);
+	double MeasureError(GArffData* pData, double* pSample, GPointerArray* pLayers);
 	void UpdateBestWeights();
+	void RestoreBestWeights();
+	void RandomlyTweakWeights(double dAmount);
 };
 
 #endif // __GNEURALNET_H__

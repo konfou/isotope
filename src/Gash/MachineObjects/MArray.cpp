@@ -13,6 +13,7 @@
 #include "MachineObjects.h"
 #include "../../GClasses/GHashTable.h"
 #include "../Include/GashLib.h"
+#include "../BuiltIns/GashStream.h"
 
 void RegisterMArray(GConstStringHashTable* pTable)
 {
@@ -26,3 +27,33 @@ void RegisterMArray(GConstStringHashTable* pTable)
 	pTable->Add("method &setRefs(&Stream)", new EMethodPointerHolder((MachineMethod1)&MArray::setRefs));
 }
 
+void MArray::toStream(Engine* pEngine, EVar* pOutBlob, EVar* pOutRefs)
+{
+	int nSize = m_pArray->GetSize();
+	pOutBlob->pStreamObject->m_value.Push(nSize);
+	int n;
+	for(n = 0; n < nSize; n++)
+		pOutRefs->pStreamObject->m_value.Push(m_pArray->GetPointer(n));
+}
+
+void MArray::fromStream(Engine* pEngine, EVar* pStream)
+{
+	int nSize;
+	pStream->pStreamObject->m_value.Pop(&nSize);
+	MArray* pNewArray = new MArray(pEngine, nSize);
+	while(pNewArray->m_pArray->GetSize() < nSize)
+		pNewArray->m_pArray->AddPointer(NULL);
+	pEngine->SetThis(pNewArray);
+}
+
+void MArray::setRefs(Engine* pEngine, EVar* pRefs)
+{
+	int nSize = m_pArray->GetSize();
+	GObject* pOb;
+	int n;
+	for(n = 0; n < nSize; n++)
+	{
+		pRefs->pStreamObject->m_value.Pop((void**)&pOb);
+		m_pArray->SetPointer(n, pOb);
+	}
+}

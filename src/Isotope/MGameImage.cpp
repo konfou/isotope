@@ -124,9 +124,9 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 			GAssert(cMode == Text, "unexptected mode");
 			makeTextImageHelper(pEngine, szID);
 		}
-		else if(cMode == Url)
+		else if(cMode == RelativeUrl)
 		{
-			pEngine->SetThis(DownloadImage(pEngine, szID));
+			pEngine->SetThis(DownloadImage(pEngine, pGameClient, szID));
 		}
 		else if(cMode == GlobalId)
 		{
@@ -147,11 +147,18 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 	}
 }
 
-/*static*/ MGameImage* MGameImage::DownloadImage(Engine* pEngine, const char* szUrl)
+/*static*/ MGameImage* MGameImage::DownloadImage(Engine* pEngine, MGameClient* pGameClient, const char* szUrl)
 {
+	// Get the remote path
+	if(!pGameClient)
+		pEngine->ThrowEngineError(L"The server shouldn't call this method");
+	const char* szRemoteFolder = pGameClient->GetRemoteFolder();
+	if(strnicmp(szUrl, "http://", 7) == 0)
+		GameEngine::ThrowError("For security reasons, only relative URLs are allowed in GImage.load.  %s is an absolute URL\n");
+
 	// Download the file
 	int nSize;
-	Holder<unsigned char*> hImageFile((unsigned char*)GameEngine::LoadFileFromUrl("", szUrl, &nSize));
+	Holder<unsigned char*> hImageFile((unsigned char*)GameEngine::LoadFileFromUrl(szRemoteFolder, szUrl, &nSize));
 	unsigned char* pImageFile = hImageFile.Get();
 	if(!pImageFile)
 	{
@@ -160,7 +167,7 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 	}
 
 	// Create the image
-	MGameImage* pNewImage = new MGameImage(pEngine, Url, szUrl);
+	MGameImage* pNewImage = new MGameImage(pEngine, RelativeUrl, szUrl);
 	if(!pNewImage->m_value.LoadPNGFile(pImageFile, nSize))
 	{
 		ConvertAnsiToUnicode(szUrl, wszUrl);
@@ -172,18 +179,16 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 void MGameImage::load(Engine* pEngine, EVar* pFilename)
 {
 	// Determine the full sandboxed URL
-	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
-	if(!pGameClient)
-		pEngine->ThrowEngineError(L"The server shouldn't call this method");
-	const char* szRemoteFolder = pGameClient->GetRemoteFolder();
-	int nRemoteFolderLen = strlen(szRemoteFolder);
 	GString* pString = &pFilename->pStringObject->m_value;
-	char* szFullUrl = (char*)alloca(nRemoteFolderLen + pString->GetLength() + 10);
-	strcpy(szFullUrl, szRemoteFolder);
-	pString->GetAnsi(szFullUrl + nRemoteFolderLen);
+	char* szFilename = (char*)alloca(pString->GetLength() + 1);
+	pString->GetAnsi(szFilename);
 
 	// Create the image
-	pEngine->SetThis(DownloadImage(pEngine, szFullUrl));
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	if(pGameClient)
+		pEngine->SetThis(DownloadImage(pEngine, pGameClient, szFilename));
+	else
+		pEngine->SetThis(new MGameImage(pEngine, RelativeUrl, szFilename));
 }
 
 const char* MGameImage::GetID()

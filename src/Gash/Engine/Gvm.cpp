@@ -108,7 +108,7 @@ void GVM::Run()
 		catch(...)
 		{
 			GAssert(false, "C++ exception");
-			GObject* pException = MakeException("NullReferenceException", L"Some exception occurred.  It's probably due to trying to dereference null.");
+			GObject* pException = MakeException("NullReferenceException", L"A C++ exception was thrown.  Check your parameters and make sure your not trying to do something invalid.");
 			m_pException->SetGObject(pException);
 			UnwindStackForException();
 		}
@@ -210,7 +210,12 @@ bool GVM::Call(struct MethodRef* pMethod, VarHolder** pParams, int nParams)
 			return false;
 		}
 		int* pVirtualTable = ((EClass*)pType)->GetVirtualTable();
-		nMethodID = pVirtualTable[pMethod->nIndex];		
+		nMethodID = pVirtualTable[pMethod->nIndex];
+		if(nMethodID < 0)
+		{
+			GAssert(false, "attempted to call an abstract method, or perhaps the method wasn't imported.");
+			return false;
+		}
 	}
 	else
 		nMethodID = pMethod->nIndex;

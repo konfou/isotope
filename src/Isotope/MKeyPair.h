@@ -31,6 +31,8 @@ public:
 
 	virtual ModelType GetType() { return KeyGenerator; }
 
+	virtual void SendObject(GObject* pObj, int nConnection) {}
+
 	void AddEntropy(int n);
 	double GetPercent();
 	void SaveKeyPair();

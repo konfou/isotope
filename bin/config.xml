@@ -1,6 +1,1 @@
-<config Mode="loner">
-	<Start url="http://isotope.sourceforge.net/realms/start.realm" />
-	<Accounts>
-	</Accounts>
-</config>
- 
+<config>	<Start url="http://isotope.sourceforge.net/realms/start.realm" />	<Accounts>	</Accounts></config> 

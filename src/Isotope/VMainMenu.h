@@ -14,11 +14,15 @@
 
 #include "ViewPort.h"
 
-class GWidgetStyle;
-class GWidgetButton;
+class GWidgetContainer;
+class GWidgetTextButton;
 class GWidget;
+class GWidgetAtomic;
 class Controller;
 struct GRect;
+class GPointerArray;
+class GWidgetGrid;
+class GXMLTag;
 
 // This shows a view of server status
 class VMainMenu : public ViewPort
@@ -26,18 +30,21 @@ class VMainMenu : public ViewPort
 protected:
 	GRect* m_pClippingRect;
 	GImage* m_pImage;
-	GWidgetStyle* m_pWidgetStyle;
-	GWidgetButton* m_pViewMapButton;
-	GWidgetButton* m_pViewScriptButton;
-	GWidgetButton* m_pScreenBiggerButton;
-	GWidgetButton* m_pScreenSmallerButton;
-	GWidgetButton* m_pTerrainButton;
-	GWidgetButton* m_pAddObjectButton;
-	GWidgetButton* m_pSaveMapButton;
-	GWidget* m_pClickWidget;
+	GXMLTag* m_pAccountTag;
+	GWidgetContainer* m_pWidgetContainer;
+	GWidgetTextButton* m_pViewMapButton;
+	GWidgetTextButton* m_pViewScriptButton;
+	GWidgetTextButton* m_pScreenBiggerButton;
+	GWidgetTextButton* m_pScreenSmallerButton;
+	GWidgetTextButton* m_pTerrainButton;
+	GWidgetTextButton* m_pAddObjectButton;
+	GWidgetTextButton* m_pSaveMapButton;
+	
+	GPointerArray* m_pInventoryItems;
+	GWidgetGrid* m_pInventoryWidget;
 
 public:
-	VMainMenu(GRect* pRect, GRect* pClippingRect);
+	VMainMenu(GRect* pRect, GRect* pClippingRect, GXMLTag* pAccountTag);
 	virtual ~VMainMenu();
 
 	virtual void Draw(SDL_Surface *pScreen);
@@ -48,9 +55,9 @@ public:
 	void SetRect(GRect* pRect) { m_rect = *pRect; }
 
 protected:
-	void PressButton(GWidgetButton* pButton);
-	void ReleaseButton(Controller* pController, GWidgetButton* pButton);
+	void ReleaseButton(Controller* pController, GWidgetTextButton* pButton);
 	void AddObject(Controller* pController);
+	void InitInventoryWidget();
 };
 
 #endif // __VMAINMENU_H__

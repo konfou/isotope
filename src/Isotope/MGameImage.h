@@ -22,6 +22,9 @@
 #include <malloc.h>
 #endif // !DARWIN
 
+class MGameClient;
+
+
 // This class is similar to MImage, but differs in how it is serialized.  The problem
 // with images is that they are bulky when serialized, so this class represents an image
 // that can be serialized into a very small blob by taking advantage of certain
@@ -37,7 +40,7 @@ public:
 	{
 		Store,
 		Text,
-		Url,
+		RelativeUrl,
 		GlobalId,
 	};
 
@@ -112,7 +115,7 @@ public:
 protected:
 	void makeTextImageHelper(Engine* pEngine, const char* szText);
 	void drawTextImage(const char* szText);
-	static MGameImage* DownloadImage(Engine* pEngine, const char* szUrl);
+	static MGameImage* DownloadImage(Engine* pEngine, MGameClient* pGameClient, const char* szUrl);
 };
 
 #endif // __MGAMEIMAGE_H__

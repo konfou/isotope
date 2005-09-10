@@ -95,6 +95,7 @@ protected:
 	int IdToIndex(int nID);
 	void SetTerrainMap(GImage* pImage);
 	void CheckObjects();
+	void RebuildIDTable();
 };
 
 #endif // __MREALM_H__

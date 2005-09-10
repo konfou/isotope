@@ -16,8 +16,8 @@
 
 struct GRect;
 struct AvatarAccount;
-class GWidgetStyle;
-class GWidgetButton;
+class GWidgetContainer;
+class GWidgetTextButton;
 class GWidget;
 class Controller;
 class GPointerArray;
@@ -38,10 +38,9 @@ protected:
 	const char* m_szTypeBuffer;
 	GImage* m_pImage;
 	GPointerArray* m_pAvatarAnimations;
-	GWidgetStyle* m_pWidgetStyle;
-	GWidgetButton* m_pNewCharButton;
-	GWidgetButton* m_pOKButton;
-	GWidget* m_pClickWidget;
+	GWidgetContainer* m_pWidgetContainer;
+	GWidgetTextButton* m_pNewCharButton;
+	GWidgetTextButton* m_pOKButton;
 	double m_dTime;
 	float m_fCameraDirection;
 	int m_nFirstAvatar;
@@ -62,8 +61,7 @@ public:
 protected:
 	void RefreshEntireImage();
 	void ClearAvatarAnimations();
-	void PressButton(GWidgetButton* pButton);
-	void ReleaseButton(Controller* pController, GWidgetButton* pButton);
+	void ReleaseButton(Controller* pController, GWidgetTextButton* pButton);
 	void DrawAvatars();
 	void AttemptLogin(Controller* pController);
 	bool CheckFile(const char* szFilename);

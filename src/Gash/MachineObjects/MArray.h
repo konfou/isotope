@@ -44,20 +44,9 @@ public:
 		delete(m_pArray);
 	}
 
-	void toStream(Engine* pEngine, EVar* pOutBlob, EVar* pOutRefs)
-	{
-		GAssert(false, "todo: write me");
-	}
-
-	void fromStream(Engine* pEngine, EVar* pStream)
-	{
-		GAssert(false, "todo: write me");
-	}
-
-	void setRefs(Engine* pEngine, EVar* pRefs)
-	{
-		GAssert(false, "todo: write me");
-	}
+	void toStream(Engine* pEngine, EVar* pOutBlob, EVar* pOutRefs);
+	void fromStream(Engine* pEngine, EVar* pStream);
+	void setRefs(Engine* pEngine, EVar* pRefs);
 
 	virtual void GetDisplayValue(wchar_t* pBuf, int nSize)
 	{

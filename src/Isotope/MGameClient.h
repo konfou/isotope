@@ -26,6 +26,8 @@ class MAnimationStore;
 class MSoundStore;
 class MSpotStore;
 class GPointerArray;
+class NSendObjectPacket;
+class VarHolder;
 
 // This class represents the model (all the internal data including maps, players, objects, scripts, etc)
 // when the application is running as the client (as opposed to the server, which uses a different model).
@@ -61,6 +63,7 @@ protected:
 	char* m_szAccountFilename;
 	GXMLTag* m_pAccountTag;
 	GXMLTag* m_pAccountRefTag;
+	VarHolder* m_pRemoteVar;
 
 public:
 	MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag);
@@ -72,7 +75,7 @@ public:
 	MSpotStore* GetSpots() { return m_pSpotStore; }
 
 	// Loads the script that contains logic for the objects
-	void LoadScript(Controller* pController, const char* szUrl, GXMLTag* pObjectsTag);
+	void LoadScript(Controller* pController, MRealm* pRealm, const char* szUrl, GXMLTag* pMapTag);
 
 	// Load the XML realm file
 	void LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter);
@@ -89,6 +92,8 @@ public:
 
 	// Always returns false because only the client will instantiate this class
 	virtual ModelType GetType() { return Client; }
+
+	virtual void SendObject(GObject* pObj, int nConnection);
 
 	// Returns the current realm
 	MRealm* GetCurrentRealm() { return m_pCurrentRealm; }
@@ -120,6 +125,10 @@ public:
 	// Returns the original source to the script file
 	const char* GetScript() { return m_szScript; }
 
+	// Adds an item (in XML form) to the current account's inventory.  (Takes ownership
+	// of pTag, so don't delete pTag after calling this method.)
+	void AddInventoryItem(GXMLTag* pTag);
+
 	void MakeChatCloud(const char* szText);
 	void AddObject(const char* szFilename);
 	bool IsFirstPerson() { return m_bFirstPerson; }
@@ -128,11 +137,14 @@ public:
 	void DoActionOnSelectedObjects(float x, float y);
 	MObject* GetGoalFlag() { return m_pGoalFlag; }
 	void SaveState();
+	char* LoadFileFromUrl(const char* szUrl, int* pnBufSize);
+	GXMLTag* GetAccountTag() { return m_pAccountTag; }
 
 protected:
 	void SynchronizeWithServer(double time);
 	void ProcessPacket(NRealmPacket* pPacket);
 	void UpdateObject(NUpdateObjectPacket* pPacket);
+	void ReceiveObject(NSendObjectPacket* pPacket);
 	void LoadObjects(MRealm* pRealm, GXMLTag* pModelTag);
 
 	// Unloads the current realm

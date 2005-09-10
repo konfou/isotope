@@ -30,6 +30,7 @@ class VCharMake;
 class MGameServer;
 class MRealm;
 class GXMLTag;
+class GObject;
 
 #define TYPE_BUFFER_SIZE 128
 
@@ -120,6 +121,8 @@ public:
 	void ClearTypeBuffer();
 	void CreateNewCharacter(const char* szAvatarID, const char* szPassword);
 	void LogIn(GXMLTag* pAccountRefTag, const char* szPassword);
+	void SendToClient(GObject* pObj, int nConnection);
+	void SendToServer(GObject* pObj);
 
 protected:
 	//void GetArrowKeyVector(float* pdx, float* pdy);
@@ -148,6 +151,7 @@ protected:
 	void MakeEntropyCollectorView();
 	void MakeCharSelectView();
 	void BringUpMainMenu();
+	void RemoveMainMenu();
 	void ShutDown();
 };
 

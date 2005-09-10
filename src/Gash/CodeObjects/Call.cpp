@@ -171,9 +171,15 @@ COExpression* COCall::GetParam(int n)
 		{
 			int nIndex;
 			COClass* pClass = (COClass*)pType;
+			ErrorStruct* pOldMessage = pErrorMessage;
 			COMethodDecl* pVirtualMethodDecl = pClass->FindVirtualTableIndex(&nIndex, szName, hParamList.Get(), &pErrorMessage, &nErrorParam, pCOProject);
 			if(pVirtualMethodDecl)
 				hNewCall.Set(new COVirtualCall(nLine, nCol, nWid, pClass, nIndex, pVirtualMethodDecl, pParent, hParamList.Drop()));
+			else
+			{
+				if(pErrorMessage == &Error::METHOD_NOT_FOUND) // the old message was probably more useful
+					pErrorMessage = pOldMessage;
+			}
 		}
 	}
 

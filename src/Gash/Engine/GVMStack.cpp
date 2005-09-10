@@ -130,24 +130,33 @@ void GVMStack::GetCallStack(GCallStackLayerArray* pOutCallStack, unsigned char* 
 	}
 }
 
-void GVMStack::DumpObject(GString* pString, const char* szVarName, GObject* pOb, Library* pLibrary, int nCurrentDepth, int nMaxDepth, bool bIncludeRefCounts)
+void GVMStack::DumpObject(GString* pString, const char* szPrefix, const char* szVarName, GObject* pOb, Library* pLibrary, int nCurrentDepth, int nMaxDepth, bool bIncludeRefCounts)
 {
 	if(nCurrentDepth >= nMaxDepth)
 		return;
 	int n;
 	for(n = 0; n < nCurrentDepth; n++)
 		pString->Add(L"\t");
-	if(!pOb)
+	if(szPrefix)
+		pString->Add(szPrefix);
+	EType* pType = NULL;
+	if(pOb)
 	{
-		pString->Add(L"<null>\n");
-		return;
+		pType = pOb->GetType();
+		pString->Add(pType->GetName());
 	}
-	EType* pType = pOb->GetType();
-	pString->Add(pType->GetName());
 	if(szVarName)
 	{
-		pString->Add(L":");
+		if(pType)
+			pString->Add(L":");
 		pString->Add(szVarName);
+	}
+	if(!pOb)
+	{
+		if(szVarName)
+			pString->Add(L" = ");
+		pString->Add(L"<null>\n");
+		return;
 	}
 	if(bIncludeRefCounts)
 	{
@@ -189,7 +198,7 @@ void GVMStack::DumpObject(GString* pString, const char* szVarName, GObject* pOb,
 							szVarName = NULL;
 					}
 				}
-				DumpObject(pString, szVarName, ((ObjectObject*)pOb)->arrFields[n], pLibrary, nCurrentDepth + 1, nMaxDepth, bIncludeRefCounts);
+				DumpObject(pString, NULL, szVarName, ((ObjectObject*)pOb)->arrFields[n], pLibrary, nCurrentDepth + 1, nMaxDepth, bIncludeRefCounts);
 			}
 		}
 	}
@@ -211,33 +220,41 @@ void GVMStack::DumpStack(GString* pString, GVM* pVM, int nMaxObjectDepth, bool b
 	// Print the location
 	unsigned char* pInstrPointer = pVM->m_pInstructionPointer;
 	Library* pLibrary = pVM->GetLibrary();
-	int nMethod = pVM->FindWhichMethodThisIsIn(pInstrPointer);
-	int nSize;
-	EMethod* pMethod = pLibrary->GetEMethod(nMethod);
-	unsigned char* pMethodStart = pVM->GetCompiledMethod(nMethod, &nSize);
-	COProject* pProject = pLibrary->GetProject();
-	EInstrArray* pInstrArray = pMethod->GetEInstrArray(pProject ? pMethod->GetCOMethod(pProject) : NULL);
-	int nInstr = pInstrArray->FindInstrByOffset(pInstrPointer - pMethodStart);
-	if(nInstr >= 0)
+	EMethod* pMethod = NULL;
+	int nMethod = -1;
+	if(pInstrPointer)
 	{
-		if(nInstr > 0)
-			nInstr--; // Decrement because the instruction pointer should already be pointing to the next instruction
-		COInstruction* pInstr = pInstrArray->GetCOInstruction(nInstr);
-		if(pInstr)
+		nMethod = pVM->FindWhichMethodThisIsIn(pInstrPointer);
+		if(nMethod >= 0)
 		{
-			COMethod* pMeth = pInstr->GetMethod();
-			COClass* pClass = pMeth->GetClass();
-			COFile* pFile = pClass->GetFile();
-			pString->Add(L"File: ");
-			pString->Add(pFile->GetFilename());
-			pString->Add(L"\nLine ");
-			pString->Add(pInstr->GetLineNumber());
-			pString->Add(L": ");
-			GQueue q;
-			pInstr->SaveToClassicSyntax(&q, 0, true);
-			Holder<char*> hInstr(q.DumpToString());
-			pString->Add(hInstr.Get());
-			pString->Add(L"\n\n");			
+			int nSize;
+			pMethod = pLibrary->GetEMethod(nMethod);
+			unsigned char* pMethodStart = pVM->GetCompiledMethod(nMethod, &nSize);
+			COProject* pProject = pLibrary->GetProject();
+			EInstrArray* pInstrArray = pMethod->GetEInstrArray(pProject ? pMethod->GetCOMethod(pProject) : NULL);
+			int nInstr = pInstrArray->FindInstrByOffset(pInstrPointer - pMethodStart);
+			if(nInstr >= 0)
+			{
+				if(nInstr > 0)
+					nInstr--; // Decrement because the instruction pointer should already be pointing to the next instruction
+				COInstruction* pInstr = pInstrArray->GetCOInstruction(nInstr);
+				if(pInstr)
+				{
+					COMethod* pMeth = pInstr->GetMethod();
+					COClass* pClass = pMeth->GetClass();
+					COFile* pFile = pClass->GetFile();
+					pString->Add(L"File: ");
+					pString->Add(pFile->GetFilename());
+					pString->Add(L"\nLine ");
+					pString->Add(pInstr->GetLineNumber());
+					pString->Add(L": ");
+					GQueue q;
+					pInstr->SaveToClassicSyntax(&q, 0, true);
+					Holder<char*> hInstr(q.DumpToString());
+					pString->Add(hInstr.Get());
+					pString->Add(L"\n\n");			
+				}
+			}
 		}
 	}
 
@@ -245,6 +262,7 @@ void GVMStack::DumpStack(GString* pString, GVM* pVM, int nMaxObjectDepth, bool b
 	int nParam = -1;
 	const wchar_t* pSig;
 	const char* szParamName;
+	const char* szPrefix;
 	int n;
 	for(n = m_nStackPointer - 1; n >= 0; n--)
 	{
@@ -255,10 +273,16 @@ void GVMStack::DumpStack(GString* pString, GVM* pVM, int nMaxObjectDepth, bool b
 		{
 			case VT_OB_REF:
 				if(nParam >= 0)
+				{
 					szParamName = pMethod->FindParamName(nParam);
+					szPrefix = "Parameter ";
+				}
 				else
+				{
 					szParamName = NULL;
-				DumpObject(pString, szParamName, pVar->pOb, pLibrary, nParam >= 0 ? 1 : 2, nMaxObjectDepth, bIncludeRefCounts);
+					szPrefix = "Local ";
+				}
+				DumpObject(pString, szPrefix, szParamName, pVar->pOb, pLibrary, 1, nMaxObjectDepth, bIncludeRefCounts);
 				nParam--;
 				break;
 

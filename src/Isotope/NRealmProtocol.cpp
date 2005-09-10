@@ -53,6 +53,10 @@ int NRealmPacket::SerializePacket(MScriptEngine* pScriptEngine, unsigned char* p
 			pPacket = NUpdateObjectPacket::Deserialize(pScriptEngine, pData, nSize);
 			break;
 
+		case SEND_OBJECT:
+			pPacket = NSendObjectPacket::Deserialize(pScriptEngine, pData, nSize);
+			break;
+
 		default:
 			GAssert(false, "Unexpected packet type");
 	}
@@ -143,18 +147,67 @@ NUpdateObjectPacket::NUpdateObjectPacket()
 	if(!pScriptEngine)
 		GameEngine::ThrowError("No realm loaded yet");
 	GAssert(m_pObject, "You must set the object before you serialize");
-	return pScriptEngine->SerializeObject(m_pObject, pBuf, nBufSize);
+	return pScriptEngine->SerializeObject(m_pObject->GetGObject(), pBuf, nBufSize);
 }
 
 /*static*/ NUpdateObjectPacket* NUpdateObjectPacket::Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize)
 {
 	if(!pScriptEngine)
 		GameEngine::ThrowError("No realm loaded yet");
-	MObject* pNewObject = pScriptEngine->DeserializeObject(pData, nSize);
-	if(!pNewObject)
+	GObject* pObj = pScriptEngine->DeserializeObject(pData, nSize);
+	if(!pObj)
 		return NULL;
+	MObject* pObject = new MObject(pScriptEngine);
+	pObject->SetGObject(pObj);
 	NUpdateObjectPacket* pNewPacket = new NUpdateObjectPacket();
-	pNewPacket->SetObject(pNewObject);
+	pNewPacket->SetObject(pObject);
+	return pNewPacket;
+}
+
+// -----------------------------------------------------------
+
+NSendObjectPacket::NSendObjectPacket(Engine* pEngine)
+: NRealmPacket()
+{
+	m_pVH = new VarHolder(pEngine);
+}
+
+/*virtual*/ NSendObjectPacket::~NSendObjectPacket()
+{
+	delete(m_pVH);
+}
+
+GObject* NSendObjectPacket::GetGObject()
+{
+	return m_pVH->GetGObject();
+}
+
+void NSendObjectPacket::SetObject(GObject* pObject)
+{
+	m_pVH->SetGObject(pObject);
+}
+
+/*virtual*/ int NSendObjectPacket::Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuf, int nBufSize)
+{
+	if(!pScriptEngine)
+		GameEngine::ThrowError("No realm loaded yet");
+	GObject* pOb = GetGObject();
+	GAssert(pOb, "You must set the object before you serialize");
+	return pScriptEngine->SerializeObject(pOb, pBuf, nBufSize);
+}
+
+/*static*/ NSendObjectPacket* NSendObjectPacket::Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize)
+{
+	if(!pScriptEngine)
+		GameEngine::ThrowError("No realm loaded yet");
+	GObject* pObj = pScriptEngine->DeserializeObject(pData, nSize);
+	if(!pObj)
+	{
+		GAssert(false, "failed to deserialize sent object");
+		return NULL;
+	}
+	NSendObjectPacket* pNewPacket = new NSendObjectPacket(pScriptEngine->GetEngine());
+	pNewPacket->SetObject(pObj);
 	return pNewPacket;
 }
 

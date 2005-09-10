@@ -1,3 +1,31 @@
+machine Animation
+{
+	method getFrame(!GImage:i, &Rect:r)
+	method getColumnFrame(!GImage:i, &Rect:r, Float:cameraDirection)
+	method &advanceTime(&Bool:looped, Float:dt)
+	method !newCopy(Animation:that)
+}
+
+machine GameMachine
+{
+	method &update(Float:time, &Avatar:avatar)
+	method getAnimation(!Animation:anim, String:id)
+	method getImage(!GImage:image, String:id)
+	method getAvatar(!Avatar:avatar)
+	method getObjectById(!RealmObject:obj, Integer:id)
+	method getClosestObject(!RealmObject:obj, Float:x, Float:y)
+	method followLink(String:url)
+	method getUid(&Integer:uid)
+	method getTime(&Float:time)
+	method addObject(RealmObject:obj)
+	method removeObject(Integer:id)
+	method playSound(String:id)
+	method notifyServerAboutObjectUpdate(RealmObject:obj)
+	method sendToClient(Object:obj, Integer:connection)
+	method sendToServer(Object:obj)
+	method addInventoryItem(String:url)
+}
+
 machine GImage
 {
 	method !makeTextImage(String:text)
@@ -6,7 +34,7 @@ machine GImage
 	method getPixel(&Color:c, Integer:x, Integer:y)
 	method getRect(&Rect:r)
 	method getSize(&Integer:w, &Integer:h)
-	method &load(String:filename)
+	method !load(String:filename)
 	method save(String:filename)
 	method &setText(String:text)
 }
@@ -19,6 +47,12 @@ interface IObject
 	method &onGetFocus()
 	method &onLoseFocus()
 	method verify(&Bool:ok, Integer:client, RealmObject:newObj)
+}
+
+interface IRemote
+{
+	method &receiveFromServer(Object:obj)
+	method &receiveFromClient(Object:obj, Integer:connection)
 }
 
 class RealmObject(Object)
@@ -52,29 +86,19 @@ class RealmObject(Object)
 	}
 }
 
-machine Animation
+class Remote(Object)
 {
-	method getFrame(!GImage:i, &Rect:r)
-	method getColumnFrame(!GImage:i, &Rect:r, Float:cameraDirection)
-	method &advanceTime(&Bool:looped, Float:dt)
-	method !newCopy(Animation:that)
-}
+	interface IRemote
 
-machine GameMachine
-{
-	method &update(Float:time, &Avatar:avatar)
-	method getAnimation(!Animation:anim, String:id)
-	method getImage(!GImage:image, String:id)
-	method getAvatar(!Avatar:avatar)
-	method getObjectById(!RealmObject:obj, Integer:id)
-	method getClosestObject(!RealmObject:obj, Float:x, Float:y)
-	method followLink(String:url)
-	method getUid(&Integer:uid)
-	method getTime(&Float:time)
-	method addObject(RealmObject:obj)
-	method removeObject(Integer:id)
-	method playSound(String:id)
-	method notifyServerAboutObjectUpdate(RealmObject:obj)
+	method sendToClient(Object:obj, Integer:connection)
+	{
+		!GameMachine:gm.sendToClient(obj, connection)
+	}
+
+	method sendToServer(Object:obj)
+	{
+		!GameMachine:gm.sendToServer(obj)
+	}
 }
 
 class Avatar(RealmObject)
@@ -175,6 +199,67 @@ class Scenery(RealmObject)
 
 	method &update(Float:time)
 	{
+	}
+
+	method getFrame(!GImage:i, &Rect:r, Float:cameraDirection)
+	{
+		!i.set(this.image)
+		i.getRect(&r)
+	}
+
+	method &doAction(Float:x, Float:y)
+	{
+	}
+
+	method &onGetFocus()
+	{
+	}
+
+	method &onLoseFocus()
+	{
+	}
+
+	method verify(&Bool:ok, Integer:client, RealmObject:newObj)
+	{
+	}
+}
+
+class ChatCloud(RealmObject)
+{
+	!GImage:image
+
+	method !new(String:text)
+	{
+		!this.allocate()
+		&this.init()
+		!this.image.makeTextImage(text)
+		!Integer:w.new()
+		!Integer:h.new()
+		this.image.getSize(&w, &h)
+		&w.add(w)
+		&h.add(h)
+		&this.sx.copy(w)
+		&this.sy.copy(w)
+		&this.sz.copy(h)
+	}
+
+	method &update(Float:time)
+	{
+		!Float:t.newcopy(time)
+		&t.subtract(this.time)
+		!Integer:tmp.new()
+		t.toInteger(&tmp)
+		if(tmp < 10)
+		{
+			!Float:fac.new()
+			&fac.fromString("60")
+			&t.multiply(fac)
+			&this.z.add(t)
+		}
+		this.z.toInteger(&tmp)
+		if(tmp > 1500)
+			GameMachine:gm.removeObject(this.uid)
+		&this.time.copy(time)
 	}
 
 	method getFrame(!GImage:i, &Rect:r, Float:cameraDirection)

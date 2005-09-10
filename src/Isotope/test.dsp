@@ -110,6 +110,10 @@ SOURCE=.\GameEngine.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\isotope.gash
+# End Source File
+# Begin Source File
+
 SOURCE=.\MAnimation.cpp
 # End Source File
 # Begin Source File

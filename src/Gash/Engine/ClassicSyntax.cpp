@@ -823,6 +823,9 @@ void ClassicSyntax::ParseSingleInstr(GXMLTag* pParentTag)
 void ClassicSyntax::ParseElse(GXMLTag* pParentTag)
 {
 	bool b = EatToken("Else");
+	CSToken* pTok = GetToken(0);
+	while(pTok->GetLength() > 0 && pTok->GetValue()[0] <= ' ')
+		AdvanceBytes(pTok, 1);
 	GAssert(b, "unexpected state");
 	GXMLTag* pElse = new GXMLTag(TAG_NAME_CALL);
 	pElse->SetLineNumber(m_nLineNumber);

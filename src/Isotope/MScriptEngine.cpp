@@ -85,6 +85,9 @@ void RegisterMGameMachine(GConstStringHashTable* pTable)
 	pTable->Add("method removeObject(Integer)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::removeObject));
 	pTable->Add("method playSound(String)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::playSound));
 	pTable->Add("method notifyServerAboutObjectUpdate(RealmObject)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::notifyServerAboutObjectUpdate));
+	pTable->Add("method sendToClient(Object, Integer)", new EMethodPointerHolder((MachineMethod2)&MGameMachine::sendToClient));
+	pTable->Add("method sendToServer(Object)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::sendToServer));
+	pTable->Add("method addInventoryItem(String)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::addInventoryItem));
 }
 
 // Declared in MGameImage.cpp
@@ -100,8 +103,10 @@ void RegisterIsotopeMachineClasses()
 // -------------------------------------------------------------------------------
 
 
-MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pObjectsTag, MGameClient* pGameClient, Controller* pController)
+MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm)
 {
+	m_pRealm = pRealm;
+	
 	// Parse the script into a project
 	Holder<COProject*> hProj(new COProject("*bogus*"));
 	if(!hProj.Get()->LoadLibraries(GameEngine::GetAppPath(), pErrorHandler))
@@ -121,8 +126,7 @@ MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler
 	{
 		COProject* pProj = hProj.Drop();
 		GCompiler comp(pProj, &errorHolder);
-		if(pObjectsTag)
-			ImportObjectDependencies(&comp, pProj, pObjectsTag);
+		ImportObjectDependencies(&comp, pProj, pMapTag);
         m_pLibrary = comp.Compile(true);
 	}
 	if(!m_pLibrary)
@@ -151,6 +155,8 @@ GFile::SaveBufferToFile((unsigned char*)hDisassembly.Get(), nSize, "c:\\tmp.txt"
 	FindMethod(&m_mrDoAction, "RealmObject", "method &doAction(Float, Float)");
 	FindMethod(&m_mrOnGetFocus, "RealmObject", "method &onGetFocus()");
 	FindMethod(&m_mrOnLoseFocus, "RealmObject", "method &onLoseFocus()");
+	FindMethod(&m_mrReceiveFromClient, "Remote", "method &receiveFromClient(Object, Integer)");
+	FindMethod(&m_mrReceiveFromServer, "Remote", "method &receiveFromServer(Object)");
 
 	// Make some variables
 	m_pRectVar = new VarHolder(m_pVM);
@@ -226,85 +232,97 @@ void MScriptEngine::ImportMethodDependency(GCompiler* pCompiler, COClass* pClass
 	}
 }
 
+void MScriptEngine::ImportRealmObject(const char* szTypeName, GCompiler* pCompiler, COProject* pProject, int nConstructorParams)
+{
+	// Import the type
+	COType* pType = pProject->FindType(szTypeName);
+	//GAssert(pType, "type not found");
+	if(!pType)
+		return;
+	pCompiler->AddImportType(pType);
+	if(pType->GetTypeType() != COType::TT_CLASS)
+	{
+		//GAssert(false, "expected a class");
+		return;
+	}
+	COClass* pClass = (COClass*)pType;
+
+	// Make the constructor signature
+	GQueue q;
+	q.Push("method !new(");
+	int n;
+	for(n = 0; n < nConstructorParams; n++)
+	{
+		if(n > 0)
+			q.Push(", ");
+		q.Push("String");
+	}
+	q.Push(")");
+	Holder<char*> hSigNew(q.DumpToString());
+
+	// Import all the methods
+	ImportMethodDependency(pCompiler, pClass, hSigNew.Get());
+	ImportMethodDependency(pCompiler, pClass, "method &update(Float)");
+	ImportMethodDependency(pCompiler, pClass, "method getFrame(!GImage, &Rect, Float)");
+	ImportMethodDependency(pCompiler, pClass, "method &doAction(Float, Float)");
+	ImportMethodDependency(pCompiler, pClass, "method &onGetFocus()");
+	ImportMethodDependency(pCompiler, pClass, "method &onLoseFocus()");
+	ImportMethodDependency(pCompiler, pClass, "method verify(&Bool, Integer, RealmObject)");
+}
+
 // The Gash compiler optimizes by not including any uncalled methods in the library it builds.  But since
 // we're calling several methods from C++ code, we have to tell the compiler to explicitly import the methods
 // that we're expecting.
-void MScriptEngine::ImportObjectDependencies(GCompiler* pCompiler, COProject* pProject, GXMLTag* pObjectsTag)
+void MScriptEngine::ImportObjectDependencies(GCompiler* pCompiler, COProject* pProject, GXMLTag* pMapTag)
 {
-	char szTmp1[32];
-	strcpy(szTmp1, "Param");
-	char szTmp2[32];
-	GXMLTag* pObjTag;
-	for(pObjTag = pObjectsTag->GetFirstChildTag(); pObjTag; pObjTag = pObjectsTag->GetNextChildTag(pObjTag))
+	if(pMapTag)
 	{
-		GXMLAttribute* pClassAttr = pObjTag->GetAttribute("Class");
-		if(pClassAttr)
+		GXMLTag* pObjectsTag = pMapTag->GetChildTag("Objects");
+		char szTmp1[32];
+		strcpy(szTmp1, "Param");
+		char szTmp2[32];
+		GXMLTag* pObjTag;
+		for(pObjTag = pObjectsTag->GetFirstChildTag(); pObjTag; pObjTag = pObjectsTag->GetNextChildTag(pObjTag))
 		{
-			const char* szClassName = pClassAttr->GetValue();
-			COType* pType = pProject->FindType(szClassName);
-			//GAssert(pType, "type not found");
-			if(pType)
+			GXMLAttribute* pClassAttr = pObjTag->GetAttribute("Class");
+			if(pClassAttr)
 			{
-				pCompiler->AddImportType(pType);
-				if(pType->GetTypeType() == COType::TT_CLASS)
+				// Count the parameters to the new method
+				int n;
+				for(n = 1; n <= MAX_PARAMS; n++)
 				{
-					COClass* pClass = (COClass*)pType;
-					
-					// Count the parameters to the new method
-					GQueue q;
-					q.Push("method !new(");
-					int n;
-					for(n = 1; n <= MAX_PARAMS; n++)
-					{
-						itoa(n, szTmp2, 10);
-						strcpy(szTmp1 + 5, szTmp2);
-						GXMLAttribute* pAttrParam = pObjTag->GetAttribute(szTmp1);
-						if(pAttrParam)
-						{
-							if(n > 1)
-								q.Push(", ");
-							q.Push("String");
-						}
-						else
-							break;
-					}
-					q.Push(")");
-					Holder<char*> hSigNew(q.DumpToString());
+					itoa(n, szTmp2, 10);
+					strcpy(szTmp1 + 5, szTmp2);
+					GXMLAttribute* pAttrParam = pObjTag->GetAttribute(szTmp1);
+					if(!pAttrParam)
+						break;
+				}
 
-					// Import all the methods
-					ImportMethodDependency(pCompiler, pClass, hSigNew.Get());
-					ImportMethodDependency(pCompiler, pClass, "method &update(Float)");
-					ImportMethodDependency(pCompiler, pClass, "method getFrame(!GImage, &Rect, Float)");
-					ImportMethodDependency(pCompiler, pClass, "method &doAction(Float, Float)");
-					ImportMethodDependency(pCompiler, pClass, "method &onGetFocus()");
-					ImportMethodDependency(pCompiler, pClass, "method &onLoseFocus()");
-					ImportMethodDependency(pCompiler, pClass, "method verify(&Bool, Integer, RealmObject)");
-				}
-				else
-				{
-					//GAssert(false, "expected a class");
-				}
+				// Import it
+				ImportRealmObject(pClassAttr->GetValue(), pCompiler, pProject, n - 1);
 			}
 		}
 	}
 
 	// Built in stuff
 	pCompiler->AddImportType(pProject->FindMachineClass("GameMachine"));
-	COClass* pClass = pProject->FindClass("Avatar");
+	ImportRealmObject("Avatar", pCompiler, pProject, 2);
+	ImportRealmObject("Scenery", pCompiler, pProject, 1);
+	ImportRealmObject("ChatCloud", pCompiler, pProject, 1);
+	COClass* pClass = pProject->FindClass("Remote");
 	if(pClass)
 	{
 		pCompiler->AddImportType(pClass);
-		ImportMethodDependency(pCompiler, pClass, "method !new(String, String)");
-		ImportMethodDependency(pCompiler, pClass, "method &update(Float)");
-		ImportMethodDependency(pCompiler, pClass, "method getFrame(!GImage, &Rect, Float)");
-		ImportMethodDependency(pCompiler, pClass, "method &doAction(Float, Float)");
-		ImportMethodDependency(pCompiler, pClass, "method &onGetFocus()");
-		ImportMethodDependency(pCompiler, pClass, "method &onLoseFocus()");
-		ImportMethodDependency(pCompiler, pClass, "method verify(&Bool, Integer, RealmObject)");
-	}
-	else
-	{
-		GAssert(false, "Expected an Avatar class");
+		if(pMapTag)
+		{
+			GXMLAttribute* pRemoteAttr = pMapTag->GetAttribute("Remote");
+			if(pRemoteAttr)
+			{
+				pClass = pProject->FindClass(pRemoteAttr->GetValue());
+				ImportMethodDependency(pCompiler, pClass, "method &receiveFromClient(Object, Integer)");
+				ImportMethodDependency(pCompiler, pClass, "method &receiveFromServer(Object)");
+			}
+		}
 	}
 }
 
@@ -338,12 +356,12 @@ void MScriptEngine::FindMethod(struct MethodRef* pMethodRef, const char* szType,
 	return;
 }
 
-int MScriptEngine::SerializeObject(MObject* pObject, unsigned char* pBuf, int nBufSize)
+int MScriptEngine::SerializeObject(GObject* pObject, unsigned char* pBuf, int nBufSize)
 {
 	GashStream* pStream = (GashStream*)m_pStreamVar->GetGObject();
 	GQueue* pQ = &pStream->m_value;
 	pQ->Flush();
-	m_pVM->SerializeObject(pObject->GetGObject(), m_pStreamVar->GetVariable());
+	m_pVM->SerializeObject(pObject, m_pStreamVar->GetVariable());
 	int nSize = pQ->GetSize();
 	if(nSize > nBufSize)
 		GameEngine::ThrowError("Object serializes too big for buffer");
@@ -351,16 +369,14 @@ int MScriptEngine::SerializeObject(MObject* pObject, unsigned char* pBuf, int nB
 	return nSize;
 }
 
-MObject* MScriptEngine::DeserializeObject(const unsigned char* pBuf, int nBufSize)
+GObject* MScriptEngine::DeserializeObject(const unsigned char* pBuf, int nBufSize)
 {
 	GashStream* pStream = (GashStream*)m_pStreamVar->GetGObject();
 	GQueue* pQ = &pStream->m_value;
 	pQ->Flush();
 	pQ->Push(pBuf, nBufSize);
 	GObject* pOb = m_pVM->DeserializeObject(m_pStreamVar->GetVariable());
-	MObject* pObject = new MObject(this);
-	pObject->SetGObject(pOb);
-	return pObject;
+	return pOb;
 }
 
 GImage* MScriptEngine::CallGetFrame(ObjectObject* pObject, GRect* pRect, float fCameraDirection)
@@ -436,6 +452,28 @@ void MScriptEngine::CallOnLoseFocus(MObject* pObject)
 		GameEngine::ThrowError("Failed to call a Gash method");
 }
 
+void MScriptEngine::CallReceiveFromServer(GObject* pRemoteObj, GObject* pObj)
+{
+	m_pTempVar->SetGObject(pRemoteObj);
+	m_pTempVar2->SetGObject(pObj);
+	m_pParams[0] = m_pTempVar;
+	m_pParams[1] = m_pTempVar2;
+	if(!m_pVM->Call(&m_mrReceiveFromServer, m_pParams, 2))
+		GameEngine::ThrowError("Failed to call a Gash method");
+}
+
+void MScriptEngine::CallReceiveFromClient(GObject* pRemoteObj, GObject* pObj, int nConnection)
+{
+	m_pTempVar->SetGObject(pRemoteObj);
+	m_pTempVar2->SetGObject(pObj);
+	m_pIntVar->GetVariable()->pIntObject->m_value = nConnection;
+	m_pParams[0] = m_pTempVar;
+	m_pParams[1] = m_pTempVar2;
+	m_pParams[2] = m_pIntVar;
+	if(!m_pVM->Call(&m_mrReceiveFromClient, m_pParams, 3))
+		GameEngine::ThrowError("Failed to call a Gash method");
+}
+
 MObject* MScriptEngine::NewObject(const char* szClass, float x, float y, float z, float sx, float sy, float sz, const char** szParams, int nParamCount)
 {
 	// Generate the proper method signature
@@ -486,6 +524,16 @@ MObject* MScriptEngine::NewObject(const char* szClass, float x, float y, float z
 		pNewObject->SetSize(sx, sy, sz);
 
 	return pNewObject;
+}
+
+void MScriptEngine::MakeRemoteObject(VarHolder* pVH, const char* szClassName)
+{
+	// Find the method
+	struct MethodRef mr;
+	FindMethod(&mr, szClassName, "method !new()");
+	m_pParams[0] = pVH;
+	if(!m_pVM->Call(&mr, m_pParams, 1))
+		GameEngine::ThrowError("Failed to create the remote object");
 }
 
 VarHolder* MScriptEngine::CopyGlobalImage(const char* szGlobalID)
@@ -730,7 +778,6 @@ const char* GetExtension(const char* szUrl)
 
 void MGameMachine::followLink(Engine* pEngine, EVar* pURL)
 {
-	GAssert(((MVM*)pEngine)->m_pController, "The server should never call this method");
 	GString* pUrlString = &pURL->pStringObject->m_value;
 	char* szUrl = (char*)alloca(pUrlString->GetLength() + 1);
 	pUrlString->GetAnsi(szUrl);
@@ -765,17 +812,17 @@ void MGameMachine::getTime(Engine* pEngine, EVar* pOutTime)
 
 void MGameMachine::addObject(Engine* pEngine, EVar* pObject)
 {
-	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
-	MObject* pNewMObject = new MObject(pGameClient->GetScriptEngine());
 	if(!pObject->pOb)
 		GameEngine::ThrowError("The object is null");
+	MScriptEngine* pScriptEngine = ((MVM*)pEngine)->m_pScriptEngine;
+	MObject* pNewMObject = new MObject(pScriptEngine);
 	pNewMObject->SetGObject(pObject->pOb);
 
 	// todo: this is a hack.  Think about it
 	if(pNewMObject->GetGhostPos()->z > 100)
 		pNewMObject->SetTangible(false);
 
-	MRealm* pRealm = pGameClient->GetCurrentRealm();
+	MRealm* pRealm = pScriptEngine->GetRealm();
 	pRealm->ReplaceObject(0, pNewMObject);
 }
 
@@ -800,4 +847,46 @@ void MGameMachine::playSound(Engine* pEngine, EVar* pID)
 	MSound* pSound = pSounds->GetSound(index);
 	VWavePlayer* pPlayer = pGameClient->GetWavePlayer();
 	pPlayer->Play(pSound);
+}
+
+void MGameMachine::sendToClient(Engine* pEngine, EVar* pObj, EVar* pConnection)
+{
+	((MVM*)pEngine)->m_pController->SendToClient(pObj->pOb, pConnection->pIntObject->m_value);
+}
+
+void MGameMachine::sendToServer(Engine* pEngine, EVar* pObj)
+{
+	((MVM*)pEngine)->m_pController->SendToServer(pObj->pOb);
+}
+
+void MGameMachine::addInventoryItem(Engine* pEngine, EVar* pUrl)
+{
+	// Get the client model
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	if(!pGameClient)
+	{
+		GAssert(false, "Why is the server trying to add an inventory item?");
+		return;
+	}
+
+	// Download the file
+	GString* pUrlString = &pUrl->pStringObject->m_value;
+	int nLen = pUrlString->GetLength();
+	Holder<char*> hAnsi(new char[nLen + 1]);
+	char* szAnsi = hAnsi.Get();
+	pUrlString->GetAnsi(szAnsi);
+	int nFileSize;
+	Holder<char*> hFile(pGameClient->LoadFileFromUrl(szAnsi, &nFileSize));
+	char* szFile = hFile.Get();
+
+	// Parse the XML
+	const char* szErrorMessage;
+	int nErrorLine;
+	Holder<GXMLTag*> hTag(GXMLTag::FromString(szFile, nFileSize, &szErrorMessage, NULL, &nErrorLine, NULL));
+	GXMLTag* pTag = hTag.Get();
+	if(!pTag)
+		GameEngine::ThrowError("Error parsing item XML string: %s", szErrorMessage);
+
+	// Add it to the inventory
+	pGameClient->AddInventoryItem(hTag.Drop());
 }

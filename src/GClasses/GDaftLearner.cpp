@@ -14,19 +14,25 @@
 #include "GPolynomial.h"
 #include "GMacros.h"
 #include "GImage.h"
+#include "GArff.h"
+#include "GNeuralNet.h"
 
 class GDaftNode
 {
 public:
-	GPolynomial* m_pPolyFit;
-	GPolynomial* m_pPolyDivide;
+	double m_dMin;
+	double m_dRange;
+	GNeuralNet* m_pNNFit;
+	GNeuralNet* m_pNNDivide;
 	GDaftNode* m_pNegative;
 	GDaftNode* m_pPositive;
 
-	GDaftNode(GPolynomial* pPolyFit)
+	GDaftNode(double dMin, double dRange, GNeuralNet* pNNFit)
 	{
-		m_pPolyFit = pPolyFit;
-		m_pPolyDivide = NULL;
+		m_dMin = dMin;
+		m_dRange = dRange;
+		m_pNNFit = pNNFit;
+		m_pNNDivide = NULL;
 		m_pNegative = NULL;
 		m_pPositive = NULL;
 	}
@@ -35,140 +41,221 @@ public:
 	{
 		delete(m_pNegative);
 		delete(m_pPositive);
-		delete(m_pPolyDivide);
-		delete(m_pPolyFit);
+		delete(m_pNNDivide);
+		delete(m_pNNFit);
 	}
 };
 
 
 
-GDaftLearner::GDaftLearner()
+GDaftLearner::GDaftLearner(GArffRelation* pRelation)
 {
-	m_pRed = NULL;
-	m_pGreen = NULL;
-	m_pBlue = NULL;
-	m_pAlpha = NULL;
-	m_nControlPoints = 3;
+	m_pRelation = pRelation;
+	m_pRoot = NULL;
+	m_pTrainingData = NULL;
 	m_dAcceptableError = .01;
+	m_dGoodDivideWeight = .01;
+	GAssert(pRelation->GetOutputCount() == 1, "Currently only one output supported");
+
+	// Create the divide relation
+	int nInputCount = pRelation->GetInputCount();
+	GAssert(nInputCount > 1, "GDaftLearner requires at least two inputs");
+	m_pDivideRelation = new GArffRelation();
+	int n;
+	for(n = 0; n < nInputCount - 1; n++)
+	{
+		GArffAttribute* pAttr = pRelation->GetAttribute(pRelation->GetInputIndex(n));
+		m_pDivideRelation->AddAttribute(pAttr->NewCopy());
+	}
+	GArffAttribute* pAttr = pRelation->GetAttribute(pRelation->GetInputIndex(nInputCount - 1))->NewCopy();
+	pAttr->SetIsInput(false);
+	m_pDivideRelation->AddAttribute(pAttr);
 }
 
 GDaftLearner::~GDaftLearner()
 {
-	delete(m_pRed);
-	delete(m_pGreen);
-	delete(m_pBlue);
-	delete(m_pAlpha);
+	delete(m_pRoot);
+	delete(m_pDivideRelation);
 }
 
-void GDaftLearner::Train(GImage* pImage)
+void GDaftLearner::Train(GArffData* pData)
 {
-	int w = pImage->GetWidth();
-	int h = pImage->GetHeight();
-	GAssert(w <= 0xffff && h <= 0xffff, "image too big");
-	int x, y;
-	int n = 0;
-	int* pPixels = new int[w * h];
-	for(y = 0; y < h; y++)
+	m_pRoot = BuildBranch(pData, 1);
+}
+
+double DaftLearnerCriticFunc(void* pThis, GNeuralNet* pNeuralNet)
+{
+	return ((GDaftLearner*)pThis)->CriticizeDivision(pNeuralNet);
+}
+
+void GDaftLearner::DivideData(GNeuralNet* pNNDivide, GArffData* pData, GArffData* pPositive, GArffData* pNegative)
+{
+	int nInputCount = m_pRelation->GetInputCount();
+	double* pSample = (double*)alloca(sizeof(double) * nInputCount);
+	int nRowCount = pData->GetRowCount();
+	int n, i;
+	for(n = 0; n < nRowCount; n++)
 	{
-		for(x = 0; x < w; x++)
-			pPixels[n++] = (x | (y << 16));
+		double* pRow = pData->GetRow(n);
+		for(i = 0; i < nInputCount - 1; i++)
+			pSample[i] = pRow[m_pRelation->GetInputIndex(i)];
+		pNNDivide->EvaluateTraining(pSample);
+		if(pRow[m_pRelation->GetInputIndex(nInputCount - 1)] >= pSample[nInputCount - 1])
+			pPositive->AddRow(pRow);
+		else
+			pNegative->AddRow(pRow);
 	}
-	m_pRed = BuildBranch(pImage, pPixels, w * h, 0);
-	m_pGreen = BuildBranch(pImage, pPixels, w * h, 1);
-	m_pBlue = BuildBranch(pImage, pPixels, w * h, 2);
-	m_pAlpha = BuildBranch(pImage, pPixels, w * h, 3);
-	delete(pPixels);
 }
 
-GDaftNode* GDaftLearner::BuildBranch(GImage* pImage, int* pPixels, int nPixelCount, int nChannel)
+GNeuralNet* GDaftLearner::FitData(GArffData* pData, int nHiddenNodes, int nMaxIterations)
 {
-/*
+	GNeuralNet* pNNDivide = new GNeuralNet(m_pDivideRelation);
+	pNNDivide->AddHiddenLayer(nHiddenNodes);
+	pNNDivide->SetAcceptableMeanSquareError(.001);
+	pNNDivide->SetLearningDecay(.996);
+	pNNDivide->SetLearningRate(6);
+	pNNDivide->SetMaximumIterations(nMaxIterations);
+	pNNDivide->SetMinimumIterations(350);
+	pNNDivide->Train(pData, pData);
+	return pNNDivide;
+}
+
+double GDaftLearner::CriticizeDivision(GNeuralNet* pNeuralNet)
+{
+	int nRowCount = m_pTrainingData->GetRowCount();
+	GArffData pos(nRowCount);
+	GArffData neg(nRowCount);
+	DivideData(pNeuralNet, m_pTrainingData, &pos, &neg);
+	int nPosCount = pos.GetRowCount();
+	int nNegCount = neg.GetRowCount();
+	if(nPosCount == 0 || nNegCount == 0)
+		return 1e10;
+	double dRatio = (nPosCount >= nNegCount ? nPosCount / nNegCount : nNegCount / nPosCount) - 1;
+	Holder<GNeuralNet*> hPos(FitData(&pos, 2, 1000));
+	Holder<GNeuralNet*> hNeg(FitData(&neg, 2, 1000));
+	double dPos = hPos.Get()->GetMeanSquareError(m_pTrainingData);
+	double dNeg = hNeg.Get()->GetMeanSquareError(m_pTrainingData);
+	pos.DropAllRows();
+	neg.DropAllRows();
+	double dResult = dPos * dPos + dNeg * dNeg + dRatio * m_dGoodDivideWeight;
+printf("[%f]", dResult);
+	return dResult;
+}
+
+GNeuralNet* GDaftLearner::FindBestDivision(GArffData* pData)
+{
+	m_pTrainingData = pData;
+	GNeuralNet* pNNDivide = new GNeuralNet(m_pDivideRelation);
+	pNNDivide->AddHiddenLayer(3);
+	pNNDivide->SetAcceptableMeanSquareError(.001);
+	pNNDivide->SetLearningDecay(.996);
+	pNNDivide->SetLearningRate(6);
+	pNNDivide->SetMaximumIterations(1000);
+	pNNDivide->SetMinimumIterations(500);
+	pNNDivide->TrainByCritic(DaftLearnerCriticFunc, this);
+	m_pTrainingData = NULL;
+	return pNNDivide;
+}
+
+#define NORMALIZE_MIN .1
+#define NORMALIZE_RANGE .8
+
+GDaftNode* GDaftLearner::BuildBranch(GArffData* pData, double dScale)
+{
+printf("Normalizing...\n");
+	// Normalize the data
+	int nOutputIndex = m_pRelation->GetOutputIndex(0);
+	double dMin;
+	double dRange;
+	pData->GetMinAndRange(nOutputIndex, &dMin, &dRange);
+	pData->Normalize(nOutputIndex, dMin, dRange, NORMALIZE_MIN, NORMALIZE_RANGE);
+
 printf("Fitting...\n");
 	// Fit the data
-	int nOutputIndex = pRelation->GetOutputIndex(0);
-	GPolynomial* pPolyFit = GPolynomial::FitData(pRelation, pData, nOutputIndex, m_nControlPoints);
-	double dError = pPolyFit->MeasureMeanSquareError(pRelation, pData, nOutputIndex);
-	GDaftNode* pNode = new GDaftNode(pPolyFit);
-	int nCount = pData->GetRowCount();
-	if(nCount < 8 || dError <= m_dAcceptableError)
-		return pNode;
-printf("Dividing %d...", nCount);
-	// Subtract the polygon from the data
-	int nInputs = pRelation->GetInputCount();
-	double* pInputs = (double*)alloca(sizeof(double) * nInputs);
-	double dEstimatedVal;
-	int n, i;
-	for(n = 0; n < nCount; n++)
+	GNeuralNet* pNNFit = new GNeuralNet(m_pRelation);
+	pNNFit->AddHiddenLayer(5);
+	pNNFit->SetAcceptableMeanSquareError(.001);
+	pNNFit->SetLearningDecay(.996);
+	pNNFit->SetLearningRate(6);
+	pNNFit->SetMaximumIterations(500000);
+	pNNFit->SetMinimumIterations(1500);
+	pNNFit->Train(pData, pData);
+
+printf("Subtracting predicted results...\n");
+	// Subtract the predicted results
+	int nAttributeCount = m_pRelation->GetAttributeCount();
+	int nInputs = m_pRelation->GetInputCount();
+	double* pSample = (double*)alloca(sizeof(double) * nAttributeCount);
+	double* pRow;
+	int nRowCount = pData->GetRowCount();
+	int n;
+	for(n = 0; n < nRowCount; n++)
 	{
-		double* pRow = pData->GetRow(n);
-		for(i = 0; i < nInputs; i++)
-			pInputs[i] = pRow[pRelation->GetInputIndex(i)];
-		dEstimatedVal = pPolyFit->Eval(pInputs);
-		pRow[nOutputIndex] -= dEstimatedVal;
+		pRow = pData->GetRow(n);
+		memcpy(pSample, pRow, sizeof(double) * nAttributeCount);
+		pNNFit->Evaluate(pSample);
+		pRow[nOutputIndex] -= pSample[nOutputIndex];
 	}
 
+	// Make the node
+	GDaftNode* pNode = new GDaftNode(dMin, dRange, pNNFit);
+	pData->GetMinAndRange(nOutputIndex, &dMin, &dRange);
+	double dNewScale = dScale * dRange / NORMALIZE_RANGE;
+	if(dNewScale <= m_dAcceptableError)
+		return pNode;
+
+printf("Dividing %d...", nRowCount);
 	// Divide the data
-	pNode->m_pPolyDivide = GPolynomial::DivideData(pRelation, pData, nOutputIndex, m_nControlPoints);
-	GArffData d1(nCount);
-	GArffData d2(nCount);
-	double dThresh;
-	int nLastInput = pRelation->GetInputIndex(nInputs - 1);
-	for(n = 0; n < nCount; n++)
-	{
-		double* pRow = pData->GetRow(n);
-		for(i = 0; i < nInputs - 1; i++)
-			pInputs[i] = pRow[pRelation->GetInputIndex(i)];
-		dThresh = pNode->m_pPolyDivide->Eval(pInputs);
-		if(dThresh >= pRow[nLastInput])
-			d1.AddRow(pRow);
-		else
-			d2.AddRow(pRow);
-	}
-	if(d1.GetRowCount() * 5 < d2.GetRowCount() || d2.GetRowCount() * 5 < d1.GetRowCount())
+	GNeuralNet* pNNDivide = FindBestDivision(pData);
+	GArffData pos(nRowCount);
+	GArffData neg(nRowCount);
+	DivideData(pNNDivide, pData, &pos, &neg);
+	if(pos.GetRowCount() * 15 < neg.GetRowCount() || neg.GetRowCount() * 15 < pos.GetRowCount())
 	{
 		// Couldn't divide it, so bail out
-		delete(pNode->m_pPolyDivide);
-		pNode->m_pPolyDivide = NULL;
+		delete(pNNDivide);
 		return pNode;
 	}
+	pNode->m_pNNDivide = pNNDivide;
 
-printf("(%d, %d)\n", d1.GetRowCount(), d2.GetRowCount());
+printf("Recursing... (%d, %d)\n", pos.GetRowCount(), neg.GetRowCount());
 	// Recurse
-	pNode->m_pNegative = BuildBranch(pRelation, &d1);
-	pNode->m_pPositive = BuildBranch(pRelation, &d2);
-	d1.DropAllRows();
-	d2.DropAllRows();
+	pNode->m_pPositive = BuildBranch(&pos, dNewScale);
+	pNode->m_pNegative = BuildBranch(&neg, dNewScale);
+	pos.DropAllRows();
+	neg.DropAllRows();
 	return pNode;
-*/
-	return NULL;
 }
-/*
-void GDaftLearner::Eval(GArffRelation* pRelation, double* pRow)
+
+void GDaftLearner::Eval(double* pRow)
 {
-	int nOutputIndex = pRelation->GetOutputIndex(0);
-	int nInputs = pRelation->GetInputCount();
-	int nLastInput = pRelation->GetInputIndex(nInputs - 1);
-	double* pInputs = (double*)alloca(sizeof(double) * nInputs);
-	GDaftNode* pNode = m_pRoot;
-	double dThresh;
-	int i;
-	double dVal = 0;
-	while(pNode)
+	int nInputCount = m_pRelation->GetInputCount();
+	double* pSample = (double*)alloca(sizeof(double) * nInputCount);
+	EvalHelper(pRow, m_pRoot, pSample);
+}
+
+void GDaftLearner::EvalHelper(double* pRow, GDaftNode* pNode, double* pSample)
+{
+	int nOutputIndex = m_pRelation->GetOutputIndex(0);
+	double dVal;
+	if(pNode->m_pNNDivide)
 	{
-		for(i = 0; i < nInputs; i++)
-			pInputs[i] = pRow[pRelation->GetInputIndex(i)];
-		dVal += pNode->m_pPolyFit->Eval(pInputs);
-		if(pNode->m_pPolyDivide)
-		{
-			dThresh = pNode->m_pPolyDivide->Eval(pInputs);
-			if(dThresh >= pRow[nLastInput])
-				pNode = pNode->m_pNegative;
-			else
-				pNode = pNode->m_pPositive;
-		}
+		int nInputCount = m_pRelation->GetInputCount();
+		int i;
+		for(i = 0; i < nInputCount - 1; i++)
+			pSample[i] = pRow[m_pRelation->GetInputIndex(i)];
+		pNode->m_pNNDivide->Evaluate(pSample);
+		if(pRow[m_pRelation->GetInputIndex(nInputCount - 1)] >= pSample[nInputCount - 1])
+			EvalHelper(pRow, pNode->m_pPositive, pSample);
 		else
-			pNode = NULL;
+			EvalHelper(pRow, pNode->m_pNegative, pSample);
+		dVal = pRow[nOutputIndex];
 	}
+	else
+		dVal = 0;
+	pNode->m_pNNFit->Evaluate(pRow);
+	dVal += GArffData::Normalize(pRow[nOutputIndex], NORMALIZE_MIN, NORMALIZE_RANGE, pNode->m_dMin, pNode->m_dRange);
 	pRow[nOutputIndex] = dVal;
 }
-*/
+
+

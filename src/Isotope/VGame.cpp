@@ -152,7 +152,7 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 					else
 					{
 						xImage = ((unsigned int)fMapX >> 2) % nGroundImageWidth;
-						yImage = ((unsigned int)fMapY >> 2) % nGroundImageHeight;
+						yImage = nGroundImageHeight - 1 - (((unsigned int)fMapY >> 2) % nGroundImageHeight);
 						pix = pImageGround->GetPixel(xImage, yImage);
 					}
 					*(pPix32++) = pix;
