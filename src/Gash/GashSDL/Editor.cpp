@@ -60,7 +60,6 @@ class EditorList
 {
 protected:
 	GWidgetListBox* m_pListBox;
-	GPointerArray* m_pItems;
 	int m_nStoredSelection;
 	EditorController* m_pController;
 
@@ -68,8 +67,7 @@ public:
 	EditorList(EditorController* pController)
 	{
 		m_pController = pController;
-		m_pItems = new GPointerArray(64);
-		m_pListBox = new GWidgetListBox(pController->GetWidgetContainer(), m_pItems, 0, 0, 0, 0);
+		m_pListBox = new GWidgetListBox(pController->GetDialog(), 0, 0, 0, 0);
 		m_nStoredSelection = 0;
 	}
 
@@ -107,8 +105,8 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
-		m_pItems->AddPointer("Confirm");
+		m_pListBox->Clear();
+		new GWidgetListBoxItem(m_pListBox, "Confirm");
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -148,8 +146,8 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
-		m_pItems->AddPointer(m_szName);
+		m_pListBox->Clear();
+		new GWidgetListBoxItem(m_pListBox, m_szName);
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -164,7 +162,6 @@ public:
 		m_szName[m_nLen++] = c;
 		m_szName[m_nLen] = '\0';
 		Update();
-		m_pListBox->Update();
 		return true;
 	}
 
@@ -184,25 +181,22 @@ class EditorListArguments : public EditorList
 {
 protected:
 	COCall* m_pCall;
-	GStringHeap* m_pStringHeap;
 
 public:
 	EditorListArguments(EditorController* pController, COCall* pCall)
 		: EditorList(pController)
 	{
 		m_pCall = pCall;
-		m_pStringHeap = new GStringHeap(1024);
 		Update();
 	}
 
 	virtual ~EditorListArguments()
 	{
-		delete(m_pStringHeap);
 	}
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int nCount = m_pCall->GetParamCount();
 		GQueue q;
 		int n;
@@ -210,7 +204,8 @@ public:
 		{
 			COExpression* pParam = m_pCall->GetParam(n);
 			pParam->SaveToClassicSyntax(&q);
-			m_pItems->AddPointer(m_pStringHeap->Add(&q));
+			Holder<char*> hParam(q.DumpToString());
+			new GWidgetListBoxItem(m_pListBox, hParam.Get());
 		}
 	}
 
@@ -237,14 +232,14 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		COProject* pProject = m_pController->GetProject();
 		int nCount = pProject->CountTypes();
 		int n;
 		for(n = 0; n < nCount; n++)
 		{
 			COType* pType = pProject->GetType(n);
-			m_pItems->AddPointer(pType->GetName());
+			new GWidgetListBoxItem(m_pListBox, pType->GetName());
 		}
 	}
 
@@ -290,7 +285,7 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int n;
 		for(n = 0; n < sizeof(g_editorListInstructionItems) / sizeof(const char*); n++)
 		{
@@ -298,7 +293,7 @@ public:
 				continue;
 			if(n == 4 && !m_bDelete)
 				continue;
-			m_pItems->AddPointer(g_editorListInstructionItems[n]);
+			new GWidgetListBoxItem(m_pListBox, g_editorListInstructionItems[n]);
 		}
 	}
 
@@ -378,13 +373,13 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int n;
 		for(n = 0; n < sizeof(g_editorListVariableItems) / sizeof(const char*); n++)
 		{
 			if(!m_pVariable && n < 3)
 				continue;
-			m_pItems->AddPointer(g_editorListVariableItems[n]);
+			new GWidgetListBoxItem(m_pListBox, g_editorListVariableItems[n]);
 		}
 	}
 
@@ -419,25 +414,22 @@ class EditorListParameters : public EditorList
 {
 protected:
 	COMethod* m_pMethod;
-	GStringHeap* m_pStringHeap;
 
 public:
 	EditorListParameters(EditorController* pController, COMethod* pMethod)
 		: EditorList(pController)
 	{
 		m_pMethod = pMethod;
-		m_pStringHeap = new GStringHeap(1024);
 		Update();
 	}
 
 	virtual ~EditorListParameters()
 	{
-		delete(m_pStringHeap);
 	}
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int nCount = m_pMethod->GetParameterCount();
 		GQueue q;
 		int n;
@@ -445,7 +437,8 @@ public:
 		{
 			COVariable* pVar = m_pMethod->GetParameter(n);
 			pVar->SaveToClassicSyntax(&q);
-			m_pItems->AddPointer(m_pStringHeap->Add(&q));
+			Holder<char*> hVar(q.DumpToString());
+			new GWidgetListBoxItem(m_pListBox, hVar.Get());
 		}
 	}
 
@@ -465,7 +458,6 @@ class EditorListInstructions : public EditorList
 {
 protected:
 	COInstrArray* m_pInstructions;
-	GStringHeap* m_pStringHeap;
 	int* m_pInstrMap;
 
 public:
@@ -473,7 +465,6 @@ public:
 		: EditorList(pController)
 	{
 		m_pInstructions = pInstructions;
-		m_pStringHeap = new GStringHeap(2048);
 		int nMapSize = m_pInstructions->GetInstrCount() * 2 + 2;
 		m_pInstrMap = new int[nMapSize];
 		memset(m_pInstrMap, -1, sizeof(int) * nMapSize);
@@ -483,19 +474,18 @@ public:
 
 	virtual ~EditorListInstructions()
 	{
-		delete(m_pStringHeap);
 		delete(m_pInstrMap);
 	}
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int nCount = m_pInstructions->GetInstrCount();
 		int n;
 		GQueue q;
 		for(n = 0; n < nCount; n++)
 		{
-			m_pInstrMap[m_pItems->GetSize()] = n;
+			m_pInstrMap[m_pListBox->GetSize()] = n;
 			COInstruction* pInstr = m_pInstructions->GetInstr(n);
 			switch(pInstr->GetInstructionType())
 			{
@@ -503,20 +493,21 @@ public:
 					{
 						COCall* pCall = (COCall*)pInstr;
 						pCall->SaveToClassicSyntax(&q, 0, true);
-						m_pItems->AddPointer(m_pStringHeap->Add(&q));
+						Holder<char*> hInstr(q.DumpToString());
+						new GWidgetListBoxItem(m_pListBox, hInstr.Get());
 						if(pCall->CanHaveChildren())
-							m_pItems->AddPointer("    { ... }");
+							new GWidgetListBoxItem(m_pListBox, "    { ... }");
 					}
 					break;
 
 				case COInstruction::IT_BLOCK:
-					m_pItems->AddPointer(((COBlock*)pInstr)->GetComment());
-					m_pItems->AddPointer("    { ... }");
+					new GWidgetListBoxItem(m_pListBox, ((COBlock*)pInstr)->GetComment());
+					new GWidgetListBoxItem(m_pListBox, "    { ... }");
 					break;
 			}
 		}
-		m_pInstrMap[m_pItems->GetSize()] = n;
-		m_pItems->AddPointer("");
+		m_pInstrMap[m_pListBox->GetSize()] = n;
+		new GWidgetListBoxItem(m_pListBox, "");
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -576,13 +567,13 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int n;
 		for(n = 0; n < sizeof(g_editorListMethodItems) / sizeof(const char*); n++)
 		{
 			if(!m_pMethod && n < 3)
 				continue;
-			m_pItems->AddPointer(g_editorListMethodItems[n]);
+			new GWidgetListBoxItem(m_pListBox, g_editorListMethodItems[n]);
 		}
 	}
 
@@ -627,12 +618,12 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int nCount = GetCount();
 		int n;
 		for(n = 0; n < nCount; n++)
-			m_pItems->AddPointer(GetPartName(n));
-		m_pItems->AddPointer("");
+			new GWidgetListBoxItem(m_pListBox, GetPartName(n));
+		new GWidgetListBoxItem(m_pListBox, "");
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -722,13 +713,13 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int n;
 		for(n = 0; n < sizeof(g_editorListClassItems) / sizeof(const char*); n++)
 		{
 			if(!m_pClass && n < 7)
 				continue;
-			m_pItems->AddPointer(g_editorListClassItems[n]);
+			new GWidgetListBoxItem(m_pListBox, g_editorListClassItems[n]);
 		}
 	}
 
@@ -814,10 +805,10 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int n;
 		for(n = 0; n < sizeof(g_editorListInterfaceItems) / sizeof(const char*); n++)
-			m_pItems->AddPointer(g_editorListInterfaceItems[n]);
+			new GWidgetListBoxItem(m_pListBox, g_editorListInterfaceItems[n]);
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -854,7 +845,7 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int nFileCount = m_pFileSet->GetFileCount();
 		int n;
 		for(n = 0; n < nFileCount; n++)
@@ -867,9 +858,9 @@ public:
 			for(i = 0; i < nClassCount; i++)
 			{
 				COClass* pClass = pFile->GetClass(i);
-				m_pItems->AddPointer(pClass->GetName());
+				new GWidgetListBoxItem(m_pListBox, pClass->GetName());
 			}
-			m_pItems->AddPointer("");
+			new GWidgetListBoxItem(m_pListBox, "");
 		}
 	}
 
@@ -934,7 +925,7 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int nFileCount = m_pFileSet->GetFileCount();
 		int n;
 		for(n = 0; n < nFileCount; n++)
@@ -947,7 +938,7 @@ public:
 			for(i = 0; i < nInterfaceCount; i++)
 			{
 				COInterface* pInterface = pFile->GetInterface(i);
-				m_pItems->AddPointer(pInterface->GetName());
+				new GWidgetListBoxItem(m_pListBox, pInterface->GetName());
 			}			
 		}
 	}
@@ -997,7 +988,7 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int nFileCount = m_pFileSet->GetFileCount();
 		int n;
 		for(n = 0; n < nFileCount; n++)
@@ -1010,7 +1001,7 @@ public:
 			for(i = 0; i < nInterfaceCount; i++)
 			{
 				COMachineClass* pInterface = pFile->GetMachineClass(i);
-				m_pItems->AddPointer(pInterface->GetName());
+				new GWidgetListBoxItem(m_pListBox, pInterface->GetName());
 			}			
 		}
 	}
@@ -1068,10 +1059,10 @@ public:
 
 	virtual void Update()
 	{
-		m_pItems->Clear();
+		m_pListBox->Clear();
 		int n;
 		for(n = 0; n < sizeof(g_editorListProjectItems) / sizeof(const char*); n++)
-			m_pItems->AddPointer(g_editorListProjectItems[n]);
+			new GWidgetListBoxItem(m_pListBox, g_editorListProjectItems[n]);
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -1100,7 +1091,7 @@ EditorView::EditorView(COProject* pModel)
 	m_nScreenWidth = 800;
 	m_nScreenHeight = 600;
 	SetScreenSize(m_nScreenWidth, m_nScreenHeight);
-	m_pWidgetContainer = new GWidgetContainer(800, 600);
+	m_pDialog = new GWidgetDialog(800, 600, 0x00000044);
 	m_nLists = 0;
 	m_nCursorCol = 0;
 	m_nCursorRow = 0;
@@ -1109,12 +1100,12 @@ EditorView::EditorView(COProject* pModel)
 EditorView::~EditorView()
 {
 	delete(m_pLists[0]);
-	delete(m_pWidgetContainer);
+	delete(m_pDialog);
 }
 
 GWidgetStyle* EditorView::GetWidgetStyle()
 {
-	return m_pWidgetContainer->GetStyle();
+	return m_pDialog->GetStyle();
 }
 
 void EditorView::MakeRootList(EditorController* pController)
@@ -1130,16 +1121,43 @@ void EditorView::MakeRootList(EditorController* pController)
 
 /*static*/ void EditorView::BlitImage(SDL_Surface* pScreen, int x, int y, GImage* pImage)
 {
-	GColor* pRGB = pImage->GetRGBQuads();
-	int w = pImage->GetWidth();
-	int h = pImage->GetHeight();
-	int yy;
-	Uint32* pPix;
-	for(yy = 0; yy < h; yy++)
+	if(pScreen->format->BytesPerPixel == 4)
 	{
-		pPix = getPixMem(pScreen, x, y);
-		memcpy(pPix, &pRGB[yy * w], w * sizeof(GColor));
-		y++;
+		// 32 bits per pixel
+		GColor* pRGB = pImage->GetRGBQuads();
+		int w = pImage->GetWidth();
+		int h = pImage->GetHeight();
+		int yy;
+		Uint32* pPix;
+		for(yy = 0; yy < h; yy++)
+		{
+			pPix = getPixMem32(pScreen, x, y);
+			memcpy(pPix, &pRGB[yy * w], w * sizeof(GColor));
+			y++;
+		}
+	}
+	else
+	{
+		// 16 bits per pixel
+		GAssert(pScreen->format->BytesPerPixel == 2, "Only 16 and 32 bit video modes are supported");
+		int w = pImage->GetWidth();
+		int h = pImage->GetHeight();
+		int xx, yy, xxx;
+		GColor colIn;
+		Uint16* pPix;
+		for(yy = 0; yy < h; yy++)
+		{
+			xxx = x;
+			pPix = (Uint16*)pScreen->pixels + y * pScreen->pitch / 2 + x;
+			for(xx = 0; xx < w; xx++)
+			{
+				colIn = pImage->GetPixel(xx, yy);
+				*pPix = SDL_MapRGB(pScreen->format, gRed(colIn), gGreen(colIn), gBlue(colIn));
+				xxx++;
+				pPix++;
+			}
+			y++;
+		}
 	}
 }
 
@@ -1167,15 +1185,36 @@ void EditorView::MakeRootList(EditorController* pController)
 	int yEnd = MIN(pDestRect->y + pDestRect->h, pClipRect->y + pClipRect->h);
 	int x, y;
 	float fSX;
-	for(y = yStart; y < yEnd; y++)
+	if(pScreen->format->BytesPerPixel == 4)
 	{
-		fSX = fSourceX;
-		for(x = xStart; x < xEnd; x++)
+		// 32 bits per pixel
+		for(y = yStart; y < yEnd; y++)
 		{
-			*getPixMem(pScreen, x, y) = pImage->GetPixel((int)fSX, (int)fSourceY);
-			fSX += fSourceDX;
+			fSX = fSourceX;
+			for(x = xStart; x < xEnd; x++)
+			{
+				*getPixMem32(pScreen, x, y) = pImage->GetPixel((int)fSX, (int)fSourceY);
+				fSX += fSourceDX;
+			}
+			fSourceY += fSourceDY;
 		}
-		fSourceY += fSourceDY;
+	}
+	else
+	{
+		// 16 bits per pixel
+		GAssert(pScreen->format->BytesPerPixel == 2, "Only 16 and 32 bit video modes are supported");
+		GColor colIn;
+		for(y = yStart; y < yEnd; y++)
+		{
+			fSX = fSourceX;
+			for(x = xStart; x < xEnd; x++)
+			{
+				colIn = pImage->GetPixel((int)fSX, (int)fSourceY);
+				*getPixMem16(pScreen, x, y) = SDL_MapRGB(pScreen->format, gRed(colIn), gGreen(colIn), gBlue(colIn));
+				fSX += fSourceDX;
+			}
+			fSourceY += fSourceDY;
+		}
 	}
 }
 
@@ -1205,13 +1244,13 @@ void EditorView::AjustListPositions()
 			else
 				rNew.x = nSquishedListCount * nSquishedWidth + (n - nSquishedListCount) * EDITOR_VIEW_LIST_WIDTH;
 		}
-		rNew.h = m_pWidgetContainer->GetStyle()->GetListBoxLineHeight() * pListBox->GetItems()->GetSize() + 2;
+		rNew.h = m_pDialog->GetStyle()->GetListBoxLineHeight() * pListBox->GetSize() + 2;
 		if(rNew.h > m_screenRect.h)
 			rNew.h = m_screenRect.h;
 		rNew.y = 0;
 		if(n > 0)
 		{
-			nRunningHeight += m_pLists[n - 1]->GetStoredSelection() * m_pWidgetContainer->GetStyle()->GetListBoxLineHeight();
+			nRunningHeight += m_pLists[n - 1]->GetStoredSelection() * m_pDialog->GetStyle()->GetListBoxLineHeight();
 			if(nRunningHeight + rNew.h > m_screenRect.h)
 				nRunningHeight = 0;
 			rNew.y = nRunningHeight;
@@ -1223,7 +1262,6 @@ void EditorView::AjustListPositions()
 			continue;
 		pListBox->SetSize(rNew.w, rNew.h);
 		pListBox->SetPos(rNew.x, rNew.y);
-		pListBox->Update();
 	}
 }
 
@@ -1322,7 +1360,6 @@ void EditorView::OnSelectionChange()
 	}
 	GWidgetListBox* pListBox = pList->GetListBox();
 	pListBox->SetSelection(m_nCursorRow);
-	pListBox->Update();
 	MakeNextListBox();
 }
 
@@ -1337,7 +1374,6 @@ void EditorView::MoveCol(int dx)
 		return;
 	GWidgetListBox* pOldListBox = m_pLists[m_nCursorCol]->GetListBox();
 	pOldListBox->SetSelection(-1);
-	pOldListBox->Update();
 	m_nCursorCol = nNewCol;
 	m_nCursorRow = m_pLists[nNewCol]->GetStoredSelection();
 	OnSelectionChange();
@@ -1347,7 +1383,7 @@ void EditorView::MoveRow(int dy)
 {
 	EditorList* pList = m_pLists[m_nCursorCol];
 	GWidgetListBox* pListBox = pList->GetListBox();
-	int nListBoxSize = pListBox->GetItems()->GetSize();
+	int nListBoxSize = pListBox->GetSize();
 	int nNewRow = m_nCursorRow + dy;
 	if(nNewRow < 0)
 		nNewRow = 0;

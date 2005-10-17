@@ -91,6 +91,7 @@ public:
 	int GetSize() { return m_nDataSize; }
 	char* DumpToString(); // note: you must delete the string this returns
 	void DumpToExistingBuffer(char* pBuf);
+	void DumpToExistingBuffer(char* pBuf, int nBytes);
 
 	// This is a hack to set the first int in the queue
 	void SetFirstInt(int n);

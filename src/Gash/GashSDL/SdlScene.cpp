@@ -137,18 +137,18 @@ void SdlView::save(Engine* pEngine, FILE* pFile, const wchar_t* wszFilename)
 {
 	// Write the camera pos
 	if(fwrite(&m_cameraPos, sizeof(Point3D), 1, pFile) != 1)
-		pEngine->ThrowIOError(L"Error writing to file: %s", wszFilename);
+		pEngine->ThrowIOError(L"Error writing to file: %ls", wszFilename);
 
 	// Write the frame count
 	if(fwrite(&m_nFrames, sizeof(int), 1, pFile) != 1)
-		pEngine->ThrowIOError(L"Error writing to file: %s", wszFilename);
+		pEngine->ThrowIOError(L"Error writing to file: %ls", wszFilename);
 
 	// Write each frame
 	int n;
 	for(n = 0; n < m_nFrames; n++)
 	{
 		if(!m_pSphereFrames[n]->save(pFile))
-			pEngine->ThrowIOError(L"Error saving sphere image frame to file: %s", wszFilename);
+			pEngine->ThrowIOError(L"Error saving sphere image frame to file: %ls", wszFilename);
 	}
 }
 
@@ -192,11 +192,11 @@ void SdlScene::save(Engine* pEngine, EVar* pFilename)
 
 	// Write an identifier
 	if(fwrite("abcd", 4, 1, pFile) != 1)
-		pEngine->ThrowIOError(L"Error writing to file: %s", pFN->GetString());
+		pEngine->ThrowIOError(L"Error writing to file: %ls", pFN->GetString());
 
 	// Write the view count
 	if(fwrite(&m_nViews, sizeof(int), 1, pFile) != 1)
-		pEngine->ThrowIOError(L"Error writing to file: %s", pFN->GetString());
+		pEngine->ThrowIOError(L"Error writing to file: %ls", pFN->GetString());
 
 	// Write each view
 	int n;
@@ -215,7 +215,7 @@ void SdlScene::load(Engine* pEngine, EVar* pFilename)
 	// Read the identifier
 	char id[5];
 	if(fread(id, 4, 1, pFile) != 1)
-		pEngine->ThrowIOError(L"Error reading from file: %s", pFN->GetString());
+		pEngine->ThrowIOError(L"Error reading from file: %ls", pFN->GetString());
 
 //xxx
 }
@@ -270,7 +270,7 @@ void SdlScene::renderHelper(Engine* pEngine, EVar* pFilename)
 		{
 			GString s;
 			s.Add(pNameAttr->GetValue());
-			pEngine->ThrowIOError(L"Error loading backdrop bmp file: %s", s.GetString());
+			pEngine->ThrowIOError(L"Error loading backdrop bmp file: %ls", s.GetString());
 		}
 		n++;
 	}

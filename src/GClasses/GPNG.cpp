@@ -118,7 +118,7 @@ bool LoadPng(GImage* pImage, const unsigned char* pData, int nDataSize)
 		GAssert(channels == 4, "unexpected number of channels");
 		for(i = 0; i < nPixels; i++)
 		{
-			*pRGBQuads = gRGBA(pBytes[0], pBytes[1], pBytes[2], pBytes[3]);
+			*pRGBQuads = gARGB(pBytes[3], pBytes[0], pBytes[1], pBytes[2]);
 			pBytes += channels;
 			pRGBQuads++;
 		}
@@ -133,7 +133,7 @@ bool LoadPng(GImage* pImage, const unsigned char* pData, int nDataSize)
 				alpha = 0;
 			else
 				alpha = 0xff;
-			*pRGBQuads = gRGBA(pBytes[0], pBytes[1], pBytes[2], alpha);
+			*pRGBQuads = gARGB(alpha, pBytes[0], pBytes[1], pBytes[2]);
 			pBytes += channels;
 			pRGBQuads++;
 		}

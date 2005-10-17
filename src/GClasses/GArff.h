@@ -59,6 +59,9 @@ public:
 	// Returns the total entropy in pData from all output attributes
 	double TotalEntropyOfAllOutputs(GArffData* pData);
 
+	// Returns the name of the relation
+	const char* GetName() { return m_szName; }
+
 protected:
 	double* ParseDataRow(const char* szFile, int nLen);
 	void CountInputs();
@@ -76,10 +79,10 @@ protected:
 
 	GArffAttribute();
 public:
-	// To specify a continuous attribute, nValues should be 0 and
-	// szValues should be NULL
+	// If nValues is 0, then this is a continuous attribute.
+	// szValues can be NULL if the values aren't named.
 	GArffAttribute(bool bIsInput, int nValues, const char** szValues);
-	
+
 	~GArffAttribute();
 
 	// Makes a deep copy of this object
@@ -162,17 +165,8 @@ public:
 	// Measures the entropy of this set relative to the specified attribute
 	double MeasureEntropy(GArffRelation* pRelation, int nColumn);
 
-	// Neural Nets based on sigmoids require all output values to be
-	// between 0 and 1 (and preferrably not extremely close to 0 or 1).
-	// This function converts all the data (both inputs and outputs)
-	// to analog values in this range.  For continuous data, it merely
-	// checks that the range is between .00001 and .99999 (and throws
-	// if it's not).  For discreet data it uses this conversion:
-	// (.5 + nVal) / nValues
-	void Analogize(GArffRelation* pRelation);
-
-	// This undoes what Analogize does
-	void Unanalogize(GArffRelation* pRelation);
+	// Snaps all non-continuous output values to the nearest discreet value
+	void DiscretizeNonContinuousOutputs(GArffRelation* pRelation);
 
 	// Finds the min and the range of the values of the specified attribute
 	void GetMinAndRange(int nAttribute, double* pMin, double* pRange);
@@ -181,6 +175,16 @@ public:
 	void Normalize(int nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
 
 	static double Normalize(double dVal, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
+
+	double* MakeSetOfMostCommonOutputs(GArffRelation* pRelation);
+
+	bool IsOutputHomogenous(GArffRelation* pRelation);
+
+	void RandomlyReplaceMissingData(GArffRelation* pRelation);
+
+	void ReplaceMissingAttributeWithMostCommonValue(GArffRelation* pRelation, int nAttribute);
+
+	double** ComputeCovarianceMatrix(GArffRelation* pRelation);
 
 };
 

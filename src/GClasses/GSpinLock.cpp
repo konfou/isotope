@@ -50,10 +50,11 @@ static inline unsigned int testAndSet(unsigned int* pDWord)
 	return nRet;
 #else // DARWIN
 	unsigned int dwRetVal;
-    __asm__ __volatile__("xchgl %0, %1"
-			: "=r"(dwRetVal), "=m"(*pDWord)
-			: "o"(1), "m"(*pDWord)
-			: "memory");
+	__asm__ __volatile__
+		("xchgl %0, %1"
+		: "=r"(dwRetVal), "=m"(*pDWord)
+		: "0"(1), "m"(*pDWord)
+		: "memory");
 	return dwRetVal;
 #endif // !DARWIN
 #endif // !WIN32

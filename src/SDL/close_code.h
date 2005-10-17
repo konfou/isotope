@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 /* This file reverses the effects of begin_code.h and should be included
@@ -26,8 +26,16 @@
 
 #undef _begin_code_h
 
-/* Reset structure packing at previous byte alignment for VC++ */
-#ifdef _MSC_VER
+/* Reset structure packing at previous byte alignment */
+#if defined(_MSC_VER) || defined(__MWERKS__) || defined(__WATCOMC__)  || defined(__BORLANDC__)
+#ifdef __BORLANDC__
+#pragma nopackwarning
+#endif
+#if (defined(__MWERKS__) && defined(macintosh))
+#pragma options align=reset
+#pragma enumsalwaysint reset
+#else
 #pragma pack(pop)
 #endif
+#endif /* Compiler needs structure packing set */
 

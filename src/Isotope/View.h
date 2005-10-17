@@ -29,6 +29,7 @@ protected:
 	bool m_bFullScreen;
 	GRect m_screenRect;
 	GPointerArray* m_pViewPorts;
+	double m_dLastFullRefreshTime;
 
 public:
 	View();

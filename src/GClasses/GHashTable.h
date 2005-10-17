@@ -221,9 +221,9 @@ public:
 	virtual bool AreKeysEqual(const char* pKey1, const char* pKey2)
 	{
 		if(m_bCaseSensitive)
-			return(stricmp(pKey1, pKey2) == 0);
-		else
 			return(strcmp(pKey1, pKey2) == 0);
+		else
+			return(stricmp(pKey1, pKey2) == 0);
 	}
 
 	// Adds a key and value pair to the hash table.  The key should be a constant

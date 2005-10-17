@@ -12,6 +12,13 @@
 #include "GWidgets.h"
 #include "GImage.h"
 #include "GArray.h"
+#include "GDirList.h"
+#ifdef WIN32
+#include <direct.h>
+#else // WIN32
+#include <unistd.h>
+#endif // !WIN32
+#include "GFile.h"
 
 GWidgetStyle::GWidgetStyle()
 {
@@ -20,7 +27,7 @@ GWidgetStyle::GWidgetStyle()
 	m_fButtonFontWidth = (float).8;
 	m_fLabelFontWidth = (float)1;
 	m_cButtonTextColor = 0;
-	m_cLabelTextColor = 0x888888ff;
+	m_cLabelTextColor = 0xff8888ff;
 	m_cButtonPressedTextColor = gRGB(255, 255, 255);
 	m_cTextBoxBorderColor = gRGB(255, 255, 255);
 	m_cTextBoxTextColor = gRGB(255, 255, 255);
@@ -50,7 +57,7 @@ void GWidgetStyle::DrawButtonText(GImage* pImage, int x, int y, int w, int h, GS
 	pImage->DrawHardText(&r, szText, pressed ? m_cButtonPressedTextColor : m_cButtonTextColor, m_fButtonFontWidth);
 }
 
-void GWidgetStyle::DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft)
+void GWidgetStyle::DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft, bool bright)
 {
 	char* szText = (char*)alloca(pString->GetLength() + 1);
 	pString->GetAnsi(szText);
@@ -72,7 +79,7 @@ void GWidgetStyle::DrawLabelText(GImage* pImage, int x, int y, int w, int h, GSt
 		r.y = y;
 	r.w = w - (r.x - x);
 	r.h = nLabelFontSize;
-	pImage->DrawHardText(&r, szText, m_cLabelTextColor, m_fLabelFontWidth);
+	pImage->DrawHardText(&r, szText, bright ? 0xffffffff : m_cLabelTextColor, m_fLabelFontWidth);
 }
 
 void GWidgetStyle::DrawHorizCurvedOutSurface(GImage* pImage, int x, int y, int w, int h)
@@ -136,7 +143,7 @@ void GWidgetStyle::DrawVertCurvedInSurface(GImage* pImage, int x, int y, int w, 
 
 void GWidgetStyle::DrawCursor(GImage* pImage, int x, int y, int w, int h)
 {
-	pImage->DrawBox(x, y, w, h, m_cTextBoxTextColor, false);
+	pImage->DrawBox(x, y, x + w, y + h, m_cTextBoxTextColor, false);
 }
 
 // ----------------------------------------------------------------------
@@ -144,40 +151,28 @@ void GWidgetStyle::DrawCursor(GImage* pImage, int x, int y, int w, int h)
 GWidget::GWidget(GWidgetGroup* pParent, int x, int y, int w, int h)
 {
 	m_pParent = pParent;
+	m_pStyle = pParent ? pParent->GetStyle() : NULL;
 	m_rect.Set(x, y, w, h);
-	m_nAbsoluteX = -1;
-	m_nAbsoluteY = -1;
 	if(pParent)
 		pParent->AddWidget(this);
+	else
+		m_nID = -1;
+	GAssert(m_nDebugCheck = 0x600df00d, "");
 }
 
 /*virtual*/ GWidget::~GWidget()
 {
+GAssert(m_nDebugCheck == 0x600df00d, "corruption!");
+	//GAssert(m_pParent || GetType() == Dialog, "Unexpected root widget");
+	if(m_pParent)
+		m_pParent->OnDestroyWidget(this);
 }
 
 void GWidget::SetPos(int x, int y)
 {
 	m_rect.x = x;
 	m_rect.y = y;
-	m_nAbsoluteX = -1;
-	m_nAbsoluteY = -1;
-}
-
-void GWidget::CalcAbsolutePos()
-{
-	if(m_nAbsoluteX >= 0)
-		return;
-	if(m_pParent)
-	{
-		m_pParent->CalcAbsolutePos();
-		m_nAbsoluteX = m_pParent->m_nAbsoluteX + m_rect.x;
-		m_nAbsoluteY = m_pParent->m_nAbsoluteY + m_rect.y;
-	}
-	else
-	{
-		m_nAbsoluteX = m_rect.x;
-		m_nAbsoluteY = m_rect.y;
-	}
+	// todo: dirty the parent?
 }
 
 // ----------------------------------------------------------------------
@@ -192,30 +187,64 @@ GWidgetAtomic::GWidgetAtomic(GWidgetGroup* pParent, int x, int y, int w, int h)
 {
 }
 
+void GWidgetAtomic::Draw(GWidgetGroupWithCanvas* pTarget)
+{
+	GRect r, rTmp;
+	GImage* pSrcImage = GetImage(&r);
+	GImage* pCanvas;
+	int x = m_rect.x;
+	int y = m_rect.y;
+	GWidgetGroup* pGroup;
+	for(pGroup = this->GetParent(); pGroup; pGroup = pGroup->GetParent())
+	{
+		pCanvas = pGroup->GetImage(&rTmp);
+		if(pCanvas)
+			pCanvas->Blit(x, y, pSrcImage, &r);
+		if(pGroup == pTarget)
+			break;
+		x += pGroup->m_rect.x;
+		y += pGroup->m_rect.y;
+	}
+}
+
+/*virtual*/ void GWidgetAtomic::OnChar(char c)
+{
+	if(m_pParent)
+		m_pParent->OnChar(c);
+}
+
+/*virtual*/ void GWidgetAtomic::OnMouseMove(int dx, int dy)
+{
+}
+
 // ----------------------------------------------------------------------
 
 GWidgetGroup::GWidgetGroup(GWidgetGroup* pParent, int x, int y, int w, int h)
  : GWidget(pParent, x, y, w, h)
 {
 	m_pWidgets = new GPointerArray(16);
+	m_dirty = true;
 }
 
 /*virtual*/ GWidgetGroup::~GWidgetGroup()
 {
-	int n;
-	int nCount = m_pWidgets->GetSize();
-	for(n = 0; n < nCount; n++)
-		delete((GWidget*)m_pWidgets->GetPointer(n));
+	GWidget* pWidget;
+	while(m_pWidgets->GetSize() > 0)
+	{
+		pWidget = (GWidget*)m_pWidgets->GetPointer(0);
+		delete(pWidget);
+	}
 	delete(m_pWidgets);
 }
 
 void GWidgetGroup::AddWidget(GWidget* pWidget)
 {
 	m_pWidgets->AddPointer(pWidget);
+	pWidget->m_nID = m_pWidgets->GetSize() - 1;
 }
 
 // todo: use a divide-and-conquer technique to improve performance
-GWidgetAtomic* GWidgetGroup::FindAtomicWidget(int x, int y)
+/*virtual*/ GWidgetAtomic* GWidgetGroup::FindAtomicWidget(int x, int y)
 {
 	int n;
 	int nCount = m_pWidgets->GetSize();
@@ -228,47 +257,129 @@ GWidgetAtomic* GWidgetGroup::FindAtomicWidget(int x, int y)
 			if(pWidget->IsAtomicWidget())
 				return (GWidgetAtomic*)pWidget;
 			else
-				return ((GWidgetGroup*)pWidget)->FindAtomicWidget(x - pWidget->m_rect.x, y - pWidget->m_rect.y);
+			{
+				GRect* pRect = pWidget->GetRect();
+				return ((GWidgetGroup*)pWidget)->FindAtomicWidget(x - pRect->x, y - pRect->y);
+			}
 		}
 	}
 	return NULL;
 }
 
-// ----------------------------------------------------------------------
-
-GWidgetContainer::GWidgetContainer(int w, int h)
- : GWidgetGroup(NULL, 0, 0, w, h)
+int GWidgetGroup::GetChildWidgetCount()
 {
-	m_pStyle = new GWidgetStyle();
-	m_pGrabbedWidget = NULL;
+	return m_pWidgets->GetSize();
 }
 
-/*virtual*/ GWidgetContainer::~GWidgetContainer()
+GWidget* GWidgetGroup::GetChildWidget(int n)
+{
+	return (GWidget*)m_pWidgets->GetPointer(n);
+}
+
+/*virtual*/ void GWidgetGroup::OnDestroyWidget(GWidget* pWidget)
+{
+	if(pWidget->m_nID >= 0)
+	{
+		// Remove the widget from my list
+		GAssert(GetChildWidget(pWidget->m_nID) == pWidget, "bad id");
+		int nLast = m_pWidgets->GetSize() - 1;
+		GWidget* pLast = (GWidget*)m_pWidgets->GetPointer(nLast);
+		pLast->m_nID = pWidget->m_nID;
+		m_pWidgets->SetPointer(pWidget->m_nID, pLast);
+		m_pWidgets->DeleteCell(nLast);
+		pWidget->m_nID = -1;
+		m_dirty = true;
+	}
+	if(m_pParent)
+		m_pParent->OnDestroyWidget(pWidget);
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetGroupWithCanvas::GWidgetGroupWithCanvas(GWidgetGroup* pParent, int x, int y, int w, int h)
+ : GWidgetGroup(pParent, x, y, w, h)
+{
+	m_image.SetSize(w, h);
+}
+
+/*virtual*/ GWidgetGroupWithCanvas::~GWidgetGroupWithCanvas()
+{
+}
+
+/*virtual*/ GImage* GWidgetGroupWithCanvas::GetImage(GRect* pOutRect)
+{
+	if(m_dirty)
+		Update();
+	pOutRect->x = 0;
+	pOutRect->y = 0;
+	pOutRect->w = m_image.GetWidth();
+	pOutRect->h = m_image.GetHeight();
+	return &m_image;
+}
+
+void GWidgetGroupWithCanvas::Draw(GWidgetGroupWithCanvas* pTarget)
+{
+	GRect r, rTmp;
+	GImage* pSrcImage = GetImage(&r);
+	GImage* pCanvas;
+	int x = m_rect.x;
+	int y = m_rect.y;
+	GWidgetGroup* pGroup;
+	for(pGroup = this->GetParent(); pGroup; pGroup = pGroup->GetParent())
+	{
+		pCanvas = pGroup->GetImage(&rTmp);
+		if(pCanvas)
+			pCanvas->Blit(x, y, pSrcImage, &r);
+		if(pGroup == pTarget)
+			break;
+		x += pGroup->m_rect.x;
+		y += pGroup->m_rect.y;
+	}
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetDialog::GWidgetDialog(int w, int h, GColor cBackground)
+ : GWidgetGroupWithCanvas(NULL, 0, 0, w, h)
+{
+	m_cBackground = cBackground;
+	m_pStyle = new GWidgetStyle();
+	m_pGrabbedWidget = NULL;
+	m_pFocusWidget = NULL;
+}
+
+/*virtual*/ GWidgetDialog::~GWidgetDialog()
 {
 	ReleaseWidget();
 	delete(m_pStyle);
 }
 
-void GWidgetContainer::Draw(GImage* pImage)
+/*virtual*/ void GWidgetDialog::Update()
 {
+	m_image.Clear(m_cBackground);
+	m_dirty = false;
 	int n;
 	int nCount = m_pWidgets->GetSize();
 	GWidget* pWidget;
 	for(n = 0; n < nCount; n++)
 	{
 		pWidget = (GWidget*)m_pWidgets->GetPointer(n);
-		pWidget->Draw(pImage);
+		pWidget->Draw(this);
 	}
 }
 
-void GWidgetContainer::GrabWidget(GWidgetAtomic* pWidget)
+void GWidgetDialog::GrabWidget(GWidgetAtomic* pWidget, int mouseX, int mouseY)
 {
 	ReleaseWidget();
 	m_pGrabbedWidget = pWidget;
-	pWidget->Grab();
+	m_pFocusWidget = pWidget;
+	m_prevMouseX = mouseX;
+	m_prevMouseY = mouseY;
+	if(pWidget)
+		pWidget->Grab();
 }
 
-void GWidgetContainer::ReleaseWidget()
+void GWidgetDialog::ReleaseWidget()
 {
 	if(!m_pGrabbedWidget)
 		return;
@@ -276,16 +387,43 @@ void GWidgetContainer::ReleaseWidget()
 	m_pGrabbedWidget = NULL;
 }
 
+/*virtual*/ void GWidgetDialog::OnDestroyWidget(GWidget* pWidget)
+{
+	if(pWidget == m_pGrabbedWidget)
+		m_pGrabbedWidget = NULL;
+	if(pWidget == m_pFocusWidget)
+		m_pFocusWidget = NULL;
+	GWidgetGroup::OnDestroyWidget(pWidget);
+}
+
+void GWidgetDialog::HandleChar(char c)
+{
+	if(!m_pFocusWidget)
+		return;
+	m_pFocusWidget->OnChar(c);
+}
+
+bool GWidgetDialog::HandleMousePos(int x, int y)
+{
+	if(!m_pGrabbedWidget)
+		return false;
+	if(x == m_prevMouseX && y == m_prevMouseY)
+		return false;
+	m_pGrabbedWidget->OnMouseMove(x - m_prevMouseX, y - m_prevMouseY);
+	m_prevMouseX = x;
+	m_prevMouseY = y;
+	return true;
+}
 
 // ----------------------------------------------------------------------
 
 GWidgetTextButton::GWidgetTextButton(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
-	m_pStyle = pParent->GetStyle();
 	m_image.SetSize(w * 2, h);
 	m_text.Copy(pText);
 	m_pressed = false;
+	m_dirty = true;
 }
 
 /*virtual*/ GWidgetTextButton::~GWidgetTextButton()
@@ -295,15 +433,20 @@ GWidgetTextButton::GWidgetTextButton(GWidgetGroup* pParent, int x, int y, int w,
 /*virtual*/ void GWidgetTextButton::Grab()
 {
 	m_pressed = true;
+	Draw(NULL);
 }
 
 /*virtual*/ void GWidgetTextButton::Release()
 {
 	m_pressed = false;
+	m_pParent->OnReleaseTextButton(this);
+	Draw(NULL);
 }
 
 void GWidgetTextButton::Update()
 {
+	m_dirty = false;
+
 	// Draw the non-pressed image
 	int w = m_image.GetWidth() / 2;
 	int h = m_image.GetHeight();
@@ -321,6 +464,8 @@ void GWidgetTextButton::Update()
 
 GImage* GWidgetTextButton::GetImage(GRect* pOutRect)
 {
+	if(m_dirty)
+		Update();
 	pOutRect->x = m_pressed ? m_image.GetWidth() / 2 : 0;
 	pOutRect->y = 0;
 	pOutRect->w = m_image.GetWidth() / 2;
@@ -333,30 +478,33 @@ void GWidgetTextButton::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w * 2, h);
+	m_dirty = true;
 }
 
 void GWidgetTextButton::SetText(GString* pText)
 {
 	m_text.Copy(pText);
+	m_dirty = true;
+	Draw(NULL);
 }
 
-/*virtual*/ void GWidgetTextButton::Draw(GImage* pImage)
+void GWidgetTextButton::SetText(const char* szText)
 {
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
+	m_text.Copy(szText);
+	m_dirty = true;
+	Draw(NULL);
 }
 
 // ----------------------------------------------------------------------
 
-GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText)
+GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText, bool bBright)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
-	m_pStyle = pParent->GetStyle();
 	m_image.SetSize(w, h);
 	m_text.Copy(pText);
 	m_alignLeft = true;
+	m_bBright = bBright;
+	m_dirty = true;
 }
 
 /*virtual*/ GWidgetTextLabel::~GWidgetTextLabel()
@@ -365,6 +513,7 @@ GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, i
 
 /*virtual*/ void GWidgetTextLabel::Grab()
 {
+	m_pParent->OnClickTextLabel(this);
 }
 
 /*virtual*/ void GWidgetTextLabel::Release()
@@ -373,12 +522,15 @@ GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, i
 
 void GWidgetTextLabel::Update()
 {
+	m_dirty = false;
 	m_image.Clear(0);
-	m_pStyle->DrawLabelText(&m_image, 0, 0, m_image.GetWidth(), m_image.GetHeight(), &m_text, m_alignLeft);
+	m_pStyle->DrawLabelText(&m_image, 0, 0, m_image.GetWidth(), m_image.GetHeight(), &m_text, m_alignLeft, m_bBright);
 }
 
 GImage* GWidgetTextLabel::GetImage(GRect* pOutRect)
 {
+	if(m_dirty)
+		Update();
 	pOutRect->x = 0;
 	pOutRect->y = 0;
 	pOutRect->w = m_image.GetWidth();
@@ -391,19 +543,21 @@ void GWidgetTextLabel::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w, h);
+	m_dirty = true;
 }
 
 void GWidgetTextLabel::SetText(GString* pText)
 {
 	m_text.Copy(pText);
+	m_dirty = true;
+	Draw(NULL);
 }
 
-/*virtual*/ void GWidgetTextLabel::Draw(GImage* pImage)
+void GWidgetTextLabel::SetText(const char* szText)
 {
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
+	m_text.Copy(szText);
+	m_dirty = true;
+	Draw(NULL);
 }
 
 // ----------------------------------------------------------------------
@@ -411,10 +565,10 @@ void GWidgetTextLabel::SetText(GString* pText)
 GWidgetVCRButton::GWidgetVCRButton(GWidgetGroup* pParent, int x, int y, int w, int h, VCR_Type eType)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
-	m_pStyle = pParent->GetStyle();
 	m_image.SetSize(w * 2, h);
 	m_eType = eType;
 	m_pressed = false;
+	m_dirty = true;
 }
 
 /*virtual*/ GWidgetVCRButton::~GWidgetVCRButton()
@@ -424,11 +578,14 @@ GWidgetVCRButton::GWidgetVCRButton(GWidgetGroup* pParent, int x, int y, int w, i
 /*virtual*/ void GWidgetVCRButton::Grab()
 {
 	m_pressed = true;
+	m_pParent->OnPushVCRButton(this);
+	Draw(NULL);
 }
 
 /*virtual*/ void GWidgetVCRButton::Release()
 {
 	m_pressed = false;
+	Draw(NULL);
 }
 
 void GWidgetVCRButton::DrawIcon(int nHorizOfs, int nVertOfs)
@@ -437,55 +594,58 @@ void GWidgetVCRButton::DrawIcon(int nHorizOfs, int nVertOfs)
 	if(nMinSize > (int)m_image.GetHeight())
 		nMinSize = m_image.GetHeight();
 	int nArrowSize = nMinSize / 3;
+	int hh = m_image.GetHeight() / 2;
 	int n;
 	if(m_eType == ArrowRight)
 	{
 		for(n = 0; n < nArrowSize; n++)
-			m_image.DrawLine(nHorizOfs - nArrowSize / 2 + n,
-							nVertOfs + m_image.GetHeight() / 2 - nArrowSize + n + 1,
-							nHorizOfs - nArrowSize / 2 + n,
-							nVertOfs + m_image.GetHeight() / 2 + nArrowSize - n - 1,
+			m_image.DrawLine(nHorizOfs + hh - nArrowSize / 2 + n,
+							nVertOfs + hh - nArrowSize + n + 1,
+							nHorizOfs + hh - nArrowSize / 2 + n,
+							nVertOfs + hh + nArrowSize - n - 1,
 							0);
 	}
 	else if(m_eType == ArrowLeft)
 	{
 		for(n = 0; n < nArrowSize; n++)
-			m_image.DrawLine(nHorizOfs + nArrowSize / 2 - n,
-							nVertOfs + m_image.GetHeight() / 2 - nArrowSize + n + 1,
-							nHorizOfs + nArrowSize / 2 - n,
-							nVertOfs + m_image.GetHeight() / 2 + nArrowSize - n - 1,
+			m_image.DrawLine(nHorizOfs + hh + nArrowSize / 2 - n,
+							nVertOfs + hh - nArrowSize + n + 1,
+							nHorizOfs + hh + nArrowSize / 2 - n,
+							nVertOfs + hh + nArrowSize - n - 1,
 							0);
 	}
 	if(m_eType == ArrowDown)
 	{
 		for(n = 0; n < nArrowSize; n++)
-			m_image.DrawLine(nHorizOfs + m_image.GetWidth() / 2 - nArrowSize + n + 1,
-							nVertOfs - nArrowSize / 2 + n,
-							nHorizOfs + m_image.GetHeight() / 2 + nArrowSize - n - 1,						
-							nVertOfs - nArrowSize / 2 + n,
+			m_image.DrawLine(nHorizOfs + hh - nArrowSize + n + 1,
+							nVertOfs + hh - nArrowSize / 2 + n,
+							nHorizOfs + hh + nArrowSize - n - 1,						
+							nVertOfs + hh - nArrowSize / 2 + n,
 							0);
 	}
 	else if(m_eType == ArrowUp)
 	{
 		for(n = 0; n < nArrowSize; n++)
-			m_image.DrawLine(nHorizOfs + m_image.GetWidth() / 2 - nArrowSize + n + 1,
-							nVertOfs + nArrowSize / 2 - n,
-							nHorizOfs + m_image.GetHeight() / 2 + nArrowSize - n - 1,						
-							nVertOfs + nArrowSize / 2 - n,
+			m_image.DrawLine(nHorizOfs + hh - nArrowSize + n + 1,
+							nVertOfs + hh + nArrowSize / 2 - n,
+							nHorizOfs + hh + nArrowSize - n - 1,						
+							nVertOfs + hh + nArrowSize / 2 - n,
 							0);
 	}
 	else if(m_eType == Square)
 	{
-		m_image.DrawBox(nHorizOfs + m_image.GetWidth() / 2 - nArrowSize,
-						nVertOfs + m_image.GetHeight() / 2 - nArrowSize,
-						nHorizOfs + m_image.GetWidth() / 2 + nArrowSize,
-						nVertOfs + m_image.GetHeight() / 2 + nArrowSize,
+		m_image.DrawBox(nHorizOfs + hh - nArrowSize,
+						nVertOfs + hh - nArrowSize,
+						nHorizOfs + hh + nArrowSize,
+						nVertOfs + hh + nArrowSize,
 						true, 0);
 	}
 }
 
 void GWidgetVCRButton::Update()
 {
+	m_dirty = false;
+
 	// Draw the non-pressed image
 	int w = m_image.GetWidth() / 2;
 	int h = m_image.GetHeight();
@@ -503,6 +663,8 @@ void GWidgetVCRButton::Update()
 
 GImage* GWidgetVCRButton::GetImage(GRect* pOutRect)
 {
+	if(m_dirty)
+		Update();
 	pOutRect->x = m_pressed ? m_image.GetWidth() / 2 : 0;
 	pOutRect->y = 0;
 	pOutRect->w = m_image.GetWidth() / 2;
@@ -515,19 +677,74 @@ void GWidgetVCRButton::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w * 2, h);
+	m_dirty = true;
 }
 
 void GWidgetVCRButton::SetType(VCR_Type eType)
 {
 	m_eType = eType;
+	m_dirty = true;
 }
 
-/*virtual*/ void GWidgetVCRButton::Draw(GImage* pImage)
+// ----------------------------------------------------------------------
+
+GWidgetProgressBar::GWidgetProgressBar(GWidgetGroup* pParent, int x, int y, int w, int h)
+: GWidgetAtomic(pParent, x, y, w, h)
 {
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
+	m_image.SetSize(w, h);
+	m_fProgress = 0;
+	m_dirty = true;
+}
+
+/*virtual*/ GWidgetProgressBar::~GWidgetProgressBar()
+{
+}
+
+/*virtual*/ void GWidgetProgressBar::Grab()
+{
+}
+
+/*virtual*/ void GWidgetProgressBar::Release()
+{
+}
+
+void GWidgetProgressBar::Update()
+{
+	m_dirty = false;
+
+	// Draw the non-pressed image
+	m_image.Clear(0);
+	int w = m_image.GetWidth();
+	int h = m_image.GetHeight();
+	if(m_fProgress > 0)
+		m_pStyle->DrawVertCurvedOutSurface(&m_image, 1, 1, (int)(m_fProgress * (w - 2)), h - 2);
+	m_image.DrawBox(0, 0, w - 1, h - 1, gRGB(64, 64, 64), false);
+}
+
+GImage* GWidgetProgressBar::GetImage(GRect* pOutRect)
+{
+	if(m_dirty)
+		Update();
+	pOutRect->x = 0;
+	pOutRect->y = 0;
+	pOutRect->w = m_image.GetWidth();
+	pOutRect->h = m_image.GetHeight();
+	return &m_image;
+}
+
+void GWidgetProgressBar::SetSize(int w, int h)
+{
+	m_rect.w = w;
+	m_rect.h = h;
+	m_image.SetSize(w, h);
+	m_dirty = true;
+}
+
+void GWidgetProgressBar::SetProgress(float fProgress)
+{
+	m_fProgress = fProgress;
+	m_dirty = true;
+	Draw(NULL);
 }
 
 // ----------------------------------------------------------------------
@@ -535,9 +752,9 @@ void GWidgetVCRButton::SetType(VCR_Type eType)
 GWidgetCheckBox::GWidgetCheckBox(GWidgetGroup* pParent, int x, int y, int w, int h)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
-	m_pStyle = pParent->GetStyle();
 	m_image.SetSize(w * 2, h);
 	m_checked = false;
+	m_dirty = true;
 }
 
 /*virtual*/ GWidgetCheckBox::~GWidgetCheckBox()
@@ -552,10 +769,13 @@ GWidgetCheckBox::GWidgetCheckBox(GWidgetGroup* pParent, int x, int y, int w, int
 /*virtual*/ void GWidgetCheckBox::Release()
 {
 	m_checked = !m_checked;
+	Draw(NULL);
 }
 
 void GWidgetCheckBox::Update()
 {
+	m_dirty = false;
+
 	// Draw the non-checked image
 	int w = m_image.GetWidth() / 2;
 	int h = m_image.GetHeight();
@@ -578,6 +798,8 @@ void GWidgetCheckBox::Update()
 
 GImage* GWidgetCheckBox::GetImage(GRect* pOutRect)
 {
+	if(m_dirty)
+		Update();
 	pOutRect->x = m_checked ? m_image.GetWidth() / 2 : 0;
 	pOutRect->y = 0;
 	pOutRect->w = m_image.GetWidth() / 2;
@@ -590,44 +812,110 @@ void GWidgetCheckBox::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w * 2, h);
+	m_dirty = true;
 }
 
 void GWidgetCheckBox::SetChecked(bool checked)
 {
 	m_checked = checked;
+	m_dirty = true;
 }
 
-/*virtual*/ void GWidgetCheckBox::Draw(GImage* pImage)
+// ----------------------------------------------------------------------
+
+GWidgetSliderTab::GWidgetSliderTab(GWidgetGroup* pParent, int x, int y, int w, int h, bool vertical, bool impressed)
+: GWidgetAtomic(pParent, x, y, w, h)
 {
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
+	m_image.SetSize(w, h);
+	m_vertical = vertical;
+	m_impressed = impressed;
+	m_dirty = true;
+}
+
+/*virtual*/ GWidgetSliderTab::~GWidgetSliderTab()
+{
+}
+
+/*virtual*/ void GWidgetSliderTab::Grab()
+{
+	m_pParent->OnClickTab(this);
+}
+
+/*virtual*/ void GWidgetSliderTab::Release()
+{
+}
+
+/*virtual*/ void GWidgetSliderTab::OnMouseMove(int dx, int dy)
+{
+	m_pParent->OnSlideTab(this, dx, dy);
+}
+
+void GWidgetSliderTab::Update()
+{
+	m_dirty = false;
+	if(m_rect.w <= 0 || m_rect.h <= 0)
+		return;
+	if(m_vertical)
+	{
+		if(m_impressed)
+			m_pStyle->DrawHorizCurvedInSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+		else
+			m_pStyle->DrawHorizCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+	}
+	else
+	{
+		if(m_impressed)
+			m_pStyle->DrawVertCurvedInSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+		else
+			m_pStyle->DrawVertCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+	}
+}
+
+GImage* GWidgetSliderTab::GetImage(GRect* pOutRect)
+{
+	if(m_dirty)
+		Update();
+	pOutRect->x = 0;
+	pOutRect->y = 0;
+	pOutRect->w = m_rect.w;
+	pOutRect->h = m_rect.h;
+	return &m_image;
+}
+
+void GWidgetSliderTab::SetSize(int w, int h)
+{
+	m_rect.w = w;
+	m_rect.h = h;
+	m_image.SetSize(w, h);
+	m_dirty = true;
 }
 
 // ----------------------------------------------------------------------
 
 GWidgetHorizScrollBar::GWidgetHorizScrollBar(GWidgetGroup* pParent, int x, int y, int w, int h, int nViewSize, int nModelSize)
-: GWidgetAtomic(pParent, x, y, w, h)
+: GWidgetGroupWithCanvas(pParent, x, y, w, h)
 {
-	m_pStyle = pParent->GetStyle();
-	m_image.SetSize(w, h);
 	m_nViewSize = nViewSize;
 	m_nModelSize = nModelSize;
 	m_nPos = 0;
+	int wid = GetButtonWidth();
+	m_pLeftButton = new GWidgetVCRButton(this, 0, 0, wid, h, GWidgetVCRButton::ArrowLeft);
+	m_pRightButton = new GWidgetVCRButton(this, m_rect.w - wid, 0, wid, h, GWidgetVCRButton::ArrowRight);
+	m_pLeftTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, true);
+	m_pTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, false);
+	m_pRightTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, true);
 }
 
 /*virtual*/ GWidgetHorizScrollBar::~GWidgetHorizScrollBar()
 {
 }
 
-GImage* GWidgetHorizScrollBar::GetImage(GRect* pOutRect)
+int GWidgetHorizScrollBar::GetButtonWidth()
 {
-	pOutRect->x = 0;
-	pOutRect->y = 0;
-	pOutRect->w = m_image.GetWidth();
-	pOutRect->h = m_image.GetHeight();
-	return &m_image;
+	if((m_rect.w >> 2) < m_rect.h)
+		return (m_rect.w >> 2);
+	else
+		return m_rect.h;
 }
 
 void GWidgetHorizScrollBar::SetSize(int w, int h)
@@ -635,85 +923,127 @@ void GWidgetHorizScrollBar::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w, h);
+	m_dirty = true;
 }
 
-/*virtual*/ void GWidgetHorizScrollBar::Draw(GImage* pImage)
+/*virtual*/ void GWidgetHorizScrollBar::Update()
 {
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
-}
+	m_dirty = false;
 
-/*static*/ void GWidgetHorizScrollBar::Draw(GImage* pImage, GRect* pR, GWidgetStyle* pStyle, int nPos, int nViewSize, int nModelSize)
-{
 	// Calculations
-	int nButtonSize = pR->h;
-	if(pR->w / 4 < nButtonSize)
-		nButtonSize = pR->w / 4;
-	int nSlideAreaSize = pR->w - nButtonSize - nButtonSize;
-	int nTabSize = nSlideAreaSize * nViewSize / nModelSize;
-	if(nTabSize < pR->h)
-		nTabSize = pR->h;
+	int wid = m_image.GetWidth();
+	int hgt = m_image.GetHeight();
+	int nButtonSize = GetButtonWidth();
+	int nSlideAreaSize = wid - nButtonSize - nButtonSize;
+	int nTabSize = nSlideAreaSize * m_nViewSize / m_nModelSize;
+	if(nTabSize < hgt)
+		nTabSize = hgt;
 	if(nTabSize > nSlideAreaSize)
 		nTabSize = nSlideAreaSize;
-	int nTabPos = nPos * nSlideAreaSize / nModelSize;
+	int nTabPos = m_nPos * nSlideAreaSize / m_nModelSize;
 	if(nTabPos > nSlideAreaSize - nTabSize)
 		nTabPos = nSlideAreaSize - nTabSize;
 	nTabPos += nButtonSize;
 
-	// Draw the sliding area
-	pStyle->DrawVertCurvedInSurface(pImage, pR->x + nButtonSize, pR->y, nSlideAreaSize, pR->h);
-
-	// Draw the sliding tab
-	pStyle->DrawVertCurvedOutSurface(pImage, pR->x + nTabPos, pR->y, nTabSize, pR->h);
+	// Draw the three tab areas
+	m_pLeftTab->SetPos(nButtonSize, 0);
+	m_pLeftTab->SetSize(nTabPos - nButtonSize, m_rect.h);
+	m_pTab->SetPos(nTabPos, 0);
+	m_pTab->SetSize(nTabSize, m_rect.h);
+	m_pRightTab->SetPos(nTabPos + nTabSize, 0);
+	m_pRightTab->SetSize(nSlideAreaSize + nButtonSize - (nTabPos + nTabSize), m_rect.h);
+	m_pLeftTab->Draw(this);
+	m_pTab->Draw(this);
+	m_pRightTab->Draw(this);
 
 	// Draw the buttons
-	pStyle->DrawHorizCurvedOutSurface(pImage, pR->x, pR->y, nButtonSize, pR->h);
-	pStyle->DrawHorizCurvedOutSurface(pImage, pR->x + pR->w - nButtonSize, pR->y, nButtonSize, pR->h);
-	int nArrowSize = nButtonSize / 3;
-	int h = pR->h / 2;
-	int n;
-	for(n = 0; n < nArrowSize; n++)
+	m_pLeftButton->Draw(this);
+	m_pRightButton->Draw(this);
+}
+
+/*virtual*/ void GWidgetHorizScrollBar::OnPushVCRButton(GWidgetVCRButton* pButton)
+{
+	if(pButton == m_pLeftButton)
 	{
-		pImage->DrawLine(pR->x + nArrowSize + n, pR->y + h - n, pR->x + nArrowSize + n, pR->y + h + n, 0);
-		pImage->DrawLine(pR->x + pR->w - nArrowSize - n, pR->y + h - n, pR->x + pR->w - nArrowSize - n, pR->y + h + n, 0);
+		m_nPos -= m_nViewSize / 5;
+		if(m_nPos < 0)
+			m_nPos = 0;
+	}
+	else
+	{
+		GAssert(pButton == m_pRightButton, "unexpected button");
+		m_nPos += m_nViewSize / 5;
+		if(m_nPos > m_nModelSize - m_nViewSize)
+			m_nPos = m_nModelSize - m_nViewSize;
+	}
+	m_dirty = true;
+	if(m_pParent)
+		m_pParent->OnHorizScroll(this);
+}
+
+/*virtual*/ void GWidgetHorizScrollBar::OnClickTab(GWidgetSliderTab* pTab)
+{
+	if(pTab == m_pLeftTab)
+	{
+		m_nPos -= m_nViewSize;
+		if(m_nPos < 0)
+			m_nPos = 0;
+		m_dirty = true;
+		if(m_pParent)
+			m_pParent->OnHorizScroll(this);
+	}
+	else if(pTab == m_pRightTab)
+	{
+		m_nPos += m_nViewSize;
+		if(m_nPos > m_nModelSize - m_nViewSize)
+			m_nPos = m_nModelSize - m_nViewSize;
+		m_dirty = true;
+		if(m_pParent)
+			m_pParent->OnHorizScroll(this);
 	}
 }
 
-void GWidgetHorizScrollBar::Update()
+/*virtual*/ void GWidgetHorizScrollBar::OnSlideTab(GWidgetSliderTab* pTab, int dx, int dy)
 {
-	GRect r;
-	r.x = 0;
-	r.y = 0;
-	r.w = m_image.GetWidth();
-	r.h = m_image.GetHeight();
-	Draw(&m_image, &r, m_pStyle, m_nPos, m_nViewSize, m_nModelSize);
+	if(pTab != m_pTab)
+		return;
+	m_nPos += dx * m_nModelSize / m_nViewSize;
+	if(m_nPos < 0)
+		m_nPos = 0;
+	else if(m_nPos > m_nModelSize - m_nViewSize)
+		m_nPos = m_nModelSize - m_nViewSize;
+	m_dirty = true;
+	Draw(NULL);
+	if(m_pParent)
+		m_pParent->OnHorizScroll(this);
 }
 
 // ----------------------------------------------------------------------
 
 GWidgetVertScrollBar::GWidgetVertScrollBar(GWidgetGroup* pParent, int x, int y, int w, int h, int nViewSize, int nModelSize)
-: GWidgetAtomic(pParent, x, y, w, h)
+: GWidgetGroupWithCanvas(pParent, x, y, w, h)
 {
-	m_pStyle = pParent->GetStyle();
-	m_image.SetSize(w, h);
 	m_nViewSize = nViewSize;
 	m_nModelSize = nModelSize;
 	m_nPos = 0;
+	int hgt = GetButtonHeight();
+	m_pUpButton = new GWidgetVCRButton(this, 0, 0, w, hgt, GWidgetVCRButton::ArrowUp);
+	m_pDownButton = new GWidgetVCRButton(this, 0, m_rect.h - hgt, w, hgt, GWidgetVCRButton::ArrowDown);
+	m_pAboveTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, true);
+	m_pTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, false);
+	m_pBelowTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, true);
 }
 
 /*virtual*/ GWidgetVertScrollBar::~GWidgetVertScrollBar()
 {
 }
 
-GImage* GWidgetVertScrollBar::GetImage(GRect* pOutRect)
+int GWidgetVertScrollBar::GetButtonHeight()
 {
-	pOutRect->x = 0;
-	pOutRect->y = 0;
-	pOutRect->w = m_image.GetWidth();
-	pOutRect->h = m_image.GetHeight();
-	return &m_image;
+	if((m_rect.h >> 2) < m_rect.w)
+		return (m_rect.h >> 2);
+	else
+		return m_rect.w;
 }
 
 void GWidgetVertScrollBar::SetSize(int w, int h)
@@ -721,60 +1051,99 @@ void GWidgetVertScrollBar::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w, h);
+	m_dirty = true;
 }
 
-/*virtual*/ void GWidgetVertScrollBar::Draw(GImage* pImage)
+/*virtual*/ void GWidgetVertScrollBar::Update()
 {
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
-}
+	m_dirty = false;
 
-/*static*/ void GWidgetVertScrollBar::Draw(GImage* pImage, GRect* pR, GWidgetStyle* pStyle, int nPos, int nViewSize, int nModelSize)
-{
 	// Calculations
-	int nButtonSize = pR->w;
-	if(pR->h / 4 < nButtonSize)
-		nButtonSize = pR->h / 4;
-	int nSlideAreaSize = pR->h - nButtonSize - nButtonSize;
-	int nTabSize = nSlideAreaSize * nViewSize / nModelSize;
-	if(nTabSize < pR->w)
-		nTabSize = pR->w;
+	int wid = m_image.GetWidth();
+	int hgt = m_image.GetHeight();
+	int nButtonSize = GetButtonHeight();
+	int nSlideAreaSize = hgt - nButtonSize - nButtonSize;
+	int nTabSize = nSlideAreaSize * m_nViewSize / m_nModelSize;
+	if(nTabSize < wid)
+		nTabSize = wid;
 	if(nTabSize > nSlideAreaSize)
 		nTabSize = nSlideAreaSize;
-	int nTabPos = nPos * nSlideAreaSize / nModelSize;
+	int nTabPos = m_nPos * nSlideAreaSize / m_nModelSize;
 	if(nTabPos > nSlideAreaSize - nTabSize)
 		nTabPos = nSlideAreaSize - nTabSize;
 	nTabPos += nButtonSize;
 
-	// Draw the sliding area
-	pStyle->DrawHorizCurvedInSurface(pImage, pR->x, pR->y + nButtonSize, pR->w, nSlideAreaSize);
-
-	// Draw the sliding tab
-	pStyle->DrawHorizCurvedOutSurface(pImage, pR->x, pR->y + nTabPos, pR->w, nTabSize);
+	// Draw the three tab areas
+	m_pAboveTab->SetPos(0, nButtonSize);
+	m_pAboveTab->SetSize(m_rect.w, nTabPos - nButtonSize);
+	m_pTab->SetPos(0, nTabPos);
+	m_pTab->SetSize(m_rect.w, nTabSize);
+	m_pBelowTab->SetPos(0, nTabPos + nTabSize);
+	m_pBelowTab->SetSize(m_rect.w, nSlideAreaSize + nButtonSize - (nTabPos + nTabSize));
+	m_pAboveTab->Draw(this);
+	m_pTab->Draw(this);
+	m_pBelowTab->Draw(this);
 
 	// Draw the buttons
-	pStyle->DrawVertCurvedOutSurface(pImage, pR->x, pR->y, pR->w, nButtonSize);
-	pStyle->DrawVertCurvedOutSurface(pImage, pR->x, pR->y + pR->h - nButtonSize, pR->w, nButtonSize);
-	int nArrowSize = nButtonSize / 3;
-	int w = pR->w / 2;
-	int n;
-	for(n = 0; n < nArrowSize; n++)
+	m_pUpButton->Draw(this);
+	m_pDownButton->Draw(this);
+}
+
+/*virtual*/ void GWidgetVertScrollBar::OnPushVCRButton(GWidgetVCRButton* pButton)
+{
+	if(pButton == m_pUpButton)
 	{
-		pImage->DrawLine(pR->x + w - n, pR->y + nArrowSize + n, pR->x + w + n, pR->y + nArrowSize + n, 0);
-		pImage->DrawLine(pR->x + w - n, pR->y + pR->h - nArrowSize - n, pR->x + w + n, pR->y + pR->h - nArrowSize - n, 0);
+		m_nPos -= m_nViewSize / 5;
+		if(m_nPos < 0)
+			m_nPos = 0;
+	}
+	else
+	{
+		GAssert(pButton == m_pDownButton, "unexpected button");
+		m_nPos += m_nViewSize / 5;
+		if(m_nPos > m_nModelSize - m_nViewSize)
+			m_nPos = m_nModelSize - m_nViewSize;
+	}
+	m_dirty = true;
+	if(m_pParent)
+		m_pParent->OnVertScroll(this);
+}
+
+/*virtual*/ void GWidgetVertScrollBar::OnClickTab(GWidgetSliderTab* pTab)
+{
+	if(pTab == m_pAboveTab)
+	{
+		m_nPos -= m_nViewSize;
+		if(m_nPos < 0)
+			m_nPos = 0;
+		m_dirty = true;
+		if(m_pParent)
+			m_pParent->OnVertScroll(this);
+	}
+	else if(pTab == m_pBelowTab)
+	{
+		m_nPos += m_nViewSize;
+		if(m_nPos > m_nModelSize - m_nViewSize)
+			m_nPos = m_nModelSize - m_nViewSize;
+		m_dirty = true;
+		if(m_pParent)
+			m_pParent->OnVertScroll(this);
 	}
 }
 
-void GWidgetVertScrollBar::Update()
+/*virtual*/ void GWidgetVertScrollBar::OnSlideTab(GWidgetSliderTab* pTab, int dx, int dy)
 {
-	GRect r;
-	r.x = 0;
-	r.y = 0;
-	r.w = m_image.GetWidth();
-	r.h = m_image.GetHeight();
-	Draw(&m_image, &r, m_pStyle, m_nPos, m_nViewSize, m_nModelSize);
+	if(pTab != m_pTab)
+		return;
+	m_nPos += dy * m_nModelSize / m_nViewSize;
+	if(m_nPos < 0)
+		m_nPos = 0;
+	else if(m_nPos > m_nModelSize - m_nViewSize)
+		m_nPos = m_nModelSize - m_nViewSize;
+	m_dirty = true;
+	Draw(NULL);
+	if(m_pParent)
+		m_pParent->OnVertScroll(this);
 }
 
 // ----------------------------------------------------------------------
@@ -782,16 +1151,25 @@ void GWidgetVertScrollBar::Update()
 GWidgetTextBox::GWidgetTextBox(GWidgetGroup* pParent, int x, int y, int w, int h)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
-	m_pStyle = pParent->GetStyle();
 	m_image.SetSize(w, h);
+	m_dirty = true;
 }
 
 /*virtual*/ GWidgetTextBox::~GWidgetTextBox()
 {
 }
 
+void GWidgetTextBox::SetText(const char* szText)
+{
+	m_text.Copy(szText);
+	m_dirty = true;
+	Draw(NULL);
+}
+
 GImage* GWidgetTextBox::GetImage(GRect* pOutRect)
 {
+	if(m_dirty)
+		Update();
 	pOutRect->x = 0;
 	pOutRect->y = 0;
 	pOutRect->w = m_image.GetWidth();
@@ -799,16 +1177,10 @@ GImage* GWidgetTextBox::GetImage(GRect* pOutRect)
 	return &m_image;
 }
 
-/*virtual*/ void GWidgetTextBox::Draw(GImage* pImage)
-{
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
-}
-
 void GWidgetTextBox::Update()
 {
+	m_dirty = false;
+
 	// Calculations
 	int w = m_image.GetWidth();
 	int h = m_image.GetHeight();
@@ -831,17 +1203,50 @@ void GWidgetTextBox::Update()
 	m_image.DrawHardText(&r, szText, m_pStyle->GetTextBoxTextColor(), 1);
 
 	// Draw the cursor
-	m_pStyle->DrawCursor(&m_image, nCursorPos, 2, 4, h - 3);
+	m_pStyle->DrawCursor(&m_image, nCursorPos, 2, 2, h - 5);
+}
+
+/*virtual*/ void GWidgetTextBox::OnChar(char c)
+{
+	if(c == '\b')
+		m_text.RemoveLastChar();
+	else
+		m_text.Add(c);
+	m_dirty = true;
+	Draw(NULL);
 }
 
 // ----------------------------------------------------------------------
 
-GWidgetListBox::GWidgetListBox(GWidgetGroup* pParent, GPointerArray* pItems, int x, int y, int w, int h)
-: GWidgetAtomic(pParent, x, y, w, h)
+GWidgetListBoxItem::GWidgetListBoxItem(GWidgetListBox* pParent, const char* szText)
+	: GWidgetAtomic((GWidgetGroup*)pParent, 0, 0, 0, 0)
 {
-	m_pItems = pItems;
-	m_pStyle = pParent->GetStyle();
-	m_image.SetSize(w, h);
+	m_nIndex = pParent->GetSize() - 1;
+	pParent->SetItemRect(&m_rect, m_nIndex);
+	m_szText = new char[strlen(szText) + 1];
+	strcpy(m_szText, szText);
+}
+
+/*virtual*/ GWidgetListBoxItem::~GWidgetListBoxItem()
+{
+	delete(m_szText);
+}
+
+/*virtual*/ void GWidgetListBoxItem::Grab()
+{
+	((GWidgetListBox*)m_pParent)->OnGrabItem(m_nIndex);
+}
+
+/*virtual*/ void GWidgetListBoxItem::Draw(GWidgetGroupWithCanvas* pTarget)
+{
+	((GWidgetListBox*)m_pParent)->Draw(pTarget); // todo: this isn't a very efficient way to do this
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetListBox::GWidgetListBox(GWidgetGroup* pParent, int x, int y, int w, int h)
+: GWidgetGroupWithCanvas(pParent, x, y, w, h)
+{
 	m_nSelectedIndex = -1;
 	m_nScrollPos = 0;
 	m_eBaseColor = blue;
@@ -851,31 +1256,16 @@ GWidgetListBox::GWidgetListBox(GWidgetGroup* pParent, GPointerArray* pItems, int
 {
 }
 
-GImage* GWidgetListBox::GetImage(GRect* pOutRect)
-{
-	pOutRect->x = 0;
-	pOutRect->y = 0;
-	pOutRect->w = m_image.GetWidth();
-	pOutRect->h = m_image.GetHeight();
-	return &m_image;
-}
-
-/*virtual*/ void GWidgetListBox::Draw(GImage* pImage)
-{
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
-}
-
 void GWidgetListBox::SetSelection(int n)
 {
 	m_nSelectedIndex = n;
+	m_dirty = true;
 }
 
 void GWidgetListBox::SetScrollPos(int n)
 {
 	m_nScrollPos = n;
+	m_dirty = true;
 }
 
 void GWidgetListBox::SetSize(int w, int h)
@@ -883,10 +1273,13 @@ void GWidgetListBox::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w, h);
+	m_dirty = true;
 }
 
-void GWidgetListBox::Update()
+/*virtual*/ void GWidgetListBox::Update()
 {
+	m_dirty = false;
+
 	// Calculations
 	int w = m_image.GetWidth();
 	int h = m_image.GetHeight();
@@ -911,7 +1304,7 @@ void GWidgetListBox::Update()
 	r.w = w - 2;
 	r.h = nItemHeight;
 	bool bScrollBar = false;
-	if(m_nScrollPos > 0 || m_pItems->GetSize() * nItemHeight > h)
+	if(m_nScrollPos > 0 || m_pWidgets->GetSize() * nItemHeight > h)
 		bScrollBar = true;
 	int nScrollBarWidth = m_pStyle->GetDefaultScrollBarSize();
 	if(bScrollBar)
@@ -922,14 +1315,16 @@ void GWidgetListBox::Update()
 	}
 
 	// Draw the items
-	char* szLine;
-	int nCount = m_pItems->GetSize();
+	GWidgetListBoxItem* pItem;
+	const char* szLine;
+	int nCount = m_pWidgets->GetSize();
 	int n;
 	for(n = 0; n < nCount; n++)
 	{
 		if(r.y >= h)
 			break;
-		szLine = (char*)m_pItems->GetPointer(n);
+		pItem = GetItem(n);
+		szLine = pItem->GetText();
 		if(n == m_nSelectedIndex)
 		{
 			m_pStyle->DrawVertCurvedOutSurface(&m_image, r.x, r.y, r.w, r.h);
@@ -949,7 +1344,7 @@ void GWidgetListBox::Update()
 		}
 		r.y += r.h;
 	}
-
+/*
 	// Draw the scroll bar
 	if(bScrollBar)
 	{
@@ -957,24 +1352,62 @@ void GWidgetListBox::Update()
 		r.y = 1;
 		r.w = nScrollBarWidth;
 		r.h = h - 2;
-		GWidgetVertScrollBar::Draw(&m_image, &r, m_pStyle, m_nScrollPos, h, m_pItems->GetSize() * nItemHeight);
+		GWidgetVertScrollBar::Draw(&m_image, &r, m_pStyle, m_nScrollPos, h, m_pWidgets->GetSize() * nItemHeight);
 	}
-
+*/
 	// Draw the border
 	m_image.DrawBox(0, 0, w - 1, h - 1, m_pStyle->GetTextBoxBorderColor(), false);
+}
+
+void GWidgetListBox::OnGrabItem(int nIndex)
+{
+	SetSelection(nIndex);
+	if(m_pParent)
+		m_pParent->OnChangeListSelection(this);
+	m_dirty = true; // todo: only redraw the list item
+	Draw(NULL);
+}
+
+GWidgetListBoxItem* GWidgetListBox::GetItem(int n)
+{
+	return (GWidgetListBoxItem*)m_pWidgets->GetPointer(n);
+}
+
+int GWidgetListBox::GetSize()
+{
+	return m_pWidgets->GetSize();
+}
+
+void GWidgetListBox::SetItemRect(GRect* pRect, int nIndex)
+{
+	int nItemHeight = m_pStyle->GetListBoxLineHeight(); 
+	pRect->Set(0, nIndex * nItemHeight, m_rect.w, nItemHeight);
+	m_dirty = true;
+}
+
+void GWidgetListBox::Clear()
+{
+	int n;
+	for(n = 0; n < m_pWidgets->GetSize(); n++)
+	{
+		GWidget* pWidget = GetChildWidget(n);
+//		if(pWidget == m_pVertScrollBar)
+//			continue;
+//		if(pWidget == m_pHorizScrollBar)
+//			continue;
+		delete(pWidget);
+		n--;
+	}
+	m_dirty = true;
 }
 
 // ----------------------------------------------------------------------
 
 GWidgetGrid::GWidgetGrid(GWidgetGroup* pParent, GPointerArray* pRows, int nColumns, int x, int y, int w, int h)
-: GWidgetGroup(pParent, x, y, w, h)
+: GWidgetGroupWithCanvas(pParent, x, y, w, h)
 {
 	m_nColumns = nColumns;
 	m_pRows = pRows;
-	m_pStyle = pParent->GetStyle();
-	m_image.SetSize(w, h);
-	m_nHScrollPos = 0;
-	m_nVScrollPos = 0;
 	m_nRowHeight = 20;
 	m_pColumnHeaders = new GWidget*[m_nColumns];
 	m_nColumnWidths = new int[m_nColumns];
@@ -984,6 +1417,9 @@ GWidgetGrid::GWidgetGrid(GWidgetGroup* pParent, GPointerArray* pRows, int nColum
 		m_pColumnHeaders[n] = NULL;
 		m_nColumnWidths[n] = 80;
 	}
+	int nScrollBarSize = m_pStyle->GetDefaultScrollBarSize();
+	m_pVertScrollBar = new GWidgetVertScrollBar(this, w - nScrollBarSize, 0, nScrollBarSize, h, h - m_nRowHeight - nScrollBarSize, h);
+	m_pHorizScrollBar = new GWidgetHorizScrollBar(this, 0, h - nScrollBarSize, w - nScrollBarSize, nScrollBarSize, w - nScrollBarSize, 80 * nColumns);
 }
 
 /*virtual*/ GWidgetGrid::~GWidgetGrid()
@@ -992,31 +1428,16 @@ GWidgetGrid::GWidgetGrid(GWidgetGroup* pParent, GPointerArray* pRows, int nColum
 	delete(m_nColumnWidths);
 }
 
-GImage* GWidgetGrid::GetImage(GRect* pOutRect)
-{
-	pOutRect->x = 0;
-	pOutRect->y = 0;
-	pOutRect->w = m_image.GetWidth();
-	pOutRect->h = m_image.GetHeight();
-	return &m_image;
-}
-
-/*virtual*/ void GWidgetGrid::Draw(GImage* pImage)
-{
-	GRect r;
-	GImage* pSrcImage = GetImage(&r);
-	CalcAbsolutePos();
-	pImage->Blit(m_nAbsoluteX, m_nAbsoluteY, pSrcImage, &r);
-}
-
 void GWidgetGrid::SetHScrollPos(int n)
 {
-	m_nHScrollPos = n;
+	m_pHorizScrollBar->SetPos(n);
+	m_dirty = true;
 }
 
 void GWidgetGrid::SetVScrollPos(int n)
 {
-	m_nVScrollPos = n;
+	m_pVertScrollBar->SetPos(n);
+	m_dirty = true;
 }
 
 void GWidgetGrid::SetSize(int w, int h)
@@ -1024,6 +1445,7 @@ void GWidgetGrid::SetSize(int w, int h)
 	m_rect.w = w;
 	m_rect.h = h;
 	m_image.SetSize(w, h);
+	m_dirty = true;
 }
 
 void GWidgetGrid::AddBlankRow()
@@ -1033,6 +1455,7 @@ void GWidgetGrid::AddBlankRow()
 	for(n = 0; n < m_nColumns; n++)
 		pNewRow[n] = NULL;
 	m_pRows->AddPointer(pNewRow);
+	m_dirty = true;
 }
 
 GWidget* GWidgetGrid::GetWidget(int col, int row)
@@ -1052,6 +1475,7 @@ void GWidgetGrid::SetWidget(int col, int row, GWidget* pWidget)
 	for(n = 0; n < col; n++)
 		nColPos += m_nColumnWidths[n];
 	pWidget->SetPos(nColPos, (row + 1) * m_nRowHeight);
+	// todo: figure out how to handle the dirty flag here
 }
 
 GWidget* GWidgetGrid::GetColumnHeader(int col)
@@ -1069,6 +1493,7 @@ void GWidgetGrid::SetColumnHeader(int col, GWidget* pWidget)
 	for(n = 0; n < col; n++)
 		nColPos += m_nColumnWidths[n];
 	pWidget->SetPos(nColPos, 0);
+	// todo: figure out how to handle the dirty flag here
 }
 
 int GWidgetGrid::GetColumnWidth(int col)
@@ -1081,13 +1506,16 @@ void GWidgetGrid::SetColumnWidth(int col, int nWidth)
 {
 	GAssert(col >= 0 && col < m_nColumns, "out of range");
 	m_nColumnWidths[col] = nWidth;
+	m_dirty = true;
 }
 
-void GWidgetGrid::UpdateAll()
+/*virtual*/ void GWidgetGrid::Update()
 {
+	m_dirty = false;
+
 	// Calculations
-	int w = m_image.GetWidth() - m_pStyle->GetListBoxLineHeight();
-	int h = m_image.GetHeight() - m_pStyle->GetListBoxLineHeight();
+	int w = m_image.GetWidth() - m_pStyle->GetDefaultScrollBarSize();
+	int h = m_image.GetHeight() - m_pStyle->GetDefaultScrollBarSize();
 
 	// Draw the background area
 	m_image.Clear(0x00000000);
@@ -1100,15 +1528,17 @@ void GWidgetGrid::UpdateAll()
 	int nVertPos, nVertHeight, nModelVertPos;
 	GWidget* pWidget;
 	GRect r;
+	int nHScrollPos = m_pHorizScrollBar->GetPos();
+	int nVScrollPos = m_pVertScrollBar->GetPos();
 	GImage* pImage;
 	int n, i;
 	for(n = 0; n < m_nColumns; n++)
 	{
 		nColumnWidth = m_nColumnWidths[n];
-		if(nColumnStart + nColumnWidth > m_nHScrollPos)
+		if(nColumnStart + nColumnWidth > nHScrollPos)
 		{
 			// Calculate left clip amount
-			nLeftPos = nColumnStart - m_nHScrollPos;
+			nLeftPos = nColumnStart - nHScrollPos;
 			if(nLeftPos >= w)
 				break;
 			if(nLeftPos + nColumnWidth <= w)
@@ -1128,29 +1558,8 @@ void GWidgetGrid::UpdateAll()
 			if(pWidget)
 			{
 				pImage = pWidget->GetImage(&r);
-				if(r.w > nColumnWidth)
-					r.w = nColumnWidth;
-				if(r.h > m_nRowHeight)
-					r.h = m_nRowHeight;
-				r.x += nLeftClip;
-				r.w -= nLeftClip;
-				r.w -= nRightClip;
-				m_image.Blit(nLeftPos, 0, pImage, &r);
-			}
-
-			// Draw all the widgets in the column
-			nVertPos = m_nRowHeight;
-			nVertHeight = m_nVScrollPos % m_nRowHeight;
-			i = (m_nVScrollPos + m_nRowHeight - 1) / m_nRowHeight - 1; // The funky math in this line is to work around how C++ rounds negative fractions up
-			nModelVertPos = i * m_nRowHeight;
-			while(nVertPos < h)
-			{
-				if(i >= m_pRows->GetSize())
-					break;
-				if(nModelVertPos + m_nRowHeight > m_nVScrollPos)
+				if(pImage)
 				{
-					pWidget = ((GWidget**)m_pRows->GetPointer(i))[n];
-					pImage = pWidget->GetImage(&r);
 					if(r.w > nColumnWidth)
 						r.w = nColumnWidth;
 					if(r.h > m_nRowHeight)
@@ -1158,11 +1567,41 @@ void GWidgetGrid::UpdateAll()
 					r.x += nLeftClip;
 					r.w -= nLeftClip;
 					r.w -= nRightClip;
-					r.y += (m_nRowHeight - nVertHeight);
-					r.h -= (m_nRowHeight - nVertHeight);
-					if(nVertPos + r.h > h)
-						r.h -= (nVertPos + r.h - h);
-					m_image.Blit(nLeftPos, nVertPos, pImage, &r);
+					m_image.Blit(nLeftPos, 0, pImage, &r);
+				}
+			}
+
+			// Draw all the widgets in the column
+			nVertPos = m_nRowHeight;
+			nVertHeight = m_nRowHeight - (nVScrollPos % m_nRowHeight);
+			i = nVScrollPos / m_nRowHeight;
+			nModelVertPos = i * m_nRowHeight;
+			while(nVertPos < h)
+			{
+				if(i >= m_pRows->GetSize())
+					break;
+				if(nModelVertPos + m_nRowHeight > nVScrollPos)
+				{
+					pWidget = ((GWidget**)m_pRows->GetPointer(i))[n];
+					if(pWidget)
+					{
+						pImage = pWidget->GetImage(&r);
+						if(pImage)
+						{
+							if(r.w > nColumnWidth)
+								r.w = nColumnWidth;
+							if(r.h > m_nRowHeight)
+								r.h = m_nRowHeight;
+							r.x += nLeftClip;
+							r.w -= nLeftClip;
+							r.w -= nRightClip;
+							r.y += (m_nRowHeight - nVertHeight);
+							r.h -= (m_nRowHeight - nVertHeight);
+							if(nVertPos + r.h > h)
+								r.h -= (nVertPos + r.h - h);
+							m_image.Blit(nLeftPos, nVertPos, pImage, &r);
+						}
+					}
 				}
 				nVertPos += nVertHeight;
 				nVertHeight = m_nRowHeight;
@@ -1172,14 +1611,239 @@ void GWidgetGrid::UpdateAll()
 		}
 		nColumnStart += nColumnWidth;
 	}
+	while(n < m_nColumns)
+	{
+		nColumnStart += m_nColumnWidths[n];
+		n++;
+	}
 
 	// Draw the scroll bars
-	/*
-		r.x = w - 1 - nScrollBarWidth;
-		r.y = 1;
-		r.w = nScrollBarWidth;
-		r.h = h - 2;
-		GWidgetVertScrollBar::Draw(&m_image, &r, m_pStyle, m_nScrollPos, h, m_pItems->GetSize() * nItemHeight);
-	*/
+	m_pVertScrollBar->SetModelSize(MAX(m_pRows->GetSize() * m_nRowHeight, m_rect.h));
+	m_pVertScrollBar->Draw(this);
+	m_pHorizScrollBar->SetModelSize(MAX(nColumnStart, m_rect.w));
+	m_pHorizScrollBar->Draw(this);
 }
 
+void GWidgetGrid::FlushItems()
+{
+	bool bCol;
+	int n, i;
+	for(n = 0; n < m_pWidgets->GetSize(); n++)
+	{
+		GWidget* pWidget = (GWidget*)m_pWidgets->GetPointer(n);
+		if(pWidget == m_pVertScrollBar)
+			continue;
+		if(pWidget == m_pHorizScrollBar)
+			continue;
+		bCol = false;
+		for(i = 0; i < m_nColumns; i++)
+		{
+			if(m_pColumnHeaders[i] == pWidget)
+			{
+				bCol = true;
+				break;
+			}
+		}
+		if(bCol)
+			continue;
+		delete(pWidget);
+		n--;
+	}
+	int nCount = m_pRows->GetSize();
+	for(n = 0; n < nCount; n++)
+		delete((GWidget**)m_pRows->GetPointer(n));
+	m_pRows->Clear();
+
+	m_dirty = true;
+}
+
+/*virtual*/ void GWidgetGrid::OnVertScroll(GWidgetVertScrollBar* pScrollBar)
+{
+	m_dirty = true; // todo: only update the rows
+	Draw(NULL);
+}
+
+/*virtual*/ void GWidgetGrid::OnHorizScroll(GWidgetHorizScrollBar* pScrollBar)
+{
+	m_dirty = true; // todo: only update the rows
+	Draw(NULL);
+}
+
+/*virtual*/ GWidgetAtomic* GWidgetGrid::FindAtomicWidget(int x, int y)
+{
+	GRect* pRect = m_pVertScrollBar->GetRect();
+	if(x >= pRect->x)
+		return m_pVertScrollBar->FindAtomicWidget(x - pRect->x, y - pRect->y);
+	pRect = m_pHorizScrollBar->GetRect();
+	if(y >= pRect->y)
+		return m_pHorizScrollBar->FindAtomicWidget(x - pRect->x, y - pRect->y);
+	int xOrig = x;
+	int yOrig = y;
+	x += m_pHorizScrollBar->GetPos();
+	GWidget** pRow;
+	if(y < m_nRowHeight)
+		pRow = m_pColumnHeaders;
+	else
+	{
+		y += m_pVertScrollBar->GetPos();
+		y -= m_nRowHeight;
+		y /= m_nRowHeight;
+		if(y >= 0 && y < m_pRows->GetSize())
+			pRow = (GWidget**)m_pRows->GetPointer(y);
+		else
+			return NULL;
+	}
+	GWidget* pWidget = NULL;
+	int nColLeft = 0;
+	int n;
+	for(n = 0; n < m_nColumns; n++)
+	{
+		nColLeft += m_nColumnWidths[n];
+		if(nColLeft > x)
+		{
+			pWidget = pRow[n];
+			break;
+		}
+	}
+	if(pWidget)
+	{
+		if(pWidget->IsAtomicWidget())
+			return (GWidgetAtomic*)pWidget;
+		else
+		{
+			GRect* pRect = pWidget->GetRect();
+			return ((GWidgetGroup*)pWidget)->FindAtomicWidget(xOrig - pRect->x, yOrig - pRect->y);
+		}
+	}
+	return NULL;
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetFileSystemBrowser::GWidgetFileSystemBrowser(GWidgetGroup* pParent, int x, int y, int w, int h, const char* szExtension)
+ : GWidgetGroup(pParent, x, y, w, h)
+{
+	int nPathHeight = m_pStyle->GetListBoxLineHeight();
+	GString s;
+	m_pPath = new GWidgetTextLabel(this, 0, 0, w, nPathHeight, &s, true);
+	m_pListItems = new GPointerArray(64);
+	m_pFiles = new GWidgetGrid(this, m_pListItems, 3, 0, nPathHeight, w, h - nPathHeight);
+
+	// Column Headers
+	m_pFiles->SetColumnWidth(0, 300);
+	m_pFiles->SetColumnWidth(1, 50);
+	m_pFiles->SetColumnWidth(2, 50);
+	GWidgetTextButton* pButton;
+	s.Copy(L"Filename");
+	pButton = new GWidgetTextButton(m_pFiles, 0, 0, 300, 20, &s);
+	m_pFiles->SetColumnHeader(0, pButton);
+	s.Copy(L"Size");
+	pButton = new GWidgetTextButton(m_pFiles, 0, 0, 50, 20, &s);
+	m_pFiles->SetColumnHeader(1, pButton);
+	s.Copy(L"Date");
+	pButton = new GWidgetTextButton(m_pFiles, 0, 0, 50, 20, &s);
+	m_pFiles->SetColumnHeader(2, pButton);
+
+	// Extension
+	int nExtLen = 0;
+	if(szExtension)
+		nExtLen = strlen(szExtension);
+	if(nExtLen > 0)
+	{
+		m_szExtension = new char[nExtLen + 1];
+		strcpy(m_szExtension, szExtension);
+	}
+	else
+		m_szExtension = NULL;
+
+	ReloadFileList();
+}
+
+/*virtual*/ GWidgetFileSystemBrowser::~GWidgetFileSystemBrowser()
+{
+	delete(m_pListItems);
+	delete(m_szExtension);
+}
+
+/*virtual*/ void GWidgetFileSystemBrowser::Draw(GWidgetGroupWithCanvas* pTarget)
+{
+	m_pPath->Draw(pTarget);
+	m_pFiles->Draw(pTarget);
+}
+
+void GWidgetFileSystemBrowser::AddFilename(bool bDir, const char* szFilename)
+{
+	int nRows = m_pFiles->GetRows()->GetSize();
+	m_pFiles->AddBlankRow();
+	GString s;
+	s.Copy(szFilename);
+	GWidgetTextLabel* pLabel = new GWidgetTextLabel(m_pFiles, 0, 0, 100, 20, &s, bDir);
+	m_pFiles->SetWidget(0, nRows, pLabel);
+}
+
+void GWidgetFileSystemBrowser::ReloadFileList()
+{
+	m_pFiles->FlushItems();
+	{
+		getcwd(m_szPath, 256);
+		m_pPath->SetText(m_szPath);
+		if(strlen(m_szPath) >
+#ifdef WIN32
+							3)
+#else // WIN32
+							1)
+#endif // !WIN32
+		AddFilename(true, "..");
+	}
+
+	// Dirs
+	{
+		GDirList dl(false, false, true, false);
+		while(true)
+		{
+			const char* szDir = dl.GetNext();
+			if(!szDir)
+				break;
+			AddFilename(true, szDir);
+		}
+	}
+
+	// Files
+	{
+		char szExt[256];
+		GDirList dl(false, true, false, false);
+		while(true)
+		{
+			const char* szFilename = dl.GetNext();
+			if(!szFilename)
+				break;
+			if(m_szExtension)
+			{
+				_splitpath(szFilename, NULL, NULL, NULL, szExt);
+				if(stricmp(szExt, m_szExtension) != 0)
+					continue;
+			}
+			AddFilename(false, szFilename);
+		}
+	}
+}
+
+/*virtual*/ void GWidgetFileSystemBrowser::OnClickTextLabel(GWidgetTextLabel* pLabel)
+{
+	GString* pText = pLabel->GetText();
+	char* szFilename = (char*)alloca(pText->GetLength() + 1);
+	pText->GetAnsi(szFilename);
+	strcat(m_szPath, "/");
+	strcat(m_szPath, szFilename);
+	if(chdir(m_szPath) == 0)
+	{
+		m_pFiles->SetVScrollPos(0);
+		ReloadFileList();
+		Draw(NULL);
+	}
+	else
+	{
+		if(m_pParent)
+			m_pParent->OnSelectFilename(this, m_szPath);
+	}
+}

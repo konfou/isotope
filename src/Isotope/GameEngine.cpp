@@ -32,11 +32,13 @@
 #include <direct.h>
 #else
 #include <unistd.h>
+#include <signal.h>
 #endif // WIN32
 #include "MObject.h"
 #include <string.h>
 #include "AutoUpdate.h"
 #include "MStore.h"
+#include <stdarg.h>
 
 /*static*/ const char* GameEngine::s_szAppPath = NULL;
 /*static*/ const char* GameEngine::s_szCachePath = NULL;
@@ -45,33 +47,108 @@
 /*static*/ MAnimationStore* GameEngine::s_pAnimationStore = NULL;
 /*static*/ GXMLTag* GameEngine::s_pConfigTag = NULL;
 
-/*static*/ void GameEngine::ThrowError(const char* szMessage)
+void GameEngine::ThrowError(const char* szFormat, ...)
 {
+	// Measure the required buffer size--todo: there might be a function like "vscwprintf" that does this, but I couldn't find it so I kludged my own
+	int nSize = 0;
+	{
+		va_list args;
+		const char* sz = szFormat;
+		va_start(args, szFormat);
+		{
+			while(*sz != L'\0')
+			{
+				if(*sz == L'%')
+				{
+					sz++;
+					switch(*sz)
+					{
+						case 'c':
+							nSize += 1;
+							va_arg(args, int/*char*/);
+							break;
+						case 's':
+							nSize += strlen(va_arg(args, char*));
+							break;
+						case 'd':
+							nSize += 10;
+							va_arg(args, int);
+							break;
+						case 'l':
+							nSize += 20;
+							va_arg(args, double);
+							break;
+						case 'f':
+							nSize += 20;
+							va_arg(args, double/*float*/);
+							break;
+						default:
+							nSize += 20; // take a guess
+							break;
+					}
+				}
+				sz++;
+				nSize++;
+			}
+		}
+		va_end(args);
+	}
+	nSize++;
+
+	// Allocate the buffer
+	char* szBuf = GetErrorMessageBuffer(nSize + 1);
+
+	// Format the message
+	{
+		va_list args;
+		va_start(args, szFormat);
+		{
+#ifdef WIN32
+			int res = vsprintf(szBuf, szFormat, args);
+#else
+			int res = vsnprintf(szBuf, nSize, szFormat, args);
+#endif
+			GAssert(res >= 0, "Error formatting string");
+		}
+		va_end(args);
+	}
+
+	// Throw the error
+	throw (const char*)szBuf;
+}
+
+
+/*
+
+void GameEngine::ThrowError(const char* szMessage)
+{
+#ifdef WIN32
 	GAssert(false, szMessage);
+#endif // WIN32
 	throw szMessage;
 }
 
-/*static*/ void GameEngine::ThrowError(const char* szMessage, const char* szParam1)
+void GameEngine::ThrowError(const char* szMessage, const char* szParam1)
 {
-	char* szBuf = (char*)alloca(strlen(szMessage) + strlen(szParam1) + 32);
+	char* szBuf = GetErrorMessageBuffer(strlen(szMessage) + strlen(szParam1) + 32);
 	sprintf(szBuf, szMessage, szParam1);
     ThrowError(szBuf);	
 }
 
-/*static*/ void GameEngine::ThrowError(const char* szMessage, const char* szParam1, const char* szParam2)
+void GameEngine::ThrowError(const char* szMessage, const char* szParam1, const char* szParam2)
 {
-	char* szBuf = (char*)alloca(strlen(szMessage) + strlen(szParam1) + strlen(szParam2) + 32);
+	char* szBuf = GetErrorMessageBuffer(strlen(szMessage) + strlen(szParam1) + strlen(szParam2) + 32);
 	sprintf(szBuf, szMessage, szParam1, szParam2);
     ThrowError(szBuf);	
 }
 
-/*static*/ void GameEngine::ThrowError(const char* szMessage, const char* szParam1, const char* szParam2, const char* szParam3)
+void GameEngine::ThrowError(const char* szMessage, const char* szParam1, const char* szParam2, const char* szParam3)
 {
-	char* szBuf = (char*)alloca(strlen(szMessage) + strlen(szParam1) + strlen(szParam2)  + strlen(szParam3)+ 32);
+	char* szBuf = GetErrorMessageBuffer(strlen(szMessage) + strlen(szParam1) + strlen(szParam2)  + strlen(szParam3)+ 32);
 	sprintf(szBuf, szMessage, szParam1, szParam2, szParam3);
     ThrowError(szBuf);	
 }
-
+*/
 /*static*/ double GameEngine::GetTime()
 {
 	return GTime::GetTime();
@@ -94,148 +171,6 @@
 	unsigned char pDigest[SHA512_DIGEST_LENGTH];
 	HashBlobSha512(pDigest, (const unsigned char*)szPassword, strlen(szPassword));
 	BufferToHex(pDigest, SHA512_DIGEST_LENGTH, pOutHash);
-}
-
-// todo: this method probably doesn't handle all URL's properly.  For example, if the host is
-// specified but the protocol is not, I think it chokes.  Also if the URL begins with a '/', I
-// don't think it really looks in the host's root folder as expected
-/*static*/ char* GameEngine::LoadFileFromUrl(const char* szRemotePath, const char* szUrl, int* pnSize)
-{
-	// Cut off the protocol specification
-	const char* pUrlWithoutProtocol = szUrl;
-	bool bProtocolSpecified = false;
-	if(strnicmp(szUrl, "http://", 7) == 0)
-	{
-		bProtocolSpecified = true;
-		pUrlWithoutProtocol = szUrl + 7;
-	}
-
-	// Try loading from the cache
-	const char* szCachePath = GetCachePath();
-	GTEMPBUF(szBuf, strlen(szCachePath) + strlen(szRemotePath) + strlen(pUrlWithoutProtocol) + 10);
-	strcpy(szBuf, szCachePath);
-	if(!bProtocolSpecified)
-	{
-		if(strnicmp(szRemotePath, "http://", 7) != 0)
-			GameEngine::ThrowError("remote path should start with protocol specifier");
-		strcat(szBuf, szRemotePath + 7);
-	}
-	strcat(szBuf, pUrlWithoutProtocol);
-	int n;
-	for(n = 0; szBuf[n] != '\0' && szBuf[n] != '?'; n++)
-	{
-	}
-	if(szBuf[n] == '?')
-		szBuf[n] = '\0';
-	if(GFile::DoesFileExist(szBuf))
-	{
-		if(pnSize)
-		{
-			char* pFile = GFile::LoadFileToBuffer(szBuf, pnSize);
-			if(!pFile)
-				ThrowError("Failed to load existing file from cache: %s", szBuf);
-			return pFile;
-		}
-		else
-		{
-			char* szFilename = new char[strlen(szBuf) + 1];
-			strcpy(szFilename, szBuf);
-			return szFilename;
-		}
-	}
-
-	// Download and cache the file
-	if(bProtocolSpecified)
-		return DownloadAndCacheFile(szUrl, pnSize, szBuf);
-	else
-	{
-		GTEMPBUF(szFullUrl, strlen(szRemotePath) + strlen(szUrl) + 1);
-		strcpy(szFullUrl, szRemotePath);
-		strcat(szFullUrl, szUrl);
-		return DownloadAndCacheFile(szFullUrl, pnSize, szBuf);
-	}
-}
-
-/*static*/ char* GameEngine::DownloadFile(const char* szUrl, int* pnSize, bool bThrow)
-{
-	// Download from URL
-	GHttpClient socket;
-	if(!socket.Get(szUrl, 80))
-		ThrowError("Failed to connect to url: %s", szUrl);
-	while(socket.CheckStatus() == GHttpClient::Downloading)
-	{
-#ifdef WIN32
-		GWindows::YieldToWindows();
-		Sleep(0);
-#else // WIN32
-		usleep(0);
-#endif // else WIN32
-	}
-	int nSize;
-	char* pFile = (char*)socket.DropData(&nSize);
-	if(!pFile && bThrow)
-	{
-		char* szSocketStatus;
-		switch(socket.CheckStatus())
-		{
-			case GHttpClient::Downloading: szSocketStatus = "Still downloading"; break;
-			case GHttpClient::Error: szSocketStatus = "An error occurred while downloading"; break;
-			case GHttpClient::NotFound: szSocketStatus = "404- Not Found"; break;
-			case GHttpClient::Done: szSocketStatus = "Successful"; break;
-			default: szSocketStatus = "Unexpected status enumeration"; break;
-		}
-		ThrowError("Failed to download URL \"%s\".  Status=%s", szUrl, szSocketStatus);
-	}
-	if(pnSize)
-		*pnSize = nSize;
-	return pFile;
-}
-
-/*static*/ char* GameEngine::DownloadAndCacheFile(const char* szUrl, int* pnSize, char* szCacheName)
-{
-	// Download it
-	int nSize;
-	Holder<char*> hFile(DownloadFile(szUrl, &nSize, true));
-	char* pFile = hFile.Get();
-
-	// Cache the file
-	int n;
-	for(n = strlen(szCacheName) - 1; n > 0; n--)
-	{
-		if(szCacheName[n] == '/' || szCacheName[n] == '\\')
-		{
-			char cTmp = szCacheName[n];
-			szCacheName[n] = '\0';
-			GFile::MakeDir(szCacheName);
-			szCacheName[n] = cTmp;
-			break;
-		}
-	}
-	{
-		FileHolder fh(fopen(szCacheName, "wb"));
-		FILE* pFH = fh.Get();
-		if(pFH)
-			fwrite(pFile, nSize, 1, pFH);
-		else
-		{
-			GAssert(false, "Failed to save file in cache");
-			if(!pnSize)
-				GameEngine::ThrowError("Failed to save file in cache: %s", szCacheName);
-		}
-	}
-
-	// Return the requested data (either the file loaded in memory, or the filename in the cache)
-	if(pnSize)
-	{
-		*pnSize = nSize;
-		return hFile.Drop();
-	}
-	else
-	{
-		char* szFilename = new char[strlen(szCacheName) + 1];
-		strcpy(szFilename, szCacheName);
-		return szFilename;
-	}
 }
 
 /*static*/ void GameEngine::SetAppPath(const char* szPath)
@@ -276,10 +211,10 @@ class Bogus(Object)\n\
 	Holder<GXMLTag*> hRootTag(GXMLTag::FromFile(szMediaListFile, &szErrorMessage, NULL, &nErrorLine, NULL));
 	GXMLTag* pRootTag = hRootTag.Get();
 	if(!pRootTag)
-		ThrowError("Error loading XML file: %s\n%s\n", szMediaListFile, szErrorMessage);
+		ThrowError("Error loading XML file \"%s\" at line %d.\n%s\n", szMediaListFile, nErrorLine, szErrorMessage);
 
 	// Make a bogus script engine
-	MScriptEngine* pBogusScriptEngine = new MScriptEngine(g_szBogusScript, strlen(g_szBogusScript), new IsotopeErrorHandler(), NULL, NULL, NULL, NULL);
+	MScriptEngine* pBogusScriptEngine = new MScriptEngine("*Global Script*", g_szBogusScript, strlen(g_szBogusScript), new IsotopeErrorHandler(), NULL, NULL, NULL, NULL);
 
 	// Load the image store
 	GXMLTag* pImages = pRootTag->GetChildTag("Images");
@@ -322,7 +257,7 @@ class Bogus(Object)\n\
 	int nErrorLine;
 	s_pConfigTag = GXMLTag::FromFile(szConfigFileName, &szErrorMessage, NULL, &nErrorLine, NULL);
 	if(!s_pConfigTag)
-		ThrowError("Failed to load config file: %s", szErrorMessage);
+		ThrowError("Failed to load config file \"%s\" at line %d.\n%s", szConfigFileName, nErrorLine, szErrorMessage);
 	return s_pConfigTag;
 }
 
@@ -347,16 +282,10 @@ class Bogus(Object)\n\
 	GetConfig()->ToFile(szConfigFileName);
 }
 
-/*static*/ const char* GameEngine::SetErrorMessage(const char* szMessage)
+/*static*/ char* GameEngine::GetErrorMessageBuffer(int nSize)
 {
 	delete(s_szErrorMessage);
-	if(szMessage)
-	{
-		s_szErrorMessage = new char[strlen(szMessage) + 1];
-		strcpy(s_szErrorMessage, szMessage);
-	}
-	else
-		s_szErrorMessage = NULL;
+	s_szErrorMessage = new char[nSize];
 	return s_szErrorMessage;
 }
 
@@ -498,14 +427,16 @@ int FooComparer(void* pA, void* pB)
 
 void test()
 {
+/*
 	// Test GHttpClient
-/*	GHttpClient socket;
+	GHttpClient socket;
 	socket.Get("http://www.gashler.com", 80);
 	while(socket.CheckStatus() == GHttpClient::Downloading)
 		GWindows::YieldToWindows();
 	char* szData = (char*)socket.GetData();
 	printf(szData);*/
 /*
+	// Test LoadPng
 	GImage gi;
 	int nSize;
 	Holder<char*> hBuf(GFile::LoadFileToBuffer("c:\\test.png", &nSize));
@@ -513,7 +444,7 @@ void test()
 	if(!LoadPng(&gi, (unsigned char*)pBuf, nSize))
 		GAssert(false, "Failed to load PNG");
 	gi.SaveBMPFile("c:\\test.bmp");*/
-
+/*
 	// Test GPointerArray::Sort
 	GPointerArray arr(64);
 	int n;
@@ -521,11 +452,81 @@ void test()
 		arr.AddPointer((void*)n);
 	arr.Sort(FooComparer);
 	for(n = 0; n <= 34; n++)
-		GAssert((int)arr.GetPointer(n) == n, "broken");
+		GAssert((int)arr.GetPointer(n) == n, "broken");*/
+/*
+	// Test collision map
+	FRect r;
+	MCollisionMap map;
+	r.x = 0;
+	r.y = 0;
+	r.w = 10;
+	r.h = 10;
+	map.AddSolidRect(&r);
+	r.x = 20;
+	r.y = 0;
+	r.w = 10;
+	r.h = 10;
+	map.AddSolidRect(&r);
+	r.x = 25;
+	r.y = 5;
+	r.w = 10;
+	r.h = 10;
+	map.AddSolidRect(&r);
+	map.Compile();
+	bool b;
+	b = map.Check(22, 12);
+	b = map.Check(22, 5);
+	b = map.Check(40, 4);*/
+/*
+	// Test glowing edges
+	GImage img;
+	img.LoadBMPFile("c:\\input.bmp");
+	img.MakeEdgesGlow((float)0.2, 5, 32, 0x4488ffff);
+	img.SaveBMPFile("c:\\output.bmp");*/
+/*
+	try
+	{
+		ThrowErrorX(L"This %ls a test %d\nhahaha\n", L"is", 5);
+	}
+	catch(const wchar_t* wszMessage)
+	{
+		wprintf(wszMessage);
+	}
+*/
 }
+
+#ifndef WIN32
+void onSigSegV(int n)
+{
+	throw "A memory access violation occurred.  The most common cause is an attempt to dereference null";
+}
+
+void onSigInt(int n)
+{
+	throw "The program was interrupted with SIGINT";
+}
+
+void onSigQuit(int n)
+{
+	throw "The program was interrupted with SIGQUIT";
+}
+
+void onSigTstp(int n)
+{
+	throw "The program was interrupted with SIGTSTP";
+}
+
+#endif // !WIN32
 
 int main(int argc, char *argv[])
 {
+#ifndef WIN32
+	signal(SIGSEGV, onSigSegV);
+	signal(SIGINT, onSigInt);
+	signal(SIGQUIT, onSigQuit);
+	signal(SIGTSTP, onSigTstp);
+#endif // !WIN32
+
 	// Seed the random number generator
 	srand((unsigned int)(GameEngine::GetTime() * 10000));
 
@@ -555,8 +556,11 @@ int main(int argc, char *argv[])
 	catch(const char* szErrorMessage)
 	{
 		fprintf(stderr, szErrorMessage);
-		printf("\n\nPress enter to quit\n");
+		fprintf(stderr, "\n");
+#ifdef WIN32
+		printf("\nPress enter to quit\n");
 		getchar();
+#endif // WIN32
 	}
 
 	// Shutdown SDL subsystems

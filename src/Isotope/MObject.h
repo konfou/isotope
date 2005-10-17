@@ -54,6 +54,11 @@ inline float absfloat(float f)
 	return f >= 0 ? f : -f;
 }
 
+// Flags
+#define MOB_Tangible 0x1 // Only tangible objects can get focus and do their action
+#define MOB_Panel 0x2 // Panels are billboards that face a constant direction instead of always facing the camera
+#define MOB_Solid 0x4 // Solid objects prevent the avatar from walking through them
+
 
 // The MObject class represents an object in the game.  It is basically a wrapper around a
 // RealmObject.  RealmObject is a class in the Gash language.  All scripted objects inherrit
@@ -85,8 +90,7 @@ protected:
 	MScriptEngine* m_pScriptEngine;
 	VarHolder m_vh;
 	GPosSize m_drawPos;
-	bool m_bTangible;
-	bool m_bPanel;
+	unsigned int m_flags; // todo: should these flags be moved into Gash code so scripts can modify them?
 
 public:
 	MObject(MScriptEngine* pScriptEngine);
@@ -127,13 +131,6 @@ public:
 	// Sets the time when this object was last updated
 	void SetTime(double time);
 
-	// Returns whether or not this object can be touched by the avatar.  Most objects
-	// are tangible.  Intangible objects include the avatar, hint clouds, the goal marker flag
-	bool IsTangible() { return m_bTangible; }
-
-	// Specify whether or not this object can be touched by the avatar
-	void SetTangible(bool b) { m_bTangible = b; }
-
 	// Returns a number that identifies this object
 	int GetUid();
 
@@ -151,8 +148,18 @@ public:
 	// Determines the square of the distance to the specified coordinates
 	float GetDistanceSquared(float x, float y);
 
-	bool IsPanel() { return m_bPanel; }
-	void SetIsPanel(bool b) { m_bPanel = b; }
+	// Returns whether or not this object can be touched by the avatar.  Most objects
+	// are tangible.  Intangible objects include the avatar, hint clouds, the goal marker flag
+	bool IsTangible() { return (m_flags & MOB_Tangible) ? true : false; }
+
+	// Specify whether or not this object can be touched by the avatar
+	void SetTangible(bool b) { if(b) m_flags |= MOB_Tangible; else m_flags &= (~MOB_Tangible); }
+
+	bool IsPanel() { return (m_flags & MOB_Panel) ? true : false; }
+	void SetIsPanel(bool b) { if(b) m_flags |= MOB_Panel; else m_flags &= (~MOB_Panel); }
+
+	bool IsSolid() { return (m_flags & MOB_Solid) ? true : false; }
+	void SetIsSolid(bool b) { if(b) m_flags |= MOB_Solid; else m_flags &= (~MOB_Solid); }
 };
 
 #endif // __MOBJECT_H__

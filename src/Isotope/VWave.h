@@ -53,6 +53,9 @@ public:
 	void Play(const MSound* pSound);
 	void MixWaves(unsigned char* stream, int len);
 
+	void StartAudio();
+	void FinishAudio();
+
 protected:
 	void LinkActive(VWaveBuffer* pBuf);
 	void UnLinkActive(VWaveBuffer* pBuf);

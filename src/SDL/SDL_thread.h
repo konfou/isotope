@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 #ifdef SAVE_RCSID
@@ -36,6 +36,9 @@ static char rcsid =
 #include "SDL_main.h"
 #include "SDL_types.h"
 
+/* Thread synchronization primitives */
+#include "SDL_mutex.h"
+
 #include "begin_code.h"
 /* Set up for C function definitions, even when using C++ */
 #ifdef __cplusplus
@@ -47,24 +50,29 @@ struct SDL_Thread;
 typedef struct SDL_Thread SDL_Thread;
 
 /* Create a thread */
-extern DECLSPEC SDL_Thread * SDL_CreateThread(int (*fn)(void *), void *data);
+extern DECLSPEC SDL_Thread * SDLCALL SDL_CreateThread(int (SDLCALL *fn)(void *), void *data);
 
 /* Get the 32-bit thread identifier for the current thread */
-extern DECLSPEC Uint32 SDL_ThreadID(void);
+extern DECLSPEC Uint32 SDLCALL SDL_ThreadID(void);
+
+/* Get the 32-bit thread identifier for the specified thread,
+   equivalent to SDL_ThreadID() if the specified thread is NULL.
+ */
+extern DECLSPEC Uint32 SDLCALL SDL_GetThreadID(SDL_Thread *thread);
 
 /* Wait for a thread to finish.
    The return code for the thread function is placed in the area
    pointed to by 'status', if 'status' is not NULL.
  */
-extern DECLSPEC void SDL_WaitThread(SDL_Thread *thread, int *status);
+extern DECLSPEC void SDLCALL SDL_WaitThread(SDL_Thread *thread, int *status);
 
 /* Forcefully kill a thread without worrying about its state */
-extern DECLSPEC void SDL_KillThread(SDL_Thread *thread);
+extern DECLSPEC void SDLCALL SDL_KillThread(SDL_Thread *thread);
 
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
-};
+}
 #endif
 #include "close_code.h"
 

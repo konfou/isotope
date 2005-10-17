@@ -29,6 +29,7 @@ class GConstStringHashTable;
 class MScriptEngine;
 class VarHolder;
 class MSpot;
+class Controller;
 
 
 class MImageStore
@@ -100,7 +101,7 @@ public:
 	// Gets the sound with the specified index
 	MSound* GetSound(int n);
 
-	void FromXml(const char* szRemotePath, GXMLTag* pTag);
+	void FromXml(Controller* pController, const char* szRemotePath, GXMLTag* pTag);
 };
 
 

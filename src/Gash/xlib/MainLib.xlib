@@ -481,11 +481,11 @@
 			<Var Exp="String:that" />
 		</Method>
 		<Method Name="compare">
-			<Var Exp="&amp;Bool:result" />
+			<Var Exp="&amp;Integer:result" />
 			<Var Exp="String:that" />
 		</Method>
 		<Method Name="compareIgnoringCase">
-			<Var Exp="&amp;Bool:result" />
+			<Var Exp="&amp;Integer:result" />
 			<Var Exp="String:that" />
 		</Method>
 		<Method Name="&amp;clear" />

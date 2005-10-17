@@ -50,6 +50,7 @@ extern const char* ATTR_THIS;
 extern const char* ATTR_SOURCE;
 extern const char* ATTR_IMPORTED;
 extern const char* ATTR_CATCH;
+extern const char* ATTR_GEN;
 
 // Built-in XML Attribute values
 extern const char* VAL_NULL;

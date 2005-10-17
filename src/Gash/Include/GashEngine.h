@@ -255,7 +255,7 @@ public:
 class ObjectObject : public GObject // todo: rename to "ClassObject"
 {
 public:
-	GObject* arrFields[8]; // actually variable-sized array
+	GObject* arrFields[16]; // Actually a variable-sized array.  The magic number is so the debugger will display something helpful
 
 	virtual void toStream(Engine* pEngine, EVar* pStream, EVar* pRefs);
 	void fromStream(Engine* pEngine, EVar* pStream);

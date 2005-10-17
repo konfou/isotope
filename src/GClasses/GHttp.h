@@ -12,7 +12,12 @@
 #ifndef __GHTTP_H__
 #define __GHTTP_H__
 
-class GEZSocketClient;
+class GHttpClientSocket;
+class GEZSocketServer;
+class GPointerArray;
+class GHttpServerBuffer;
+class GQueue;
+
 
 // This class allows you to get files using the HTTP protocol
 class GHttpClient
@@ -28,12 +33,18 @@ public:
 
 protected:
 	char m_szHeaderBuf[258];
+	char m_szServer[256];
 	int m_nHeaderPos;
 	int m_nContentSize;
+	bool m_bChunked;
 	unsigned char* m_pData;
 	int m_nDataPos;
-	GEZSocketClient* m_pSocket;
+	GHttpClientSocket* m_pSocket;
 	Status m_status;
+	GQueue* m_pChunkQueue;
+	bool m_bPastHeader;
+	char* m_szRedirect;
+	double m_dLastReceiveTime;
 
 public:
 	GHttpClient();
@@ -42,11 +53,13 @@ public:
 	// Send a request to get a file.  Returns immediately (before the file
 	// is downloaded).
 	bool Get(const char* szUrl, int nPort);
-	
+
 	// See what the status of the download is.  If everything is going okay,
 	// it will return "Downloading" while downloading and "Done" when the file
-	// is available
-	Status CheckStatus();
+	// is available.  pfProgress is an optional parameter.  If it is non-NULL,
+	// it will return a number between 0 and 1 that indicates the ratio of
+	// content (not including header data) already downloaded.
+	Status CheckStatus(float* pfProgress);
 
 	// Don't call this until the status is "Done".  It returns a pointer to the
 	// file that was downloaded.  The buffer will be deleted when this object is
@@ -57,9 +70,41 @@ public:
 	// delete it yourself.
 	unsigned char* DropData(int* pnSize);
 
+	void OnLoseConnection();
+
 protected:
 	void ProcessHeader(const unsigned char* szData, int nSize);
 	void ProcessBody(const unsigned char* szData, int nSize);
+	void ProcessChunkBody(const unsigned char* szData, int nSize);
 };
+
+
+
+
+
+#define MAX_SERVER_LINE_SIZE 300
+
+class GHttpServer
+{
+protected:
+	GEZSocketServer* m_pSocket;
+	GPointerArray* m_pBuffers;
+	GQueue* m_pQ;
+
+public:
+	GHttpServer(int nPort);
+	virtual ~GHttpServer();
+
+	// You should call this method constantly inside the main loop
+	void Process();
+
+	static void UnescapeUrl(char* szOut, const char* szIn);
+
+protected:
+	void ProcessLine(int nConnection, GHttpServerBuffer* pClient, const char* szLine);
+	void MakeResponse(int nConnection, GHttpServerBuffer* pClient);
+	virtual void DoGet(const char* szUrl, const char* szParams, GQueue* pResponse) = 0;
+};
+
 
 #endif // __GHTTP_H__

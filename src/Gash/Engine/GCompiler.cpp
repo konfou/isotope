@@ -235,9 +235,9 @@ bool GCompiler::CompileBegin()
 		m_pLibraryTag->AddAttribute(new GXMLAttribute(ATTR_SOURCE, szFilename));
 
 	// Add built in classes to the library
-	m_pLibraryTag->AddChildTag(m_pCOProject->m_pObject->ToXMLForLibrary(this));
-	m_pLibraryTag->AddChildTag(m_pCOProject->m_pInteger->ToXMLForLibrary(this));
-	m_pLibraryTag->AddChildTag(m_pCOProject->m_pStackLayer->ToXMLForLibrary(this));
+	m_pLibraryTag->AddChildTag(m_pCOProject->m_pObject->ToXMLForLibrary(this, false));
+	m_pLibraryTag->AddChildTag(m_pCOProject->m_pInteger->ToXMLForLibrary(this, false));
+	m_pLibraryTag->AddChildTag(m_pCOProject->m_pStackLayer->ToXMLForLibrary(this, false));
 
 	// Add references to internally-referenced methods
 	COClass* pExceptionClass = m_pCOProject->FindClass("Exception");
@@ -541,7 +541,7 @@ GXMLTag* GCompiler::ImportExternalType(COType* pCOType)
 	GXMLTag* pNewTag = NULL;
 	if(!m_pAlreadyImportedTypes->Get(szTypeName, (void**)&pNewTag))
 	{
-		pNewTag = pCOType->ToXMLForLibrary(this);
+		pNewTag = pCOType->ToXMLForLibrary(this, true);
 		m_pLibraryTag->AddChildTag(pNewTag);
 		m_pAlreadyImportedTypes->Add(szTypeName, pNewTag);
 	}
@@ -986,7 +986,7 @@ bool GCompiler::CompileSetDeclFromParam(COVariable* pDest, int nParam, COInstruc
 bool GCompiler::CompileClassStart(COClass* pClass)
 {
 	GAssert(!m_bSymbolMode, "Shouldn't be called in symbol mode");
-	m_pCurrentClassTag = pClass->ToXMLForLibrary(this);
+	m_pCurrentClassTag = pClass->ToXMLForLibrary(this, false);
 	m_pLibraryTag->AddChildTag(m_pCurrentClassTag);
 	AddImportType(pClass->GetParent());
 	return true;
@@ -994,7 +994,7 @@ bool GCompiler::CompileClassStart(COClass* pClass)
 
 bool GCompiler::CompileInterface(COInterface* pInterface)
 {
-	GXMLTag* pInterfaceTag = pInterface->ToXMLForLibrary(this);
+	GXMLTag* pInterfaceTag = pInterface->ToXMLForLibrary(this, false);
 	m_pLibraryTag->AddChildTag(pInterfaceTag);
 	return true;
 }

@@ -16,7 +16,8 @@
 #include "GMacros.h"
 #include "GThread.h"
 #include "GString.h"
-
+#include <stdarg.h>
+#include <wchar.h>
 #ifdef WIN32
 #include "GWindows.h"
 #else // WIN32
@@ -33,80 +34,153 @@
 #define SOCKET_ERROR -1
 #endif // !WIN32
 
+wchar_t* g_wszErrorMessage = NULL;
+
+void ThrowError(const wchar_t* wszFormat, ...)
+{
+	// Measure the required buffer size--todo: there might be a function like "vscwprintf" that does this, but I couldn't find it so I kludged my own
+	int nSize = 0;
+	{
+		va_list args;
+		const wchar_t* wsz = wszFormat;
+		va_start(args, wszFormat);
+		{
+			while(*wsz != L'\0')
+			{
+				if(*wsz == L'%')
+				{
+					wsz++;
+					switch(*wsz)
+					{
+						case L'c':
+							nSize += 2;
+							va_arg(args, int/*wchar_t*/);
+							break;
+						case L's':
+							nSize += wcslen(va_arg(args, wchar_t*));
+							break;
+						case L'd':
+							nSize += 10;
+							va_arg(args, int);
+							break;
+						case L'l':
+							nSize += 20;
+							va_arg(args, double);
+							break;
+						case L'f':
+							nSize += 20;
+							va_arg(args, double/*float*/);
+							break;
+						default:
+							nSize += 20; // take a guess
+							break;
+					}
+				}
+				wsz++;
+				nSize++;
+			}
+		}
+		va_end (args);
+	}
+	nSize++;
+
+	// Allocate the buffer
+	delete(g_wszErrorMessage);
+	g_wszErrorMessage = new wchar_t[nSize + 1];
+
+	// Format the message
+	{
+		va_list args;
+		va_start(args, wszFormat);
+		{
+#ifdef _MBCS
+			int res = vswprintf(g_wszErrorMessage, wszFormat, args);
+#else
+			int res = vswprintf(g_wszErrorMessage, nSize, wszFormat, args);
+#endif
+			GAssert(res >= 0, "Error formatting string");
+		}
+		va_end (args);
+	}
+
+	// Throw the error
+	throw (const wchar_t*)g_wszErrorMessage;
+}
+
 void gsocket_LogError()
 {
-	const char* szMsg = NULL;
+	const wchar_t* wszMsg = NULL;
 #ifdef WIN32	
 	int n = WSAGetLastError();
 	switch(n)
 	{
-		case WSAECONNRESET: 		szMsg = "An incoming connection was indicated, but was subsequently terminated by the remote peer prior to accepting the call."; break;
-		case WSAEFAULT: 			szMsg = "The addrlen parameter is too small or addr is not a valid part of the user address space."; break;
-		case WSAEINTR: 				szMsg = "A blocking Windows Sockets 1.1 call was canceled through WSACancelBlockingCall."; break;
-		case WSAEINVAL: 			szMsg = "The listen function was not invoked prior to accept."; break;
-		case WSAEINPROGRESS: 		szMsg = "A blocking Windows Sockets 1.1 call is in progress, or the service provider is still processing a callback function."; break;
-		case WSAEMFILE: 			szMsg = "The queue is nonempty upon entry to accept and there are no descriptors available."; break;
-		case WSAENETDOWN: 			szMsg = "The network subsystem has failed."; break;
-		case WSAENOBUFS: 			szMsg = "No buffer space is available."; break;
-		case WSAENOTSOCK: 			szMsg = "The descriptor is not a socket."; break;
-		case WSAEOPNOTSUPP: 		szMsg = "The referenced socket is not a type that supports connection-oriented service."; break;
-		case WSAEWOULDBLOCK: 		szMsg = "The socket is marked as nonblocking and no connections are present to be accepted."; break;
-		case WSANOTINITIALISED:		szMsg = "A successful WSAStartup must occur before using this function.";   break;
-		case WSAEALREADY:			szMsg = "A nonblocking connect call is in progress on the specified socket.";   break;
-		case WSAEADDRNOTAVAIL:		szMsg = "The remote address is not a valid address (such as ADDR_ANY).";   break;
-		case WSAEAFNOSUPPORT:		szMsg = "Addresses in the specified family cannot be used with this socket.";   break;
-		case WSAECONNREFUSED:		szMsg = "The attempt to connect was forcefully rejected.";   break;
-		case WSAEISCONN:			szMsg = "The socket is already connected (connection-oriented sockets only).";   break;
-		case WSAENETUNREACH:		szMsg = "The network cannot be reached from this host at this time.";   break;
-		case WSAETIMEDOUT:			szMsg = "Attempt to connect timed out without establishing a connection.";   break;
-		case WSASYSNOTREADY:		szMsg = "network subsystem not ready for communication.";   break;
-		case WSAVERNOTSUPPORTED:	szMsg = "The version of Windows Sockets support requested is not provided by this implementation.";   break;
-		case WSAEPROCLIM:			szMsg = "Limit on the number of tasks supported has been reached.";   break;
-		case WSAEHOSTUNREACH:		szMsg = "Host unreacheable"; break;
-		case WSAENOTCONN:			szMsg = "Not Connected"; break;
-		case WSAECONNABORTED:		szMsg = "Connection Aborted"; break;
-		case 0x2740:				szMsg = "Port already in use"; break;
-		case WSAHOST_NOT_FOUND: 	szMsg = "Authoritative answer host not found."; break;
-		case WSATRY_AGAIN: 			szMsg = "Nonauthoritative host not found, or server failure."; break;
-		case WSANO_RECOVERY: 		szMsg = "A nonrecoverable error occurred."; break;
-		case WSANO_DATA: 			szMsg = "Valid name, no data record of requested type."; break;
-		default:					szMsg = "An unrecognized socket error occurred"; break;
+		case WSAECONNRESET: 		wszMsg = L"An incoming connection was indicated, but was subsequently terminated by the remote peer prior to accepting the call."; break;
+		case WSAEFAULT: 			wszMsg = L"The addrlen parameter is too small or addr is not a valid part of the user address space."; break;
+		case WSAEINTR: 				wszMsg = L"A blocking Windows Sockets 1.1 call was canceled through WSACancelBlockingCall."; break;
+		case WSAEINVAL: 			wszMsg = L"The listen function was not invoked prior to accept."; break;
+		case WSAEINPROGRESS: 		wszMsg = L"A blocking Windows Sockets 1.1 call is in progress, or the service provider is still processing a callback function."; break;
+		case WSAEMFILE: 			wszMsg = L"The queue is nonempty upon entry to accept and there are no descriptors available."; break;
+		case WSAENETDOWN: 			wszMsg = L"The network subsystem has failed."; break;
+		case WSAENOBUFS: 			wszMsg = L"No buffer space is available."; break;
+		case WSAENOTSOCK: 			wszMsg = L"The descriptor is not a socket."; break;
+		case WSAEOPNOTSUPP: 		wszMsg = L"The referenced socket is not a type that supports connection-oriented service."; break;
+		case WSAEWOULDBLOCK: 		wszMsg = L"The socket is marked as nonblocking and no connections are present to be accepted."; break;
+		case WSANOTINITIALISED:		wszMsg = L"A successful WSAStartup must occur before using this function.";   break;
+		case WSAEALREADY:			wszMsg = L"A nonblocking connect call is in progress on the specified socket.";   break;
+		case WSAEADDRNOTAVAIL:		wszMsg = L"The remote address is not a valid address (such as ADDR_ANY).";   break;
+		case WSAEAFNOSUPPORT:		wszMsg = L"Addresses in the specified family cannot be used with this socket.";   break;
+		case WSAECONNREFUSED:		wszMsg = L"The attempt to connect was forcefully rejected.";   break;
+		case WSAEISCONN:			wszMsg = L"The socket is already connected (connection-oriented sockets only).";   break;
+		case WSAENETUNREACH:		wszMsg = L"The network cannot be reached from this host at this time.";   break;
+		case WSAETIMEDOUT:			wszMsg = L"Attempt to connect timed out without establishing a connection.";   break;
+		case WSASYSNOTREADY:		wszMsg = L"network subsystem not ready for communication.";   break;
+		case WSAVERNOTSUPPORTED:	wszMsg = L"The version of Windows Sockets support requested is not provided by this implementation.";   break;
+		case WSAEPROCLIM:			wszMsg = L"Limit on the number of tasks supported has been reached.";   break;
+		case WSAEHOSTUNREACH:		wszMsg = L"Host unreacheable"; break;
+		case WSAENOTCONN:			wszMsg = L"Not Connected"; break;
+		case WSAECONNABORTED:		wszMsg = L"Connection Aborted"; break;
+		case 0x2740:				wszMsg = L"Port already in use"; break;
+		case WSAHOST_NOT_FOUND: 	wszMsg = L"Authoritative answer host not found."; break;
+		case WSATRY_AGAIN: 			wszMsg = L"Nonauthoritative host not found, or server failure."; break;
+		case WSANO_RECOVERY: 		wszMsg = L"A nonrecoverable error occurred."; break;
+		case WSANO_DATA: 			wszMsg = L"Valid name, no data record of requested type."; break;
+		default:					wszMsg = L"An unrecognized socket error occurred"; break;
 	}
 #else // WIN32
 	switch(errno)
 	{
-		case EBADF:			szMsg = "not a valid socket descriptor."; break;
-		case EINVAL:		szMsg = "The socket is already bound to an address or addrlen is wrong."; break;
-		case EACCES:		szMsg = "Access permission is denied."; break;
-		case ENOTSOCK:		szMsg = "Argument is a descriptor for a file, not a socket."; break;
-		case EROFS:			szMsg = "The  socket inode would reside on a read-only file system."; break;
-		case EFAULT:		szMsg = "the addr parameter points outside the user's accessible address space."; break;
-		case ENAMETOOLONG:	szMsg = "A component of a pathname exceeded {NAME_MAX} characters, or an entire path name exceeded {PATH_MAX} characters."; break;
-		case ENOENT:		szMsg = "The file or named socket does not exist."; break;
-		case ENOMEM:		szMsg = "Insufficient kernel memory was available."; break;
-		case ENOTDIR:		szMsg = "A component of the path prefix is not a directory."; break;
-		case ELOOP:			szMsg = "Too many symbolic links were encountered in resolving my_addr."; break;
-		case EOPNOTSUPP:	szMsg = "The referenced socket is not of type SOCK_STREAM."; break;
-		case EWOULDBLOCK:	szMsg = "The socket is marked non-blocking and no connections are present to be accepted."; break;
-		case EMFILE:		szMsg = "The per-process descriptor table is full."; break;
-		case ENFILE:		szMsg = "The system file table is full."; break;
-		case EADDRNOTAVAIL:	szMsg = "The specified address is not available on this machine."; break;
-		case EAFNOSUPPORT:	szMsg = "Addresses in the specified address family cannot be used with this socket."; break;
-		case EISCONN:		szMsg = "The socket is already connected."; break;
-		case ETIMEDOUT:		szMsg = "Connection establishment timed out without establishing a connection."; break;
-		case ECONNREFUSED:	szMsg = "The attempt to connect was forcefully rejected."; break;
-		case ENETUNREACH:	szMsg = "The network isn't reachable from this host."; break;
-		case EADDRINUSE:	szMsg = "The address is already in use."; break;
-		case EINPROGRESS:	szMsg = "The socket is non-blocking and the connection cannot be completed immediately.  It is possible to select(2) for completion by selecting the socket for writing."; break;
-		case EALREADY:		szMsg = "The socket is non-blocking and a previous connection attempt has not yet been completed."; break;
-		case HOST_NOT_FOUND:	szMsg = "The specified host is unknown."; break;
-		case NO_ADDRESS:	szMsg = "The requested name is valid but does not have an IP address."; break;
-		case NO_RECOVERY:	szMsg = "A non-recoverable name server error occurred."; break;
-		//case TRY_AGAIN:		szMsg = "A temporary error occurred on an authoritative name server.  Try again later."; break;
-		default:		szMsg = "An unrecognized socket error occurred"; break;
+		case EBADF:			wszMsg = L"not a valid socket descriptor."; break;
+		case EINVAL:		wszMsg = L"The socket is already bound to an address or addrlen is wrong."; break;
+		case EACCES:		wszMsg = L"Access permission is denied."; break;
+		case ENOTSOCK:		wszMsg = L"Argument is a descriptor for a file, not a socket."; break;
+		case EROFS:			wszMsg = L"The  socket inode would reside on a read-only file system."; break;
+		case EFAULT:		wszMsg = L"the addr parameter points outside the user's accessible address space."; break;
+		case ENAMETOOLONG:	wszMsg = L"A component of a pathname exceeded {NAME_MAX} characters, or an entire path name exceeded {PATH_MAX} characters."; break;
+		case ENOENT:		wszMsg = L"The file or named socket does not exist."; break;
+		case ENOMEM:		wszMsg = L"Insufficient kernel memory was available."; break;
+		case ENOTDIR:		wszMsg = L"A component of the path prefix is not a directory."; break;
+		case ELOOP:			wszMsg = L"Too many symbolic links were encountered in resolving my_addr."; break;
+		case EOPNOTSUPP:	wszMsg = L"The referenced socket is not of type SOCK_STREAM."; break;
+		case EWOULDBLOCK:	wszMsg = L"The socket is marked non-blocking and no connections are present to be accepted."; break;
+		case EMFILE:		wszMsg = L"The per-process descriptor table is full."; break;
+		case ENFILE:		wszMsg = L"The system file table is full."; break;
+		case EADDRNOTAVAIL:	wszMsg = L"The specified address is not available on this machine."; break;
+		case EAFNOSUPPORT:	wszMsg = L"Addresses in the specified address family cannot be used with this socket."; break;
+		case EISCONN:		wszMsg = L"The socket is already connected."; break;
+		case ETIMEDOUT:		wszMsg = L"Connection establishment timed out without establishing a connection."; break;
+		case ECONNREFUSED:	wszMsg = L"The attempt to connect was forcefully rejected."; break;
+		case ENETUNREACH:	wszMsg = L"The network isn't reachable from this host."; break;
+		case EADDRINUSE:	wszMsg = L"The address is already in use."; break;
+		case EINPROGRESS:	wszMsg = L"The socket is non-blocking and the connection cannot be completed immediately.  It is possible to select(2) for completion by selecting the socket for writing."; break;
+		case EALREADY:		wszMsg = L"The socket is non-blocking and a previous connection attempt has not yet been completed."; break;
+		case HOST_NOT_FOUND:	wszMsg = L"The specified host is unknown."; break;
+		case NO_ADDRESS:	wszMsg = L"The requested name is valid but does not have an IP address."; break;
+		case NO_RECOVERY:	wszMsg = L"A non-recoverable name server error occurred."; break;
+		//case TRY_AGAIN:		wszMsg = L"A temporary error occurred on an authoritative name server.  Try again later."; break;
+		default:		wszMsg = L"An unrecognized socket error occurred"; break;
 	}
 #endif // else WIN32
-	GAssert(false, szMsg); // todo: what should we do in non-debug cases?  Throw?
+	ThrowError(wszMsg);
 }
 
 #ifdef WIN32

@@ -16,10 +16,11 @@
 
 View::View()
 {
-	m_nScreenWidth = 640;
-	m_nScreenHeight = 480;
+	m_nScreenWidth = 800;
+	m_nScreenHeight = 600;
 	SetScreenSize(m_nScreenWidth, m_nScreenHeight);
 	m_pViewPorts = new GPointerArray(8);
+	m_dLastFullRefreshTime = 0;
 }
 
 View::~View()
@@ -34,7 +35,7 @@ void View::SetScreenSize(int x, int y)
 #ifdef WIN32
 	m_bFullScreen = false;
 #else // WIN32
-	m_bFullScreen = true;
+	m_bFullScreen = false;
 #endif // !WIN32
 	unsigned int flags = 
 		SDL_HWSURFACE |
@@ -122,7 +123,18 @@ void View::Refresh()
 	// Draw all the view ports
 	int n;
 	int nCount = m_pViewPorts->GetSize();
-	for(n = 0; n < nCount; n++)
+
+	// Decide whether to refresh all view ports or just the top-most one
+	n = nCount - 1;
+	double d = GameEngine::GetTime();
+	if(d - m_dLastFullRefreshTime > .3)
+	{
+		m_dLastFullRefreshTime = d;
+		n = 0;
+	}
+
+	// Refresh the view ports
+	for(; n < nCount; n++)
 	{
 		ViewPort* pViewPort = (ViewPort*)m_pViewPorts->GetPointer(n);
 		pViewPort->Draw(pScreen);

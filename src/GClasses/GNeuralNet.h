@@ -24,15 +24,18 @@ class GNeuralNet
 {
 protected:
 	GArffRelation* m_pRelation;
-	GPointerArray* m_pLayers;
-	GPointerArray* m_pBest;
-	double m_dInitThresh;
-	int m_nBiggestLayer;
-	int m_nMinimumIterations;
-	int m_nMaximumIterations;
-	int m_nIterationsPerValidationCheck;
+	GPointerArray* m_pNeurons;
+	double* m_pBestSet;
+	int m_nWeightCount;
+	int m_nInputStart;
+	int m_nLayerStart;
+	int m_nLayerSize;
+
+	// Settings
+	int m_nMinimumEpochs;
+	int m_nMaximumEpochs;
+	int m_nEpochsPerValidationCheck;
 	int m_nPasses;
-	double m_dSigmoidSteepness;
 	double m_dLearningRate;
 	double m_dLearningDecay;
 	double m_dMomentum;
@@ -47,19 +50,10 @@ public:
 	// are implicit, so you only need to add the hidden layers
 	// before calling Train.)  The first hidden layer you add will
 	// be ajacent to the output layer.  The last hidden layer you
-	// add will be ajacent to the input layer.  Conceptually,
-	// there is a layer of weights between each layer of nodes, so
-	// the number of weight layers will be one more than the number
-	// of hidden layers you add.  It's not common to add more than
-	// two hidden layers because that results in large training times.
-	void AddHiddenLayer(int nNodes);
-
-	// Sets the range for initial weight values.  Each weight
-	// will be set to a random value between -Thresh/2 and Thresh/2
-	void SetInitThresh(double d) { m_dInitThresh = d; }
-
-	// Set the steepness of the sigmoid function
-	void SetSigmoidSteepness(double d) { m_dSigmoidSteepness = d; }
+	// add will be ajacent to the input layer.  It's not common to add
+	// more than two hidden layers because that results in large
+	// training times.
+	void AddLayer(int nNodes);
 
 	// Set the rate of convergence
 	void SetLearningRate(double d) { m_dLearningRate = d; }
@@ -86,11 +80,11 @@ public:
 	// bother checking against the validation set.  (An iteration
 	// is defined as a single pass through all rows in the training
 	// set.)
-	void SetMinimumIterations(int n) { m_nMinimumIterations = n; }
+	void SetMinimumEpochs(int n) { m_nMinimumEpochs = n; }
 
-	// Sets the maximum number of training iterations to perform
-	// per pass.
-	void SetMaximumIterations(int n) { m_nMaximumIterations = n; }
+	// Sets the maximum number of times per pass to train with all the
+	// data.
+	void SetMaximumEpochs(int n) { m_nMaximumEpochs = n; }
 
 	// Sets the number of iterations that will be performed before
 	// each time the network is tested again with the validation set
@@ -98,7 +92,7 @@ public:
 	// whether or not it's achieved the termination condition yet.
 	// (An iteration is defined as a single pass through all rows in
 	// the training set.)
-	void SetIterationsPerValidationCheck(int n) { m_nIterationsPerValidationCheck = n; }
+	void SetIterationsPerValidationCheck(int n) { m_nEpochsPerValidationCheck = n; }
 
 	// If the mean square error ever falls below this value, training
 	// will stop.  Note that if you use this as the primary stopping
@@ -128,21 +122,21 @@ public:
 	// Note that if any of the output values are expected to be
 	// discreet, you must call GMath::analogToDigital to get the
 	// corresponding discreet values.
-	void Evaluate(double* pRow);
+	void Eval(double* pRow);
 
 	void EvaluateTraining(double* pRow);
 
-	void TrainByCritic(CriticFunc pCritic, void* pThis);
+	//void TrainByCritic(CriticFunc pCritic, void* pThis);
 
 	double GetMeanSquareError(GArffData* pData);
 
 protected:
-	void UpdateWeights(double* pRow, double* pSample);
 	void EvaluateHelper(double* pRow, GPointerArray* pLayers);
-	double MeasureError(GArffData* pData, double* pSample, GPointerArray* pLayers);
+	double MeasureError(GArffData* pData, double* pSample);
 	void UpdateBestWeights();
 	void RestoreBestWeights();
-	void RandomlyTweakWeights(double dAmount);
+	void Criticize(double* pModel);
+	//void RandomlyTweakWeights(double dAmount);
 };
 
 #endif // __GNEURALNET_H__

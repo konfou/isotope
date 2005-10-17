@@ -14,18 +14,28 @@
 
 #include "ViewPort.h"
 
+class MLoadingDialog;
+
 struct GRect;
 
 class VLoading : public ViewPort
 {
 protected:
 	GImage* m_pImage;
+	int m_nLeft;
+	int m_nTop;
+	MLoadingDialog* m_pDialog;
+	bool m_dirty;
+	float m_fudgeFactor;
+	double m_dPrevProgressTime;
 
 public:
-	VLoading(GRect* pRect);
+	VLoading(GRect* pRect, const char* szUrl);
 	virtual ~VLoading();
 
 	virtual void Draw(SDL_Surface *pScreen);
+	void SetUrl(const char* szUrl);
+	void SetProgress(float f);
 
 protected:
 	void RefreshEntireImage();

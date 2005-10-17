@@ -263,6 +263,15 @@ bool COMethodDecl::Compile(GCompiler* pCompiler)
 	return true;
 }
 
+void COMethodDecl::ReplaceType(COType* pOld, COType* pNew)
+{
+	int n;
+	for(n = 0; n < GetParameterCount(); n++)
+	{
+		COVariable* pVar = GetParameter(n);
+		pVar->ReplaceType(pOld, pNew);
+	}
+}
 
 // --------------------------------------------------------------------
 

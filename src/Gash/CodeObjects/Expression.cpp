@@ -368,7 +368,10 @@ inline void EatTrailingWhitespace(const char** pszExpression, int* pnLen)
 	if(pTypeTmp)
 		return(new COTypeRef(nLine, nCol, nWid, pTypeTmp));
 
-	pCOProject->ThrowError(&Error::VARIABLE_NOT_FOUND, pTag, szExpression); // todo: copy nLen chars of szExpression
+	char* szVarName = (char*)alloca(nLen + 1);
+	memcpy(szVarName, szExpression, nLen);
+	szVarName[nLen] = '\0';
+	pCOProject->ThrowError(&Error::VARIABLE_NOT_FOUND, pTag, szVarName);
 
 	GAssert(false, "how'd you get here?");
 	return NULL;
@@ -617,7 +620,12 @@ bool COExpression::ParamTreeToDecl(GCompiler* pCompiler, COInstruction* pObjectW
 	case COExpression::ET_TYPEREF:
 		{
 			COType* pType = GetType(pCompiler->m_pCOProject);
-			GAssert(pType->GetTypeType() == COType::TT_CLASS, "expected class type");
+			if(pType->GetTypeType() != COType::TT_CLASS)
+			{
+				// todo: add support for procs in machine classes
+				pCompiler->SetError(&Error::MACHINE_PROCS_NOT_SUPPORTED_YET, pObjectWithError);
+				return false;
+			}
 			*ppOutResult = ((COClass*)pType)->GetVariable(pCompiler->m_pCOProject);
 			if(!*ppOutResult)
 			{

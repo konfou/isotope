@@ -256,3 +256,12 @@ void GQueue::DumpToExistingBuffer(char* pBuf)
 		pBuf++;
 	}
 }
+
+void GQueue::DumpToExistingBuffer(char* pBuf, int nBytes)
+{
+	while(nBytes-- > 0)
+	{
+		Pop(pBuf);
+		pBuf++;
+	}
+}

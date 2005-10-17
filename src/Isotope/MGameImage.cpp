@@ -18,6 +18,7 @@
 #include "MStore.h"
 #include "MGameClient.h"
 #include "../GClasses/GFile.h"
+#include "Controller.h"
 
 void RegisterMGameImage(GConstStringHashTable* pTable)
 {
@@ -32,6 +33,9 @@ void RegisterMGameImage(GConstStringHashTable* pTable)
 	pTable->Add("method !fromStream(&Stream)", new EMethodPointerHolder((MachineMethod1)&MGameImage::fromStream));
 	pTable->Add("method toStream(&Stream, &Stream)", new EMethodPointerHolder((MachineMethod2)&MGameImage::toStream));
 	pTable->Add("method &setRefs(&Stream)", new EMethodPointerHolder((MachineMethod1)&MGameImage::setRefs));
+	pTable->Add("method &invert()", new EMethodPointerHolder((MachineMethod0)&MGameImage::invert));
+	pTable->Add("method &glow()", new EMethodPointerHolder((MachineMethod0)&MGameImage::glow));
+	pTable->Add("method !newCopy(GImage)", new EMethodPointerHolder((MachineMethod1)&MGameImage::newCopy));
 }
 
 
@@ -157,13 +161,14 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 		GameEngine::ThrowError("For security reasons, only relative URLs are allowed in GImage.load.  %s is an absolute URL\n");
 
 	// Download the file
+	Controller* pController = ((MVM*)pEngine)->m_pController;
 	int nSize;
-	Holder<unsigned char*> hImageFile((unsigned char*)GameEngine::LoadFileFromUrl(szRemoteFolder, szUrl, &nSize));
+	Holder<unsigned char*> hImageFile((unsigned char*)pController->LoadFileFromUrl(szRemoteFolder, szUrl, &nSize));
 	unsigned char* pImageFile = hImageFile.Get();
 	if(!pImageFile)
 	{
 		ConvertAnsiToUnicode(szUrl, wszUrl);
-		pEngine->ThrowIOError(L"Failed to download image file: %s", wszUrl);
+		pEngine->ThrowIOError(L"Failed to download image file: %ls", wszUrl);
 	}
 
 	// Create the image
@@ -171,7 +176,7 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 	if(!pNewImage->m_value.LoadPNGFile(pImageFile, nSize))
 	{
 		ConvertAnsiToUnicode(szUrl, wszUrl);
-		pEngine->ThrowIOError(L"Bad PNG file: %s", wszUrl);
+		pEngine->ThrowIOError(L"Bad PNG file: %ls", wszUrl);
 	}
 	return pNewImage;
 }
@@ -189,6 +194,14 @@ void MGameImage::load(Engine* pEngine, EVar* pFilename)
 		pEngine->SetThis(DownloadImage(pEngine, pGameClient, szFilename));
 	else
 		pEngine->SetThis(new MGameImage(pEngine, RelativeUrl, szFilename));
+}
+
+void MGameImage::newCopy(Engine* pEngine, EVar* pThat)
+{
+	MGameImage* pOther = (MGameImage*)pThat->pOb;
+	MGameImage* pNewImage = new MGameImage(pEngine, pOther->m_eMode, pOther->m_szText);
+	pEngine->SetThis(pNewImage);
+	pNewImage->m_value.CopyImage(&pOther->m_value);
 }
 
 const char* MGameImage::GetID()

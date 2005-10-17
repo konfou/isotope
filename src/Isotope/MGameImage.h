@@ -61,6 +61,8 @@ public:
 		delete(m_szText);
 	}
 
+	void newCopy(Engine* pEngine, EVar* pThat);
+
 	void toStream(Engine* pEngine, EVar* pOutBlob, EVar* pOutRefs);
 
 	void fromStream(Engine* pEngine, EVar* pStream);
@@ -105,6 +107,16 @@ public:
 	void setPixel(Engine* pEngine, EVar* pX, EVar* pY, EVar* pColor)
 	{
 		m_value.SetPixel(pX->pIntObject->m_value, pY->pIntObject->m_value, pColor->pIntObject->m_value);
+	}
+
+	void invert(Engine* pEngine)
+	{
+		m_value.Invert();
+	}
+
+	void glow(Engine* pEngine)
+	{
+		m_value.MakeEdgesGlow((float)0.2, 5, 32, gARGB(0xff, 0x88, 0xbb, 0xff));
 	}
 
 	GImage* GetImage() { return &m_value; }

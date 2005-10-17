@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 #ifdef SAVE_RCSID
@@ -49,7 +49,10 @@ typedef struct SDL_SysWMinfo SDL_SysWMinfo;
 #else
 
 /* This is the structure for custom window manager events */
-#if defined(unix) || defined(__unix__)
+#if (defined(unix) || defined(__unix__) || defined(_AIX) || defined(__OpenBSD__) || defined(__NetBSD__)) && \
+    (!defined(DISABLE_X11) && !defined(__CYGWIN32__) && !defined(ENABLE_NANOX) && \
+     !defined(__QNXNTO__))
+ /* AIX is unix, of course, but the native compiler CSet doesn't define unix */
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 
@@ -71,7 +74,7 @@ struct SDL_SysWMmsg {
    When this structure is returned, it holds information about which
    low level system it is using, and will be one of SDL_SYSWM_TYPE.
  */
-typedef struct {
+typedef struct SDL_SysWMinfo {
 	SDL_version version;
 	SDL_SYSWM_TYPE subsystem;
 	union {
@@ -93,7 +96,23 @@ typedef struct {
 	} info;
 } SDL_SysWMinfo;
 
+#elif defined(ENABLE_NANOX)
+#include <microwin/nano-X.h>
+
+/* The generic custom event structure */
+struct SDL_SysWMmsg {
+	SDL_version version;
+	int data;
+};
+
+/* The windows custom window manager information structure */
+typedef struct SDL_SysWMinfo {
+	SDL_version version ;
+	GR_WINDOW_ID window ;	/* The display window */
+} SDL_SysWMinfo;
+
 #elif defined(WIN32)
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 /* The windows custom event structure */
@@ -106,9 +125,43 @@ struct SDL_SysWMmsg {
 };
 
 /* The windows custom window manager information structure */
-typedef struct {
+typedef struct SDL_SysWMinfo {
 	SDL_version version;
 	HWND window;			/* The Win32 display window */
+	HGLRC hglrc;			/* The OpenGL context, if any */
+} SDL_SysWMinfo;
+
+#elif defined(__riscos__)
+
+/* RISC OS custom event structure */
+struct SDL_SysWMmsg {
+	SDL_version version;
+	int eventCode;		/* The window for the message */
+	int pollBlock[64];
+};
+
+/* The RISC OS custom window manager information structure */
+typedef struct SDL_SysWMinfo {
+	SDL_version version;
+	int wimpVersion;    /* Wimp version running under */
+	int taskHandle;     /* The RISC OS task handle */
+	int window;		/* The RISC OS display window */
+} SDL_SysWMinfo;
+
+#elif defined(__QNXNTO__)
+#include <sys/neutrino.h>
+#include <Ph.h>
+
+/* The QNX custom event structure */
+struct SDL_SysWMmsg {
+	SDL_version version;
+	int data;
+};
+
+/* The QNX custom window manager information structure */
+typedef struct SDL_SysWMinfo {
+	SDL_version version;
+	int data;
 } SDL_SysWMinfo;
 
 #else
@@ -120,7 +173,7 @@ struct SDL_SysWMmsg {
 };
 
 /* The generic custom window manager information structure */
-typedef struct {
+typedef struct SDL_SysWMinfo {
 	SDL_version version;
 	int data;
 } SDL_SysWMinfo;
@@ -135,13 +188,18 @@ typedef struct {
  * It fills the structure pointed to by 'info' with custom information and
  * returns 1 if the function is implemented.  If it's not implemented, or
  * the version member of the 'info' structure is invalid, it returns 0. 
+ *
+ * You typically use this function like this:
+ * SDL_SysWMInfo info;
+ * SDL_VERSION(&info.version);
+ * if ( SDL_GetWMInfo(&info) ) { ... }
  */
-extern DECLSPEC int SDL_GetWMInfo(SDL_SysWMinfo *info);
+extern DECLSPEC int SDLCALL SDL_GetWMInfo(SDL_SysWMinfo *info);
 
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
-};
+}
 #endif
 #include "close_code.h"
 

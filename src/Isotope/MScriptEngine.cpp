@@ -17,7 +17,9 @@
 #include "../GClasses/GFile.h"
 #include "../Gash/BuiltIns/GashStream.h"
 #include "../Gash/BuiltIns/GashFloat.h"
+#include "../Gash/MachineObjects/MArray.h"
 #include "../Gash/Engine/Error.h"
+#include "../Gash/Engine/EType.h"
 #include "../Gash/CodeObjects/Project.h"
 #include "../Gash/CodeObjects/Class.h"
 #include "../Gash/CodeObjects/Interface.h"
@@ -51,25 +53,13 @@ void IsotopeErrorHandler::OnError(ErrorHolder* pErrorHolder)
 	pErrorHolder->ToString(&s);
 	GTEMPBUF(pBuf, s.GetLength() + 1);
 	s.GetAnsi(pBuf);
-	const char* szErrorMessage = GameEngine::SetErrorMessage(pBuf);
-	GameEngine::ThrowError(szErrorMessage);
+	GameEngine::ThrowError(pBuf);
 }
 
 // -------------------------------------------------------------------------------
 
 GConstStringHashTable* g_pIsotopeMachineObjects = NULL;
 
-
-void RegisterMAnimation(GConstStringHashTable* pTable)
-{
-	pTable->Add("method getFrame(!GImage, &Rect)", new EMethodPointerHolder((MachineMethod2)&MAnimation::getFrame));
-	pTable->Add("method getColumnFrame(!GImage, &Rect, Float)", new EMethodPointerHolder((MachineMethod3)&MAnimation::getColumnFrame));
-	pTable->Add("method !newCopy(Animation)", new EMethodPointerHolder((MachineMethod1)&MAnimation::newCopy));
-	pTable->Add("method toStream(&Stream, &Stream)", new EMethodPointerHolder((MachineMethod2)&MAnimation::toStream));
-	pTable->Add("method !fromStream(&Stream)", new EMethodPointerHolder((MachineMethod1)&MAnimation::fromStream));
-	pTable->Add("method &setRefs(&Stream)", new EMethodPointerHolder((MachineMethod1)&MAnimation::setRefs));
-	pTable->Add("method &advanceTime(&Bool, Float)", new EMethodPointerHolder((MachineMethod2)&MAnimation::advanceTime));
-}
 
 void RegisterMGameMachine(GConstStringHashTable* pTable)
 {
@@ -88,10 +78,19 @@ void RegisterMGameMachine(GConstStringHashTable* pTable)
 	pTable->Add("method sendToClient(Object, Integer)", new EMethodPointerHolder((MachineMethod2)&MGameMachine::sendToClient));
 	pTable->Add("method sendToServer(Object)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::sendToServer));
 	pTable->Add("method addInventoryItem(String)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::addInventoryItem));
+	pTable->Add("method checkForSolidObject(&Bool, Float, Float)", new EMethodPointerHolder((MachineMethod3)&MGameMachine::checkForSolidObject));
+	pTable->Add("method getAccountVar(&String, String)", new EMethodPointerHolder((MachineMethod2)&MGameMachine::getAccountVar));
+	pTable->Add("method setAccountVar(String, String)", new EMethodPointerHolder((MachineMethod2)&MGameMachine::setAccountVar));
+	pTable->Add("method reportStats(Array)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::reportStats));
+	pTable->Add("method setSkyImage(String)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::setSkyImage));
+	pTable->Add("method setGroundImage(String)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::setGroundImage));
 }
 
 // Declared in MGameImage.cpp
 void RegisterMGameImage(GConstStringHashTable* pTable);
+
+// Declared in MAnimation.cpp
+void RegisterMAnimation(GConstStringHashTable* pTable);
 
 void RegisterIsotopeMachineClasses()
 {
@@ -103,7 +102,7 @@ void RegisterIsotopeMachineClasses()
 // -------------------------------------------------------------------------------
 
 
-MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm)
+MScriptEngine::MScriptEngine(const char* szScriptUrl, const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm)
 {
 	m_pRealm = pRealm;
 	
@@ -114,8 +113,7 @@ MScriptEngine::MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler
 		GAssert(false, "The error handler should have thrown");
 		GameEngine::ThrowError("Failed to load Gash libraries from: %s", GameEngine::GetAppPath());
 	}
-	const char* szFilename = "*The Script*";
-	if(!hProj.Get()->LoadSources(&szScript, &szFilename, 1, pErrorHandler))
+	if(!hProj.Get()->LoadSources(&szScript, &szScriptUrl, 1, pErrorHandler))
 	{
 		GAssert(false, "The error handler should have thrown");
 		GameEngine::ThrowError("Failed to parse the script file");
@@ -324,6 +322,17 @@ void MScriptEngine::ImportObjectDependencies(GCompiler* pCompiler, COProject* pP
 			}
 		}
 	}
+	pClass = pProject->FindClass("Rect");
+	if(pClass)
+	{
+		pCompiler->AddImportType(pClass);
+		ImportMethodDependency(pCompiler, pClass, "method !new()");
+	}
+	COType* pType = pProject->FindType("Stream");
+	if(pType)
+	{
+		pCompiler->AddImportType(pType);
+	}
 }
 
 void MScriptEngine::FindMethod(struct MethodRef* pMethodRef, const char* szType, const char* szSig)
@@ -383,6 +392,7 @@ GImage* MScriptEngine::CallGetFrame(ObjectObject* pObject, GRect* pRect, float f
 {
 	m_pTempVar->SetGObject(pObject);
 	m_pParams[0] = m_pTempVar;
+	m_pImageVar->SetGObject(NULL);
 	m_pParams[1] = m_pImageVar;
 	m_pParams[2] = m_pRectVar;
 	m_pFloatVar->GetVariable()->pFloatObject->m_value = fCameraDirection;
@@ -591,7 +601,7 @@ VarHolder* MScriptEngine::LoadPNGImage(const char* szRemotePath, const char* szU
 	int nSize;
 	char* pFile;
 	if(szRemotePath)
-		pFile = GameEngine::LoadFileFromUrl(szRemotePath, szUrl, &nSize);
+		pFile = m_pVM->m_pController->LoadFileFromUrl(szRemotePath, szUrl, &nSize);
 	else
 	{
 		const char* szAppPath = GameEngine::GetAppPath();
@@ -657,7 +667,7 @@ void MScriptEngine::GRectToMRect(GRect* pGRect, ObjectObject* pMRect)
 		if(!pAnimation || !pAnimAction)
 			GameEngine::ThrowError("The avatar's animation should not be null");
 		float d = (float)atan2(dy, dx); // range = -PI to PI
-		d += (float)1.570795; // todo: unmagic PI/2
+		d += (float)1.9634954; // todo: unmagic 5 * PI / 8  (pi/2 because the animation starts facing forward + pi/8 to maximize margins between columns)
 		pAnimation->SetDirection(d);
 		pAnimAction->SetDirection(d);
 	}
@@ -735,9 +745,10 @@ void MGameMachine::getObjectById(Engine* pEngine, EVar* pOutObject, EVar* pID)
 		return;
 	int nID = pID->pIntObject->m_value;
 	MObject* pObj = pGameClient->GetCurrentRealm()->GetObjectByID(nID);
+	if(!pObj)
+		GameEngine::ThrowError("There's no object with the ID %d", nID);
 	GObject* pOb = pObj->GetGObject();
-	if(!pOb)
-		pEngine->ThrowEngineError(L"No such object"); // todo: throw a custom exception
+	GAssert(pOb, "invalid realm object");
 	pEngine->SetVar(pOutObject, pOb);
 }
 
@@ -863,6 +874,7 @@ void MGameMachine::addInventoryItem(Engine* pEngine, EVar* pUrl)
 {
 	// Get the client model
 	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	Controller* pController = ((MVM*)pEngine)->m_pController;
 	if(!pGameClient)
 	{
 		GAssert(false, "Why is the server trying to add an inventory item?");
@@ -876,7 +888,7 @@ void MGameMachine::addInventoryItem(Engine* pEngine, EVar* pUrl)
 	char* szAnsi = hAnsi.Get();
 	pUrlString->GetAnsi(szAnsi);
 	int nFileSize;
-	Holder<char*> hFile(pGameClient->LoadFileFromUrl(szAnsi, &nFileSize));
+	Holder<char*> hFile(pController->LoadFileFromUrl(pGameClient->GetRemoteFolder(), szAnsi, &nFileSize));
 	char* szFile = hFile.Get();
 
 	// Parse the XML
@@ -885,8 +897,62 @@ void MGameMachine::addInventoryItem(Engine* pEngine, EVar* pUrl)
 	Holder<GXMLTag*> hTag(GXMLTag::FromString(szFile, nFileSize, &szErrorMessage, NULL, &nErrorLine, NULL));
 	GXMLTag* pTag = hTag.Get();
 	if(!pTag)
-		GameEngine::ThrowError("Error parsing item XML string: %s", szErrorMessage);
+		GameEngine::ThrowError("Error parsing item XML string at line %d: %s", nErrorLine, szErrorMessage);
 
 	// Add it to the inventory
 	pGameClient->AddInventoryItem(hTag.Drop());
+}
+
+void MGameMachine::checkForSolidObject(Engine* pEngine, EVar* pBool, EVar* pX, EVar* pY)
+{
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	if(!pGameClient)
+	{
+		GAssert(false, "Sorry, not implemented for the server yet");
+		return;
+	}
+	MRealm* pRealm = pGameClient->GetCurrentRealm();
+	pBool->pIntObject->m_value = pRealm->CheckForSolidObject((float)pX->pFloatObject->m_value, (float)pY->pFloatObject->m_value);
+}
+
+void MGameMachine::setAccountVar(Engine* pEngine, EVar* pName, EVar* pValue)
+{
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	GString* pNameString = &pName->pStringObject->m_value;
+	char* szName = (char*)alloca(pNameString->GetLength() + 1);
+	pNameString->GetAnsi(szName);
+	GString* pValueString = &pValue->pStringObject->m_value;
+	char* szValue = (char*)alloca(pValueString->GetLength() + 1);
+	pValueString->GetAnsi(szValue);
+	pGameClient->SetAccountVar(szName, szValue);
+}
+
+void MGameMachine::getAccountVar(Engine* pEngine, EVar* pValue, EVar* pName)
+{
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	GString* pNameString = &pName->pStringObject->m_value;
+	char* szName = (char*)alloca(pNameString->GetLength() + 1);
+	pNameString->GetAnsi(szName);
+	const char* szValue = pGameClient->GetAccountVar(szName);
+	GString* pValueString = &pValue->pStringObject->m_value;
+	pValueString->Copy(szValue);
+}
+
+void MGameMachine::reportStats(Engine* pEngine, EVar* pNameValuePairs)
+{
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	MArray* pArray = (MArray*)pNameValuePairs->pWrapperObject;
+	pGameClient->ReportStats(pArray->m_pArray);
+}
+
+void MGameMachine::setSkyImage(Engine* pEngine, EVar* pID)
+{
+	Controller* pController = ((MVM*)pEngine)->m_pController;
+	pController->SetSkyImage(&pID->pStringObject->m_value);
+}
+
+void MGameMachine::setGroundImage(Engine* pEngine, EVar* pID)
+{
+	Controller* pController = ((MVM*)pEngine)->m_pController;
+	pController->SetGroundImage(&pID->pStringObject->m_value);
 }

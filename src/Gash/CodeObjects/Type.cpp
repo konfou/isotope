@@ -23,6 +23,7 @@ COType::COType(int nLine, int nCol, int nWid, const char* szName, COFile* pFile,
 	strcpy(m_szName, szName);
 	m_pFile = pFile;
 	m_nID = pCOProject->GetUniqueTypeID();
+	m_nGeneration = 0;
 }
 
 COType::~COType()

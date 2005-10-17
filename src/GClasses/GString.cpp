@@ -121,6 +121,17 @@ void GString::InsertChar(int nPos, wchar_t wc)
 	m_pBuffer[nPos] = wc;
 }
 
+void GString::RemoveLastChar()
+{
+	if(m_pQueue)
+		FlushQueue();
+	if(m_nStringLength > 0)
+	{
+		m_pBuffer[m_nStringLength - 1] = L'\0';
+		m_nStringLength--;
+	}
+}
+
 void GString::Add(const wchar_t* wszString, int nLen)
 {
 	if(m_pQueue || m_nBufferSize <= m_nStringLength + nLen)
@@ -135,7 +146,7 @@ void GString::Add(const wchar_t* wszString, int nLen)
 	else
 	{
 		// The buffer is already big enough, so add it now.
-		memcpy(m_pBuffer + m_nStringLength * sizeof(wchar_t), wszString, nLen * sizeof(wchar_t));
+		memcpy(m_pBuffer + m_nStringLength, wszString, nLen * sizeof(wchar_t));
 		m_nStringLength += nLen;
 		m_pBuffer[m_nStringLength] = L'\0';
 	}
@@ -168,13 +179,33 @@ void GString::Add(const wchar_t wChar)
 	wchar_t buf[2];
 	buf[1] = L'\0';
 	buf[0] = wChar;
-	Add(buf);
+	Add(buf, 1);
+}
+
+void GString::Add(const char c)
+{
+	wchar_t wc = c;
+	Add(wc);
 }
 
 void GString::Add(int n)
 {
 	wchar_t wszBuf[64];
 	swprintf(wszBuf, 64, L"%d", n);
+	Add(wszBuf);
+}
+
+void GString::Add(double d)
+{
+	wchar_t wszBuf[64];
+	swprintf(wszBuf, 64, L"%lf", d);
+	Add(wszBuf);
+}
+
+void GString::Add(float f)
+{
+	wchar_t wszBuf[64];
+	swprintf(wszBuf, 64, L"%f", f);
 	Add(wszBuf);
 }
 
@@ -215,6 +246,24 @@ void GString::Copy(GString* pString, int nStartPos, int nLen)
 {
 	Clear();
 	Add(pString, nStartPos, nLen);
+}
+
+void GString::Copy(int n)
+{
+	Clear();
+	Add(n);
+}
+
+void GString::Copy(double d)
+{
+	Clear();
+	Add(d);
+}
+
+void GString::Copy(float f)
+{
+	Clear();
+	Add(f);
 }
 
 void GString::SetBufferLengthAtLeast(int nNewLength)

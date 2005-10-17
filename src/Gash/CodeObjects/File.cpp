@@ -20,6 +20,7 @@
 #include "../../GClasses/GQueue.h"
 #include "../../GClasses/GArray.h"
 #include "Project.h"
+#include "Variable.h"
 
 COFile::COFile(const char* szFilename)
 : CodeObject(0, 0, 0)
@@ -106,7 +107,66 @@ COMachineClass* COFile::GetMachineClass(int n)
 	return (COMachineClass*)m_pMachineClasses->GetPointer(n);
 }
 
-void COFile::LoadClassNames(GXMLTag* pFileTag, COProject* pCOProject)
+void COFile::ReplaceType(COType* pOld, COType* pNew)
+{
+	GAssert(m_nPhase < 4, "Can't replace a type after the instructions have been loaded");
+	int nCount = GetClassCount();
+	int n;
+	for(n = 0; n < nCount; n++)
+	{
+		COClass* pClass = GetClass(n);
+		pClass->ReplaceType(pOld, pNew);
+	}
+	nCount = GetInterfaceCount();
+	for(n = 0; n < nCount; n++)
+	{
+		COInterface* pInterface = GetInterface(n);
+		pInterface->ReplaceType(pOld, pNew);
+	}
+	nCount = GetMachineClassCount();
+	for(n = 0; n < nCount; n++)
+	{
+		COMachineClass* pMachineClass = GetMachineClass(n);
+		pMachineClass->ReplaceType(pOld, pNew);
+	}
+}
+
+void COFile::AddType(COType* pNewType, COProject* pCOProject, GXMLTag* pFileTag)
+{
+	COType* pOldType = pCOProject->FindType(pNewType->GetName());
+	if(pOldType)
+	{
+		if(pOldType->GetGeneration() <= pNewType->GetGeneration())
+		{
+			//if(pOldType->GetGeneration() == pNewType->GetGeneration())
+			//	pCOProject->ThrowError(&Error::CONFLICTING_TYPES, pFileTag);
+			delete(pNewType);
+			return;
+		}
+	}
+
+	// Add it to the file
+	switch(pNewType->GetTypeType())
+	{
+		case COType::TT_CLASS:
+			m_pClasses->AddPointer(pNewType);
+			break;
+		case COType::TT_INTERFACE:
+			m_pInterfaces->AddPointer(pNewType);
+			break;
+		case COType::TT_MACHINE:
+			m_pMachineClasses->AddPointer(pNewType);
+			break;
+		default:
+			GAssert(false, "unexpected type type");
+	}
+
+	// Replace the old type with the new one
+	if(pOldType)
+		pCOProject->ReplaceType(pOldType, pNewType);
+}
+
+void COFile::LoadTypeNames(GXMLTag* pFileTag, COProject* pCOProject, bool bXLib)
 {
 	GAssert(m_nPhase == 0, "expected to be in phase 0");
 	if(stricmp(pFileTag->GetName(), TAG_NAME_FILE) != 0 && stricmp(pFileTag->GetName(), TAG_NAME_LIBRARY) != 0)
@@ -132,21 +192,45 @@ void COFile::LoadClassNames(GXMLTag* pFileTag, COProject* pCOProject)
 			}
 			else
 				szSource = GetFilename(); // todo: use a relative filename
-			AddClass(new COClass(nLine, nCol, nWid, pName->GetValue(), pCOProject->m_pObject, this, szSource, pCOProject));
+			COClass* pNewClass = new COClass(nLine, nCol, nWid, pName->GetValue(), pCOProject->m_pObject, this, szSource, pCOProject);
+			if(bXLib)
+			{
+				GXMLAttribute* pGenAttr = pChildTag->GetAttribute(ATTR_GEN);
+				if(!pGenAttr)
+					pCOProject->ThrowError(&Error::EXPECTED_GEN_ATTRIBUTE, pChildTag);
+				pNewClass->SetGeneration(atoi(pGenAttr->GetValue()));
+			}
+			AddType(pNewClass, pCOProject, pChildTag);
 		}
 		else if(stricmp(pChildTag->GetName(), TAG_NAME_INTERFACE) == 0)
 		{
 			pName = pChildTag->GetAttribute(ATTR_NAME);
 			if(!pName)
 				pCOProject->ThrowError(&Error::EXPECTED_NAME_ATTRIBUTE, pChildTag);
-			AddInterface(new COInterface(nLine, nCol, nWid, pName->GetValue(), this, pCOProject));
+			COInterface* pNewInterface = new COInterface(nLine, nCol, nWid, pName->GetValue(), this, pCOProject);
+			if(bXLib)
+			{
+				GXMLAttribute* pGenAttr = pChildTag->GetAttribute(ATTR_GEN);
+				if(!pGenAttr)
+					pCOProject->ThrowError(&Error::EXPECTED_GEN_ATTRIBUTE, pChildTag);
+				pNewInterface->SetGeneration(atoi(pGenAttr->GetValue()));
+			}
+			AddType(pNewInterface, pCOProject, pChildTag);
 		}
 		else if(stricmp(pChildTag->GetName(), TAG_NAME_MACHINE) == 0)
 		{
 			pName = pChildTag->GetAttribute(ATTR_NAME);
 			if(!pName)
 				pCOProject->ThrowError(&Error::EXPECTED_NAME_ATTRIBUTE, pChildTag);
-			AddMachineClass(new COMachineClass(nLine, nCol, nWid, pName->GetValue(), this, pCOProject));
+			COMachineClass* pNewMachineClass = new COMachineClass(nLine, nCol, nWid, pName->GetValue(), this, pCOProject);
+			if(bXLib)
+			{
+				GXMLAttribute* pGenAttr = pChildTag->GetAttribute(ATTR_GEN);
+				if(!pGenAttr)
+					pCOProject->ThrowError(&Error::EXPECTED_GEN_ATTRIBUTE, pChildTag);
+				pNewMachineClass->SetGeneration(atoi(pGenAttr->GetValue()));
+			}
+			AddType(pNewMachineClass, pCOProject, pChildTag);
 		}
 	}
 #ifdef _DEBUG
@@ -158,25 +242,20 @@ void COFile::LoadMembers(GXMLTag* pTag, COProject* pCOProject, bool bPartial)
 {
 	GAssert(m_nPhase == 1, "Expected to be in phase 1");
 	GXMLTag* pChildTag = pTag->GetFirstChildTag();
-	int nClass = 0;
-	int nInterface = 0;
+	GXMLAttribute* pAttrName;
 	while(pChildTag)
 	{
 		if(stricmp(pChildTag->GetName(), TAG_NAME_CLASS) == 0)
 		{
-			COClass* pClass = GetClass(nClass);
-			pClass->LoadMembers(pChildTag, pCOProject, bPartial);
-			nClass++;
-		}
-		else if(stricmp(pChildTag->GetName(), TAG_NAME_INTERFACE) == 0)
-		{
-			// Don't do anything here since interfaces have no members
-			nInterface++;
+			pAttrName = pChildTag->GetAttribute(ATTR_NAME);
+			if(!pAttrName)
+				pCOProject->ThrowError(&Error::EXPECTED_NAME_ATTRIBUTE, pChildTag);
+			COClass* pClass = FindClass(pAttrName->GetValue());
+			if(pClass)
+				pClass->LoadMembers(pChildTag, pCOProject, bPartial);
 		}
 		pChildTag = pTag->GetNextChildTag(pChildTag);
 	}
-	GAssert(nClass == GetClassCount(), "Class left over with no XML Tag");
-	GAssert(nInterface == GetInterfaceCount(), "Interface left over with no XML Tag");
 #ifdef _DEBUG
 	m_nPhase = 2;
 #endif // _DEBUG
@@ -186,33 +265,38 @@ void COFile::LoadMethodDeclarations(GXMLTag* pTag, COProject* pCOProject, bool b
 {
 	GAssert(m_nPhase == 2, "expected to be in phase 2");
 	GXMLTag* pChildTag = pTag->GetFirstChildTag();
-	int nClass = 0;
-	int nInterface = 0;
-	int nMachineClass = 0;
+	GXMLAttribute* pAttrName;
 	while(pChildTag)
 	{
 		if(stricmp(pChildTag->GetName(), TAG_NAME_CLASS) == 0)
 		{
-			COClass* pClass = GetClass(nClass);
-			pClass->LoadAllMethodDefinitions(pChildTag, pCOProject, bPartial);
-			nClass++;
+			pAttrName = pChildTag->GetAttribute(ATTR_NAME);
+			if(!pAttrName)
+				pCOProject->ThrowError(&Error::EXPECTED_NAME_ATTRIBUTE, pChildTag);
+			COClass* pClass = FindClass(pAttrName->GetValue());
+			if(pClass)
+				pClass->LoadAllMethodDefinitions(pChildTag, pCOProject, bPartial);
 		}
 		else if(stricmp(pChildTag->GetName(), TAG_NAME_INTERFACE) == 0)
 		{
-			COInterface* pInterface = GetInterface(nInterface);
-			pInterface->LoadMethodDecls(pChildTag, pCOProject, bPartial);
-			nInterface++;
+			pAttrName = pChildTag->GetAttribute(ATTR_NAME);
+			if(!pAttrName)
+				pCOProject->ThrowError(&Error::EXPECTED_NAME_ATTRIBUTE, pChildTag);
+			COInterface* pInterface = FindInterface(pAttrName->GetValue());
+			if(pInterface)
+				pInterface->LoadMethodDecls(pChildTag, pCOProject, bPartial);
 		}
 		else if(stricmp(pChildTag->GetName(), TAG_NAME_MACHINE) == 0)
 		{
-			COMachineClass* pMachineClass = GetMachineClass(nMachineClass);
-			pMachineClass->LoadMethodDecls(pChildTag, pCOProject, bPartial);
-			nMachineClass++;
+			pAttrName = pChildTag->GetAttribute(ATTR_NAME);
+			if(!pAttrName)
+				pCOProject->ThrowError(&Error::EXPECTED_NAME_ATTRIBUTE, pChildTag);
+			COMachineClass* pMachineClass = FindMachineClass(pAttrName->GetValue());
+			if(pMachineClass)
+				pMachineClass->LoadMethodDecls(pChildTag, pCOProject, bPartial);
 		}
 		pChildTag = pTag->GetNextChildTag(pChildTag);
 	}
-	GAssert(nClass == GetClassCount(), "Class left over with no XML Tag");
-	GAssert(nInterface == GetInterfaceCount(), "Interface left over with no XML Tag");
 #ifdef _DEBUG
 	m_nPhase = 3;
 #endif // _DEBUG
@@ -222,34 +306,20 @@ void COFile::LoadInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartia
 {
 	GAssert(m_nPhase == 3, "expected to be in phase 3");
 	GXMLTag* pChildTag = pTag->GetFirstChildTag();
-	int nClass = 0;
-	int nInterface = 0;
-	int nMachine = 0;
+	GXMLAttribute* pAttrName;
 	while(pChildTag)
 	{
 		if(stricmp(pChildTag->GetName(), TAG_NAME_CLASS) == 0)
 		{
-			COClass* pClass = GetClass(nClass);
-			pClass->LoadAllInstructions(pChildTag, pCOProject, bPartial);
-			nClass++;
+			pAttrName = pChildTag->GetAttribute(ATTR_NAME);
+			if(!pAttrName)
+				pCOProject->ThrowError(&Error::EXPECTED_NAME_ATTRIBUTE, pChildTag);
+			COClass* pClass = FindClass(pAttrName->GetValue());
+			if(pClass)
+				pClass->LoadAllInstructions(pChildTag, pCOProject, bPartial);
 		}
-		else if(stricmp(pChildTag->GetName(), TAG_NAME_INTERFACE) == 0)
-		{
-			// Don't do anything since interfaces methods are all abstract
-			nInterface++;
-		}
-		else if(stricmp(pChildTag->GetName(), TAG_NAME_MACHINE) == 0)
-		{
-			// Don't do anything since machine methods are all abstract
-			nMachine++;
-		}
-		else
-			pCOProject->ThrowError(&Error::EXPECTED_CLASS_OR_INTERFACE_TAG, pChildTag);
 		pChildTag = pTag->GetNextChildTag(pChildTag);
 	}
-	GAssert(nClass == GetClassCount(), "Class left over with no XML Tag");
-	GAssert(nInterface == GetInterfaceCount(), "Interface left over with no XML Tag");
-	GAssert(nMachine == GetMachineClassCount(), "Machine class left over with no XML Tag");
 #ifdef _DEBUG
 	m_nPhase = 4;
 #endif // _DEBUG
@@ -371,6 +441,52 @@ COType* COFile::GetType(int index)
 		return GetMachineClass(index);
 	GAssert(false, "index out of range");
 	return NULL;
+}
+
+bool COFile::RemoveUnlinkedType(COType* pOldType)
+{
+	int n;
+	if(pOldType->GetTypeType() == COType::TT_CLASS)
+	{
+		for(n = 0; n < GetClassCount(); n++)
+		{
+			if(GetClass(n) == pOldType)
+			{
+				delete(GetClass(n));
+				m_pClasses->DeleteCell(n);
+				return true;
+			}
+		}
+	}
+	else if(pOldType->GetTypeType() == COType::TT_INTERFACE)
+	{
+		for(n = 0; n < GetInterfaceCount(); n++)
+		{
+			if(GetInterface(n) == pOldType)
+			{
+				delete(GetInterface(n));
+				m_pInterfaces->DeleteCell(n);
+				return true;
+			}
+		}
+	}
+	else if(pOldType->GetTypeType() == COType::TT_MACHINE)
+	{
+		for(n = 0; n < GetMachineClassCount(); n++)
+		{
+			if(GetMachineClass(n) == pOldType)
+			{
+				delete(GetMachineClass(n));
+				m_pMachineClasses->DeleteCell(n);
+				return true;
+			}
+		}
+	}
+	else
+	{
+		GAssert(false, "unexpected type type");
+	}
+	return false;
 }
 
 COType* COFile::FindType(int id)
@@ -522,7 +638,7 @@ COFile* COFile::LoadPartialForSymbolCreation(const char* szFilename, ErrorHandle
 	bool bOK = true;
 	try
 	{
-		pF->LoadClassNames(pTag, pProject);
+		pF->LoadTypeNames(pTag, pProject, false);
 		pF->LoadMembers(pTag, pProject, true);
 		pF->LoadMethodDeclarations(pTag, pProject, true);
 		pF->LoadInstructions(pTag, pProject, true);

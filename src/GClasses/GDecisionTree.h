@@ -50,7 +50,7 @@ public:
 
 protected:
 	// A recursive helper method used to construct the decision tree
-	void BuildNode(GDecisionTreeNode* pNode, GArffData* pData);
+	void BuildNode(GDecisionTreeNode* pNode, GArffData* pData, bool* pUsedAttributes);
 
 	// InfoGain is defined as the difference in entropy in the data
 	// before and after dividing it based on the specified attribute

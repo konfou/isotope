@@ -707,7 +707,7 @@ void GImage::SafeDrawLine(int nX1, int nY1, int nX2, int nY2, GColor color)
 	{
 		if(nX1 >= m_nWidth)
 			return;
-		nY2 = (nY2 - nY1) * (m_nWidth - 1 - nX1) / (nX1 - nX2) + nY1;
+		nY2 = (nY2 - nY1) * (m_nWidth - 1 - nX1) / (nX2 - nX1) + nY1;
 		nX2 = m_nWidth - 1;
 	}
 
@@ -1483,7 +1483,7 @@ bool GImage::LoadBMPFile(FILE* pFile)
 		return false;
 	}
 	SetSize(h2.biWidth, h2.biHeight);
-	
+
 	int y;
 	int x;
 	unsigned char nR;
@@ -1852,6 +1852,68 @@ void GImage::Sharpen(double dFactor)
 	SwapData(&imgTmp);
 }
 
+void GImage::Invert()
+{
+	int x, y;
+	GColor col;
+	for(y = 0; y < (int)m_nHeight; y++)
+	{
+		for(x = 0; x < (int)m_nWidth; x++)
+		{
+			col = GetPixel(x, y);
+			SetPixel(x, y, gRGB(255 - gRed(col), 255 - gGreen(col), 255 - gBlue(col)));
+		}
+	}
+}
+
+void GImage::MakeEdgesGlow(float fThresh, int nThickness, int nOpacity, GColor color)
+{
+	// Make initial mask
+	GImage tmp;
+	tmp.SetSize(m_nWidth, m_nHeight);
+	GColor col, colLeft, colRight, colTop, colBottom;
+	int x, y, dif;
+	for(y = m_nHeight - 2; y > 0; y--)
+	{
+		for(x = m_nWidth - 2; x > 0; x--)
+		{
+			col = GetPixel(x, y);
+			colLeft = GetPixel(x - 1, y);
+			colRight = GetPixel(x + 1, y);
+			colTop = GetPixel(x, y - 1);
+			colBottom = GetPixel(x, y + 1);
+			dif = ABS((int)gRed(col) - (int)gRed(colLeft)) + ABS((int)gGreen(col) - (int)gGreen(colLeft)) + ABS((int)gBlue(col) - (int)gBlue(colLeft)) +
+				ABS((int)gRed(col) - (int)gRed(colRight)) + ABS((int)gGreen(col) - (int)gGreen(colRight)) + ABS((int)gBlue(col) - (int)gBlue(colRight)) +
+				ABS((int)gRed(col) - (int)gRed(colTop)) + ABS((int)gGreen(col) - (int)gGreen(colTop)) + ABS((int)gBlue(col) - (int)gBlue(colTop)) +
+				ABS((int)gRed(col) - (int)gRed(colBottom)) + ABS((int)gGreen(col) - (int)gGreen(colBottom)) + ABS((int)gBlue(col) - (int)gBlue(colBottom));
+			if((float)dif / 3072 > fThresh)
+				tmp.SetPixel(x, y, nThickness + 1);
+		}
+	}
+
+	// Make the glowing
+	int n;
+	for(n = nThickness; n >= 0; n--)
+	{
+		for(y = m_nHeight - 2; y > 0; y--)
+		{
+			for(x = m_nWidth - 2; x > 0; x--)
+			{
+				col = tmp.GetPixel(x, y);
+				if(col > (unsigned int)n)
+				{
+					tmp.SetPixel(x - 1, y, tmp.GetPixel(x - 1, y) | n);
+					tmp.SetPixel(x + 1, y, tmp.GetPixel(x + 1, y) | n);
+					tmp.SetPixel(x, y - 1, tmp.GetPixel(x, y - 1) | n);
+					tmp.SetPixel(x, y + 1, tmp.GetPixel(x, y + 1) | n);
+					col = MixColors(color, GetPixel(x, y), nOpacity);
+					SetPixel(x, y, col);
+				}
+			}
+		}
+	}
+}
+
 void GImage::HorizDifferenceize()
 {
 	if(m_nWidth <= 1)
@@ -1923,15 +1985,25 @@ void GImage::DrawBezier(GBezier* pCurve, GColor color, double dStart, double dEn
 
 int GImage::MeasureHardTextWidth(int height, const char* szText, float width)
 {
+	bool bBig = (height > 24);
 	int sx, sy, sw, sh;
 	int x = 0;
+	int nCharWidth;
 	while(true)
 	{
 		char c = *szText;
 		if(c == '\0')
 			break;
-		GHardFont_GetCharCoords(c, &sx, &sy, &sw, &sh);
-		int nCharWidth = (int)(sw * height * width) / sh;
+		if(bBig)
+		{
+			GHardFont_GetCharCoords(c, &sx, &sy, &sw, &sh);
+			nCharWidth = (int)(sw * height * width) / sh;
+		}
+		else
+		{
+			GSmallHardFont_GetCharCoords(c, &sx, &sy, &sw, &sh);
+			nCharWidth = sw;
+		}
 		x += nCharWidth;
 		szText++;
 	}

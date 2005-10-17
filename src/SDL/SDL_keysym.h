@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 #ifdef SAVE_RCSID
@@ -274,6 +274,7 @@ typedef enum {
 	SDLK_LSUPER		= 311,		/* Left "Windows" key */
 	SDLK_RSUPER		= 312,		/* Right "Windows" key */
 	SDLK_MODE		= 313,		/* "Alt Gr" key */
+	SDLK_COMPOSE		= 314,		/* Multi-key compose key */
 
 	/* Miscellaneous function keys */
 	SDLK_HELP		= 315,
@@ -283,6 +284,7 @@ typedef enum {
 	SDLK_MENU		= 319,
 	SDLK_POWER		= 320,		/* Power Macintosh power key */
 	SDLK_EURO		= 321,		/* Some european keyboards */
+	SDLK_UNDO		= 322,		/* Atari keyboard has Undo */
 
 	/* Add any other keys here */
 

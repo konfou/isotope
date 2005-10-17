@@ -101,7 +101,7 @@ WassailDialog::~WassailDialog()
 
 void WassailDialog::FindLibraryFolder(const char* szAppPath)
 {
-	const char* szSubPath = "../Source/Gash/xlib/";
+	const char* szSubPath = "./";
 	m_pLibrariesDir = new char[strlen(szAppPath) + strlen(szSubPath) + 1];
 	strcpy(m_pLibrariesDir, szAppPath);
 	strcat(m_pLibrariesDir, szSubPath);

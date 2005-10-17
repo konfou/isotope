@@ -44,7 +44,8 @@ public:
 	bool IsAutoAlloc() { return m_bAutoAlloc; }
 	const char* GetName() { return m_szName; }
 	void SetName(const char* szName) { GAssert(szName, "Must have a valid name"); delete(m_szName); m_szName = new char[strlen(szName) + 1]; strcpy(m_szName, szName); }
-	void SetType(COType* pType) { m_pType = pType; }
+	void SetType(COType* pType);
+	void ReplaceType(COType* pOld, COType* pNew);
 
 	static COVariable* FromXML(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	virtual GXMLTag* SaveToXML();

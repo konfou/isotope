@@ -19,10 +19,11 @@
 #include "MGameClient.h"
 #include "MGameImage.h"
 #include "GameEngine.h"
+#include "MCollisionMap.h"
 
 MRealm::MRealm(Model* pModel)
 {
-	GAssert(m_pModel, "Model can't be NULL");
+	GAssert(pModel, "Model can't be NULL");
 	m_pModel = pModel;
 	m_pObjectsByID = NULL;
 	m_pClosestObject = NULL;
@@ -33,6 +34,8 @@ MRealm::MRealm(Model* pModel)
 	m_pTerrain = new GImage();
 	m_pObjects = new GPointerArray(64);
 	m_pObjectsByID = new GHashTable(107);
+	m_pCollisionMap = NULL;
+	m_pCurrentCamera = NULL;
 }
 
 MRealm::~MRealm()
@@ -47,6 +50,7 @@ MRealm::~MRealm()
 	delete(m_pObjectsByID);
 	delete(m_pObjects);
 	delete(m_pTerrain);
+	delete(m_pCollisionMap);
 }
 
 int MRealm::GetObjectCount()
@@ -70,20 +74,17 @@ MObject* MRealm::GetObj(int n)
 		return 1;
 }
 
-GBillboardCamera* g_pCamera = NULL;
-
-int MObjectComparer(void* pA, void* pB)
+int MObjectComparer(void* pThis, void* pA, void* pB)
 {
-	return MRealm::CompareByCameraDistance(g_pCamera, (MObject*)pA, (MObject*)pB);
+	return MRealm::CompareByCameraDistance(((MRealm*)pThis)->m_pCurrentCamera, (MObject*)pA, (MObject*)pB);
 }
 
 void MRealm::SortObjects(GBillboardCamera* pCamera)
 {
 	// Sort the objects
-	GAssert(g_pCamera == NULL, "Looks like there are there multiple threads sorting the objects--yikes!");
-	g_pCamera = pCamera;
-	m_pObjects->Sort(MObjectComparer);
-	g_pCamera = NULL;
+	m_pCurrentCamera = pCamera;
+	m_pObjects->Sort(MObjectComparer, this);
+	m_pCurrentCamera = NULL;
 	RebuildIDTable();
 }
 
@@ -384,3 +385,30 @@ void MRealm::FromXml(GXMLTag* pTag, MImageStore* pStore)
 	}
 }
 
+void MRealm::RecompileCollisionMap()
+{
+	delete(m_pCollisionMap);
+	m_pCollisionMap = new MCollisionMap();
+	MObject* pOb;
+	int n;
+	GPosSize* pPosSize;
+	FRect r;
+	for(n = m_pObjects->GetSize() - 1; n >= 0; n--)
+	{
+		pOb = (MObject*)m_pObjects->GetPointer(n);
+		if(!pOb->IsSolid())
+			continue;
+		pPosSize = pOb->GetGhostPos();
+		r.x = pPosSize->x;
+		r.w = pPosSize->sx;
+		r.y = pPosSize->y;
+		r.h = pPosSize->sy;
+		m_pCollisionMap->AddSolidRect(&r);
+	}
+	m_pCollisionMap->Compile();
+}
+
+bool MRealm::CheckForSolidObject(float x, float y)
+{
+	return m_pCollisionMap->Check(x, y);
+}

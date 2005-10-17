@@ -29,9 +29,29 @@ inline GColor gRGB(int r, int g, int b)
 	return ((b & 0xff) | ((g & 0xff) << 8) | ((r & 0xff) << 16) | 0xff000000);
 }
 
-inline GColor gRGBA(int r, int g, int b, int a)
+inline GColor gARGB(int a, int r, int g, int b)
 {
 	return ((b & 0xff) | ((g & 0xff) << 8) | ((r & 0xff) << 16) | ((a & 0xff) << 24));
+}
+
+inline GColor MixColors(GColor a, GColor b, int nRatio)
+{
+	int n2 = 256 - nRatio;
+	return gARGB(
+		(gAlpha(a) * nRatio + gAlpha(b) * n2) >> 8,
+		(gRed(a) * nRatio + gRed(b) * n2) >> 8,
+		(gGreen(a) * nRatio + gGreen(b) * n2) >> 8,
+		(gBlue(a) * nRatio + gBlue(b) * n2) >> 8
+		);
+}
+
+inline GColor GetSpectrumColor(float f)
+{
+	int n = ((int)(f * 768)) % 768;
+	int r = MIN(MAX(0, 512 - (n + n)) + MAX(0, n + n - 1024), 255);
+	int g = MIN(MAX(0, 512 - (ABS(n - 256) << 1)), 255);
+	int b = MIN(MAX(0, 512 - (ABS(n - 512) << 1)), 255);
+	return gARGB(0xff, r, g, b);
 }
 
 struct GRect
@@ -210,9 +230,13 @@ public:
 
 	// Blur the image
 	void Blur(double dFactor);
-	
+
 	// Sharpen the image
 	void Sharpen(double dFactor);
+
+	void Invert();
+
+	void MakeEdgesGlow(float fThresh, int nThickness, int nOpacity, GColor color);
 
 	void Convolve(GImage* pKernel);
 

@@ -32,6 +32,7 @@ protected:
 	COFile* m_pFile;
 	char* m_szName;
 	int m_nID;
+	int m_nGeneration;
 
 public:
 	COType(int nLine, int nCol, int nWid, const char* szName, COFile* pFile, COProject* pCOProject);
@@ -44,7 +45,9 @@ public:
 	COFile* GetFile() { return m_pFile; }
 	bool CanCastTo(COType* pDestType, bool* pbNeedCast = NULL, ErrorStruct** ppErrorStruct = NULL);
 	Library* GetLibrary();
-	virtual GXMLTag* ToXMLForLibrary(GCompiler* pCompiler) = 0;
+	virtual GXMLTag* ToXMLForLibrary(GCompiler* pCompiler, bool bImport) = 0;
+	void SetGeneration(int n) { m_nGeneration = n; }
+	int GetGeneration() { return m_nGeneration; }
 
 protected:
 	void SetID(int nID) { m_nID = nID; }

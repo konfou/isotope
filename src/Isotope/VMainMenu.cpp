@@ -17,40 +17,6 @@
 #include "../GClasses/GWindows.h"
 #include "../GClasses/GXML.h"
 
-#define BACKGROUND_COLOR 0x445566
-
-VMainMenu::VMainMenu(GRect* pRect, GRect* pClippingRect, GXMLTag* pAccountTag)
-: ViewPort(pRect)
-{
-	m_pClippingRect = pClippingRect;
-	m_pImage = new GImage();
-	m_pAccountTag = pAccountTag;
-	m_pImage->SetSize(m_pClippingRect->w - 100, m_pClippingRect->h - 100);
-	m_pWidgetContainer = new GWidgetContainer(pRect->w, pRect->h);
-	m_pViewMapButton = MakeNewButton(m_pWidgetContainer, 10, 10, 100, 24, L"View Map");
-	m_pViewScriptButton = MakeNewButton(m_pWidgetContainer, 10, 40, 100, 24, L"View Script");
-	m_pScreenBiggerButton = MakeNewButton(m_pWidgetContainer, 10, 70, 100, 24, L"Screen Bigger");
-	m_pScreenSmallerButton = MakeNewButton(m_pWidgetContainer, 10, 100, 100, 24, L"Screen Smaller");
-	m_pTerrainButton = MakeNewButton(m_pWidgetContainer, 10, 130, 100, 24, L"Terrain On");
-	m_pAddObjectButton = MakeNewButton(m_pWidgetContainer, 10, 160, 100, 24, L"Add Object");
-	m_pSaveMapButton = MakeNewButton(m_pWidgetContainer, 10, 190, 100, 25, L"Save Map");
-
-	m_pInventoryItems = new GPointerArray(32);
-	m_pInventoryWidget = new GWidgetGrid(m_pWidgetContainer, m_pInventoryItems, 3, 200, 50, 300, 300);
-	m_pInventoryWidget->SetColumnWidth(0, 25);
-	m_pInventoryWidget->SetColumnWidth(1, 150);
-	InitInventoryWidget();
-
-	RefreshEntireImage();
-}
-
-/*virtual*/VMainMenu::~VMainMenu()
-{
-	delete(m_pWidgetContainer);
-	delete(m_pInventoryItems);
-	delete(m_pImage);
-}
-
 const wchar_t* g_wszColumnLabels[] =
 {
 	L"X",
@@ -58,72 +24,155 @@ const wchar_t* g_wszColumnLabels[] =
 	L"About",
 };
 
-void VMainMenu::InitInventoryWidget()
+#define BACKGROUND_COLOR 0x445566
+
+class MMainMenuDialog : public GWidgetDialog
 {
-	// Make the column headers
-	int nCols = sizeof(g_wszColumnLabels) / sizeof(const wchar_t*);
-	int x, y;
-	for(x = 0; x < nCols; x++)
+protected:
+	Controller* m_pController;
+	VMainMenu* m_pView;
+	GXMLTag* m_pAccountTag;
+	GWidgetTextButton* m_pViewMapButton;
+	GWidgetTextButton* m_pViewScriptButton;
+	GWidgetTextButton* m_pScreenBiggerButton;
+	GWidgetTextButton* m_pScreenSmallerButton;
+	GWidgetTextButton* m_pTerrainButton;
+	GWidgetTextButton* m_pAddObjectButton;
+	GWidgetTextButton* m_pSaveMapButton;
+	GPointerArray* m_pInventoryItems;
+	GWidgetGrid* m_pInventoryWidget;
+
+public:
+	MMainMenuDialog(VMainMenu* pView, Controller* pController, int w, int h, GXMLTag* pAccountTag)
+		: GWidgetDialog(w, h, BACKGROUND_COLOR)
 	{
-		GString s;
-		s.Add(g_wszColumnLabels[x]);
-		GWidgetTextButton* pNewButton = new GWidgetTextButton(m_pInventoryWidget, 0, 0, m_pInventoryWidget->GetColumnWidth(x), 20, &s);
-		pNewButton->Update();
-		m_pInventoryWidget->SetColumnHeader(x, pNewButton);
+		m_pView = pView;
+		m_pController = pController;
+		m_pAccountTag = pAccountTag;
+
+		// Make the buttons
+		m_pViewMapButton = MakeNewButton(10, 10, 100, 24, L"View Map");
+		m_pViewScriptButton = MakeNewButton(10, 40, 100, 24, L"View Script");
+		m_pScreenBiggerButton = MakeNewButton(10, 70, 100, 24, L"Screen Bigger");
+		m_pScreenSmallerButton = MakeNewButton(10, 100, 100, 24, L"Screen Smaller");
+		m_pTerrainButton = MakeNewButton(10, 130, 100, 24, L"Terrain On");
+		m_pAddObjectButton = MakeNewButton(10, 160, 100, 24, L"Add Object");
+		m_pSaveMapButton = MakeNewButton(10, 190, 100, 25, L"Save Map");
+
+		m_pInventoryItems = new GPointerArray(32);
+		m_pInventoryWidget = new GWidgetGrid(this, m_pInventoryItems, 3, 200, 50, 300, 300);
+		m_pInventoryWidget->SetColumnWidth(0, 25);
+		m_pInventoryWidget->SetColumnWidth(1, 150);
+		InitInventoryWidget();
 	}
 
-	// Make the inventory items
-	GXMLTag* pInventoryTag = m_pAccountTag->GetChildTag("Inventory");
-	if(pInventoryTag)
+	virtual ~MMainMenuDialog()
 	{
-		GXMLTag* pItem;
-		y = 0;
-		for(pItem = pInventoryTag->GetFirstChildTag(); pItem; pItem = pInventoryTag->GetNextChildTag(pItem))
+		delete(m_pInventoryItems);
+	}
+
+	/*static*/ GWidgetTextButton* MMainMenuDialog::MakeNewButton(int x, int y, int w, int h, const wchar_t* wszText)
+	{
+		GString sText(wszText);
+		GWidgetTextButton* pNewButton = new GWidgetTextButton(this, x, y, w, h, &sText);
+		return pNewButton;
+	}
+
+	void InitInventoryWidget()
+	{
+		// Make the column headers
+		int nCols = sizeof(g_wszColumnLabels) / sizeof(const wchar_t*);
+		int x, y;
+		for(x = 0; x < nCols; x++)
 		{
-			m_pInventoryWidget->AddBlankRow();
-
-			// Add a check box
-			GWidgetCheckBox* pNewCheckBox = new GWidgetCheckBox(m_pInventoryWidget, 0, 0, 17, 17);
-			pNewCheckBox->Update();
-			m_pInventoryWidget->SetWidget(0, y, pNewCheckBox);
-
-			// Add a label
 			GString s;
-			GXMLAttribute* pAttrName = pItem->GetAttribute("Name");
-			s.Add(pAttrName ? pAttrName->GetValue() : "Mysterious Object");
-			GWidgetTextLabel* pNewLabel = new GWidgetTextLabel(m_pInventoryWidget, 0, 0, 80, 20, &s);
-			pNewLabel->Update();
-			m_pInventoryWidget->SetWidget(1, y, pNewLabel);
+			s.Add(g_wszColumnLabels[x]);
+			GWidgetTextButton* pNewButton = new GWidgetTextButton(m_pInventoryWidget, 0, 0, m_pInventoryWidget->GetColumnWidth(x), 20, &s);
+			m_pInventoryWidget->SetColumnHeader(x, pNewButton);
+		}
 
-			// Add a button
-			s.Clear();
-			s.Add(L"Details");
-			GWidgetTextButton* pNewButton = new GWidgetTextButton(m_pInventoryWidget, 0, 0, 80, 20, &s);
-			pNewButton->Update();
-			m_pInventoryWidget->SetWidget(2, y, pNewButton);
-			y++;
+		// Make the inventory items
+		GXMLTag* pInventoryTag = m_pAccountTag->GetChildTag("Inventory");
+		if(pInventoryTag)
+		{
+			GXMLTag* pItem;
+			y = 0;
+			for(pItem = pInventoryTag->GetFirstChildTag(); pItem; pItem = pInventoryTag->GetNextChildTag(pItem))
+			{
+				m_pInventoryWidget->AddBlankRow();
+
+				// Add a check box
+				GWidgetCheckBox* pNewCheckBox = new GWidgetCheckBox(m_pInventoryWidget, 0, 0, 17, 17);
+				m_pInventoryWidget->SetWidget(0, y, pNewCheckBox);
+
+				// Add a label
+				GString s;
+				GXMLAttribute* pAttrName = pItem->GetAttribute("Name");
+				s.Add(pAttrName ? pAttrName->GetValue() : "Mysterious Object");
+				GWidgetTextLabel* pNewLabel = new GWidgetTextLabel(m_pInventoryWidget, 0, 0, 80, 20, &s, false);
+				m_pInventoryWidget->SetWidget(1, y, pNewLabel);
+
+				// Add a button
+				s.Clear();
+				s.Add(L"Details");
+				GWidgetTextButton* pNewButton = new GWidgetTextButton(m_pInventoryWidget, 0, 0, 80, 20, &s);
+				m_pInventoryWidget->SetWidget(2, y, pNewButton);
+				y++;
+			}
 		}
 	}
-	m_pInventoryWidget->UpdateAll();
+
+	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
+	{
+		if(pButton == m_pTerrainButton)
+			m_pController->ToggleTerrain();
+		else if(pButton == m_pScreenSmallerButton)
+			m_pController->MakeScreenSmaller();
+		else if(pButton == m_pScreenBiggerButton)
+			m_pController->MakeScreenBigger();
+		else if(pButton == m_pViewScriptButton)
+			m_pController->ViewScript();
+		else if(pButton == m_pViewMapButton)
+			m_pController->ViewMap();
+		else if(pButton == m_pAddObjectButton)
+			m_pView->AddObject(m_pController);
+		else if(pButton == m_pSaveMapButton)
+		{
+		}
+		//else
+		//	GAssert(false, "Unrecognized button");
+	}
+};
+
+
+
+// --------------------------------------------------------------------
+
+VMainMenu::VMainMenu(GRect* pRect, GRect* pClippingRect, GXMLTag* pAccountTag, Controller* pController)
+: ViewPort(pRect)
+{
+	m_pClippingRect = pClippingRect;
+	m_pDialog = new MMainMenuDialog(this, pController, pClippingRect->w - 100, pClippingRect->h - 100, pAccountTag);
+
+	RefreshEntireImage();
+}
+
+/*virtual*/VMainMenu::~VMainMenu()
+{
+	delete(m_pDialog);
 }
 
 void VMainMenu::RefreshEntireImage()
 {
-	m_pImage->Clear(BACKGROUND_COLOR);
-	m_pImage->DrawBox(0, 0, m_pImage->GetWidth() - 1, m_pImage->GetHeight() - 1, 0xffffff, false);
-	m_pViewMapButton->Draw(m_pImage);
-	m_pViewScriptButton->Draw(m_pImage);
-	m_pScreenBiggerButton->Draw(m_pImage);
-	m_pScreenSmallerButton->Draw(m_pImage);
-	m_pTerrainButton->Draw(m_pImage);
-	m_pAddObjectButton->Draw(m_pImage);
-	m_pSaveMapButton->Draw(m_pImage);
-	m_pInventoryWidget->Draw(m_pImage);
+	GRect r;
+	GImage* pImage = m_pDialog->GetImage(&r);
+	pImage->DrawBox(0, 0, pImage->GetWidth() - 1, pImage->GetHeight() - 1, 0xffffff, false);
 }
 
 /*virtual*/ void VMainMenu::Draw(SDL_Surface *pScreen)
 {
-	StretchClipAndBlitImage(pScreen, &m_rect, m_pClippingRect, m_pImage);
+	GRect r;
+	StretchClipAndBlitImage(pScreen, &m_rect, m_pClippingRect, m_pDialog->GetImage(&r));
 }
 
 void VMainMenu::AddObject(Controller* pController)
@@ -138,56 +187,20 @@ void VMainMenu::AddObject(Controller* pController)
 #endif // !WIN32
 }
 
-void VMainMenu::ReleaseButton(Controller* pController, GWidgetTextButton* pButton)
-{
-	if(pButton == m_pTerrainButton)
-		pController->ToggleTerrain();
-	else if(pButton == m_pScreenSmallerButton)
-		pController->MakeScreenSmaller();
-	else if(pButton == m_pScreenBiggerButton)
-		pController->MakeScreenBigger();
-	else if(pButton == m_pViewScriptButton)
-		pController->ViewScript();
-	else if(pButton == m_pViewMapButton)
-		pController->ViewMap();
-	else if(pButton == m_pAddObjectButton)
-		AddObject(pController);
-	else if(pButton == m_pSaveMapButton)
-	{
-	}
-	//else
-	//	GAssert(false, "Unrecognized button");
-}
-
-void VMainMenu::OnMouseDown(Controller* pController, int x, int y)
+void VMainMenu::OnMouseDown(int x, int y)
 {
 	x -= m_rect.x;
 	y -= m_rect.y;
-	GWidgetAtomic* pNewWidget = m_pWidgetContainer->FindAtomicWidget(x, y);
-	if(!pNewWidget)
-		return;
-	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
-	if(pOldWidget == pNewWidget)
-		pOldWidget = NULL;
-	m_pWidgetContainer->GrabWidget(pNewWidget);
-	if(pOldWidget)
-		pOldWidget->Draw(m_pImage);
-	pNewWidget->Draw(m_pImage);
+	GWidgetAtomic* pNewWidget = m_pDialog->FindAtomicWidget(x, y);
+	m_pDialog->GrabWidget(pNewWidget, x, y);
 }
 
-void VMainMenu::OnMouseUp(Controller* pController, int x, int y)
+void VMainMenu::OnMouseUp(int x, int y)
 {
-	x -= m_rect.x;
-	y -= m_rect.y;
-	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
-	m_pWidgetContainer->ReleaseWidget();
-	if(!pOldWidget)
-		return;
-	pOldWidget->Draw(m_pImage);
-	switch(pOldWidget->GetType())
-	{
-		case GWidget::TextButton:
-			ReleaseButton(pController, (GWidgetTextButton*)pOldWidget);
-			break;
-	}
+	m_pDialog->ReleaseWidget();
+}
+
+void VMainMenu::OnMousePos(int x, int y)
+{
+	m_pDialog->HandleMousePos(x - m_rect.x, y - m_rect.y);
 }

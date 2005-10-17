@@ -47,6 +47,7 @@ const char* ATTR_THIS = "This";
 const char* ATTR_SOURCE = "Source";
 const char* ATTR_IMPORTED = "Imported";
 const char* ATTR_CATCH = "Catch";
+const char* ATTR_GEN = "Gen";
 
 // Built-in XML Attribute values
 const char* VAL_NULL = "null";

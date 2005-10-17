@@ -187,7 +187,7 @@ void ParseError::ToString(GString* pString)
 		m_pTagWithError->GetOffsetAndWidth(&nCol, &nWid);
 		if(nWid > 80)
 		{
-			GAssert(nWid < 8192, "That's one big line");
+			GAssert(nWid < 8192, "Line number not set");
 			nWid = 80;
 		}
 		pString->Add(" column: ");

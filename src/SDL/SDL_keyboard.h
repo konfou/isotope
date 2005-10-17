@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 #ifdef SAVE_RCSID
@@ -55,12 +55,15 @@ extern "C" {
 		An international character..
 	}
  */
-typedef struct {
+typedef struct SDL_keysym {
 	Uint8 scancode;			/* hardware specific scancode */
 	SDLKey sym;			/* SDL virtual keysym */
 	SDLMod mod;			/* current key modifiers */
 	Uint16 unicode;			/* translated character */
 } SDL_keysym;
+
+/* This is the mask which refers to all hotkey bindings */
+#define SDL_ALL_HOTKEYS		0xFFFFFFFF
 
 /* Function prototypes */
 /*
@@ -71,7 +74,7 @@ typedef struct {
  * If 'enable' is -1, the translation state is not changed.
  * It returns the previous state of keyboard translation.
  */
-extern DECLSPEC int SDL_EnableUNICODE(int enable);
+extern DECLSPEC int SDLCALL SDL_EnableUNICODE(int enable);
 
 /*
  * Enable/Disable keyboard repeat.  Keyboard repeat defaults to off.
@@ -84,7 +87,7 @@ extern DECLSPEC int SDL_EnableUNICODE(int enable);
 /*
  * If 'delay' is set to 0, keyboard repeat is disabled.
  */
-extern DECLSPEC int SDL_EnableKeyRepeat(int delay, int interval);
+extern DECLSPEC int SDLCALL SDL_EnableKeyRepeat(int delay, int interval);
 
 /*
  * Get a snapshot of the current state of the keyboard.
@@ -93,28 +96,28 @@ extern DECLSPEC int SDL_EnableKeyRepeat(int delay, int interval);
  * 	Uint8 *keystate = SDL_GetKeyState(NULL);
  *	if ( keystate[SDLK_RETURN] ) ... <RETURN> is pressed.
  */
-extern DECLSPEC Uint8 * SDL_GetKeyState(int *numkeys);
+extern DECLSPEC Uint8 * SDLCALL SDL_GetKeyState(int *numkeys);
 
 /*
  * Get the current key modifier state
  */
-extern DECLSPEC SDLMod SDL_GetModState(void);
+extern DECLSPEC SDLMod SDLCALL SDL_GetModState(void);
 
 /*
  * Set the current key modifier state
  * This does not change the keyboard state, only the key modifier flags.
  */
-extern DECLSPEC void SDL_SetModState(SDLMod modstate);
+extern DECLSPEC void SDLCALL SDL_SetModState(SDLMod modstate);
 
 /*
  * Get the name of an SDL virtual keysym
  */
-extern DECLSPEC char * SDL_GetKeyName(SDLKey key);
+extern DECLSPEC char * SDLCALL SDL_GetKeyName(SDLKey key);
 
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
-};
+}
 #endif
 #include "close_code.h"
 

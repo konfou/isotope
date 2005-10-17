@@ -35,7 +35,7 @@ public:
 	// Getters
 	const char* GetName() { return m_pName; }
 	const char* GetValue() { return m_pValue; }
-	
+
 	// Setters
 	void SetName(const char* szName);
 	void SetValue(const char* szValue);

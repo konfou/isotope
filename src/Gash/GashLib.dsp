@@ -234,6 +234,14 @@ SOURCE=.\Test\Engine\basictestpos.gash
 # End Source File
 # Begin Source File
 
+SOURCE=.\Test\Engine\castneg.gash
+# End Source File
+# Begin Source File
+
+SOURCE=.\Test\Engine\castpos.gash
+# End Source File
+# Begin Source File
+
 SOURCE=.\Test\Engine\floattestpos.gash
 # End Source File
 # Begin Source File
@@ -246,6 +254,14 @@ SOURCE=.\Test\Engine\looptest.gash
 # End Source File
 # Begin Source File
 
+SOURCE=.\Test\Engine\poundtest.gash
+# End Source File
+# Begin Source File
+
+SOURCE=.\Test\Engine\serializetest.gash
+# End Source File
+# Begin Source File
+
 SOURCE=.\Test\Engine\stream.gash
 # End Source File
 # Begin Source File
@@ -255,6 +271,10 @@ SOURCE=.\Test\Engine\stringtest.gash
 # Begin Source File
 
 SOURCE=.\Test\Engine\throwtest.gash
+# End Source File
+# Begin Source File
+
+SOURCE=.\Test\Engine\virtualtest.gash
 # End Source File
 # End Group
 # Begin Group "Class"

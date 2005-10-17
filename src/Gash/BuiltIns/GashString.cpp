@@ -19,8 +19,8 @@ void RegisterGashString(GConstStringHashTable* pTable)
     pTable->Add("method &add(String)", new EMethodPointerHolder((MachineMethod1)&GashString::add));
 	pTable->Add("method !new()", new EMethodPointerHolder((MachineMethod0)&GashString::allocate));
 	pTable->Add("method &clear()", new EMethodPointerHolder((MachineMethod0)&GashString::clear));
-	pTable->Add("method compare(&Bool, String)", new EMethodPointerHolder((MachineMethod2)&GashString::compare));
-	pTable->Add("method compareIgnoringCase(&Bool, String)", new EMethodPointerHolder((MachineMethod2)&GashString::compareIgnoringCase));
+	pTable->Add("method compare(&Integer, String)", new EMethodPointerHolder((MachineMethod2)&GashString::compare));
+	pTable->Add("method compareIgnoringCase(&Integer, String)", new EMethodPointerHolder((MachineMethod2)&GashString::compareIgnoringCase));
     pTable->Add("method &copy(String)", new EMethodPointerHolder((MachineMethod1)&GashString::copy));
     pTable->Add("method &copySub(String, Integer, Integer)", new EMethodPointerHolder((MachineMethod3)&GashString::copySub));
 	pTable->Add("method find(&Integer, String)", new EMethodPointerHolder((MachineMethod2)&GashString::find));

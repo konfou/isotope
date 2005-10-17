@@ -113,10 +113,10 @@ public:
 		{
 			GString s;
 			s.Add(szExt);
-			pEngine->ThrowIOError(L"Unrecognized image extension: %s", s.GetString());
+			pEngine->ThrowIOError(L"Unrecognized image extension: %ls", s.GetString());
 		}
 		if(!bOK)
-			pEngine->ThrowIOError(L"Failed to load the image file: %s", pFilename->pStringObject->m_value.GetString());
+			pEngine->ThrowIOError(L"Failed to load the image file: %ls", pFilename->pStringObject->m_value.GetString());
 	}
 
 	void save(Engine* pEngine, EVar* pFilename)
@@ -136,10 +136,10 @@ public:
 		{
 			GString s;
 			s.Add(szExt);
-			pEngine->ThrowIOError(L"Unrecognized image extension: %s", s.GetString());
+			pEngine->ThrowIOError(L"Unrecognized image extension: %ls", s.GetString());
 		}
 		if(!bOK)
-			pEngine->ThrowIOError(L"Failed to save the file: %s", pFilename->pStringObject->m_value.GetString());
+			pEngine->ThrowIOError(L"Failed to save the file: %ls", pFilename->pStringObject->m_value.GetString());
 	}
 };
 

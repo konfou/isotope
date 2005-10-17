@@ -367,15 +367,23 @@ SOURCE=.\GMipsEmulator.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\GMipsEmulator.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GNaiveBayes.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GNaiveBayes.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GNeuralNet.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=.\GNeuralNet.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\GnuSDK.h
 # End Source File
 # Begin Source File
 

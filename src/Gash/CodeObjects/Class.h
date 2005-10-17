@@ -79,7 +79,7 @@ public:
 	void LoadAllMethodDefinitions(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	void LoadAllInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	GXMLTag* SaveToXML();
-	virtual GXMLTag* ToXMLForLibrary(GCompiler* pCompiler);
+	virtual GXMLTag* ToXMLForLibrary(GCompiler* pCompiler, bool bImport);
 	void SaveToClassicSyntax(GQueue* pQ);
 	static void FromClassicSyntax(ClassicSyntax* pParser);
 
@@ -87,7 +87,7 @@ public:
 	COMethod* FindMethod(EMethodSignature* pSignature);
 	COMethod* FindMethod(const char* szName, GPointerArray* pParams, ErrorStruct** ppError, int* pErrorParam, COProject* pProject);
 	COMethodDecl* FindVirtualTableIndex(int* pOutIndex, const char* szName, GPointerArray* pParams, ErrorStruct** ppError, int* pnErrorParam, COProject* pProject);
-
+	void ReplaceType(COType* pOld, COType* pNew);
 	bool DoesInherritFrom(COClass* pClass);
 	bool DoesImplement(COInterface* pInterface);
 	COVariable* FindMember(const char* szMemberName);

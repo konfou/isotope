@@ -114,9 +114,12 @@ GXMLTag* COInterface::ToXMLForImplementationInLibrary()
 	return pInterfaceTag;
 }
 
-GXMLTag* COInterface::ToXMLForLibrary(GCompiler* pCompiler)
+GXMLTag* COInterface::ToXMLForLibrary(GCompiler* pCompiler, bool bImport)
 {
 	GXMLTag* pInterfaceTag = ToXMLForImplementationInLibrary();
+	char szTmp[32];
+	itoa(m_nGeneration + (bImport ? 1 : 0), szTmp, 10);
+	pInterfaceTag->AddAttribute(new GXMLAttribute(ATTR_GEN, szTmp));
 	COMethodDecl* pMethDecl;
 	int nCount = GetMethodDeclCount();
 	int n;
@@ -224,3 +227,9 @@ COMethodDecl* COInterface::FindMethodDecl(int* pnOutIndex, const char* szName, G
 	return pMatch;
 }
 
+void COInterface::ReplaceType(COType* pOld, COType* pNew)
+{
+	int n;
+	for(n = 0; n < GetMethodDeclCount(); n++)
+		GetMethodDecl(n)->ReplaceType(pOld, pNew);
+}

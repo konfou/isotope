@@ -53,7 +53,7 @@ protected:
 	float m_fSelectionY2;
 
 public:
-	VGame(GRect* pRect, MGameClient* pGameClient);
+	VGame(GRect* pRect, MGameClient* pGameClient, GImage* pSkyImage, GImage* pGroundImage);
 	virtual ~VGame();
 
 	virtual void Draw(SDL_Surface *pScreen);
@@ -63,6 +63,8 @@ public:
 	void ToggleTerrain() { m_bTerrain = !m_bTerrain; }
 	void SetRect(GRect* pRect);
 	void SetSelectionRect(float x1, float y1, float x2, float y2);
+	void SetSkyImage(GImage* pImage);
+	void SetGroundImage(GImage* pImage);
 
 protected:
 	void DrawSpritesNoTerrain(SDL_Surface* pScreen);

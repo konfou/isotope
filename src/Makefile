@@ -2,14 +2,25 @@
 # Call child makefiles
 ################
 #SUBDIRS= GClasses MachineLearning Gash Isotope
-SUBDIRS= GClasses Gash Isotope
 
-.PHONY: children $(SUBDIRS)
+SUBDIRS= _GClasses _Gash _Isotope
 
-children: $(SUBDIRS)
 
-$(SUBDIRS):
-	$(MAKE) -C $@
+DBG_SUBDIRS= $(SUBDIRS:_%=DBG_%)
+OPT_SUBDIRS= $(SUBDIRS:_%=OPT_%)
+
+
+.PHONY: dbg opt $(DBG_SUBDIRS) $(OPT_SUBDIRS)
+
+dbg: $(DBG_SUBDIRS)
+
+opt: $(OPT_SUBDIRS)
+
+$(DBG_SUBDIRS): DBG_% : 
+	$(MAKE) -C $*
+
+$(OPT_SUBDIRS): OPT_% : 
+	$(MAKE) -C $* opt
 
 ################
 # Dependencies

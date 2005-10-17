@@ -42,15 +42,13 @@ struct VHorizGroundParams
 
 #define TERRAIN_EXTRA_RATIO 1.3
 
-VGame::VGame(GRect* pRect, MGameClient* pGameClient)
+VGame::VGame(GRect* pRect, MGameClient* pGameClient, GImage* pSkyImage, GImage* pGroundImage)
 : ViewPort(pRect)
 {
 	m_pGameClient = pGameClient;
 	m_pCamera = pGameClient->GetCamera();
-	MImageStore* pImageStore = pGameClient->GetImages();
-	m_pImageSky = &((MGameImage*)pImageStore->GetVarHolder("sky")->GetGObject())->m_value;
-	MAnimationStore* pAnimStore = pGameClient->GetAnimations();
-	m_pImageGround = &((MGameImage*)pImageStore->GetVarHolder("ground")->GetGObject())->m_value;
+	m_pImageSky = pSkyImage;
+	m_pImageGround = pGroundImage;
 	m_pVertGroundParams = new struct VVertGroundParams[(int)(pRect->h * TERRAIN_EXTRA_RATIO)];
 	m_pHorizGroundParams = new struct VHorizGroundParams[pRect->w];
 	m_dTime = 0;
@@ -151,8 +149,8 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 						pix = 0;
 					else
 					{
-						xImage = ((unsigned int)fMapX >> 2) % nGroundImageWidth;
-						yImage = nGroundImageHeight - 1 - (((unsigned int)fMapY >> 2) % nGroundImageHeight);
+						xImage = ((unsigned int)(fMapX - nMapXMin)) % nGroundImageWidth;
+						yImage = nGroundImageHeight - 1 - (((unsigned int)(fMapY - nMapYMin)) % nGroundImageHeight);
 						pix = pImageGround->GetPixel(xImage, yImage);
 					}
 					*(pPix32++) = pix;
@@ -398,7 +396,7 @@ void VGame::DrawSpritesNoTerrain(SDL_Surface* pScreen)
 	}
 }
 
-GColor MixColors(GColor a, GColor b, int n, int d)
+inline GColor MixColors(GColor a, GColor b, int n, int d)
 {
 	int n2 = d - n;
 	return gRGB(
@@ -406,6 +404,16 @@ GColor MixColors(GColor a, GColor b, int n, int d)
 		(gGreen(a) * n + gGreen(b) * n2) / d,
 		(gBlue(a) * n + gBlue(b) * n2) / d
 		);
+}
+
+void VGame::SetSkyImage(GImage* pImage)
+{
+	m_pImageSky = pImage;
+}
+
+void VGame::SetGroundImage(GImage* pImage)
+{
+	m_pImageGround = pImage;
 }
 
 void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)

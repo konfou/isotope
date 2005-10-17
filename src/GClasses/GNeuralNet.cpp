@@ -15,166 +15,294 @@
 #include "../GClasses/GMacros.h"
 #include "../GClasses/GArray.h"
 
-struct GNeuralNetLayer
-{
-	int m_nNodes;
-	double* m_pWeights;
-	double* m_pWeightDeltas;
-	double* m_pOutputs;
-	double* m_pError;
-
-	GNeuralNetLayer(int nNodes, GNeuralNetLayer* pPrevLayer)
-	{
-		m_nNodes = nNodes;
-		if(pPrevLayer)
-		{
-			m_pWeights = new double[nNodes * pPrevLayer->m_nNodes];
-			m_pWeightDeltas = new double[nNodes * pPrevLayer->m_nNodes];
-		}
-		else
-		{
-			m_pWeights = NULL;
-			m_pWeightDeltas = NULL;
-		}
-		m_pOutputs = new double[nNodes];
-		m_pError = new double[nNodes];
-	}
-
-	GNeuralNetLayer(GNeuralNetLayer* pThat, GNeuralNetLayer* pPrevLayer)
-	{
-		m_nNodes = pThat->m_nNodes;
-		if(pPrevLayer)
-			m_pWeights = new double[m_nNodes * pPrevLayer->m_nNodes];
-		else
-			m_pWeights = NULL;
-		m_pWeightDeltas = NULL;
-		m_pOutputs = new double[m_nNodes];
-		m_pError = NULL;
-	}
-
-	~GNeuralNetLayer()
-	{
-		delete(m_pError);
-		delete(m_pOutputs);
-		delete(m_pWeights);
-		delete(m_pWeightDeltas);
-	}
-
-	void CopyWeights(GNeuralNetLayer* pThat, GNeuralNetLayer* pPrevLayer)
-	{
-		GAssert(m_nNodes == pThat->m_nNodes, "different sizes");
-		int nCount = m_nNodes * pPrevLayer->m_nNodes;
-		int n;
-		for(n = 0; n < nCount; n++)
-			m_pWeights[n] = pThat->m_pWeights[n];
-	}
-};
+class GNeuron;
 
 
-GNeuralNet::GNeuralNet(GArffRelation* pRelation)
-{
-	m_pRelation = pRelation;
-	m_pLayers = new GPointerArray(8);
-	m_pBest = NULL;
-	int nInputs = pRelation->GetInputCount();
-	int nOutputs = pRelation->GetOutputCount();
-	m_pLayers->AddPointer(new GNeuralNetLayer(nOutputs, NULL));
-	m_nBiggestLayer = nInputs;
-	if(nOutputs > m_nBiggestLayer)
-		m_nBiggestLayer = nOutputs;
-	m_dInitThresh = .1;
-	m_dSigmoidSteepness = 1;
-	m_dLearningRate = .15;
-	m_dLearningDecay = 1;
-	m_dMomentum = .15;
-	m_dHopefulness = .3;
-	m_nMinimumIterations = 2500;
-	m_nMaximumIterations = 0x7fffffff;
-	m_nIterationsPerValidationCheck = 19;
-	m_dAcceptableMeanSquareError = 0.00001;
-	m_nPasses = 1;
-}
-
-GNeuralNet::~GNeuralNet()
-{
-	int nCount = m_pLayers->GetSize();
-	int n;
-	for(n = 0; n < nCount; n++)
-		delete((GNeuralNetLayer*)m_pLayers->GetPointer(n));
-	delete(m_pLayers);
-	delete(m_pBest);
-}
-
-void GNeuralNet::AddHiddenLayer(int nNodes)
-{
-	GNeuralNetLayer* pPrevLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(m_pLayers->GetSize() - 1);
-	m_pLayers->AddPointer(new GNeuralNetLayer(nNodes, pPrevLayer));
-	if(nNodes > m_nBiggestLayer)
-		m_nBiggestLayer = nNodes;
-}
+#define INIT_THRESH .2
 
 double randomDouble()
 {
 	return (double)rand() / RAND_MAX;
 }
 
-void GNeuralNet::EvaluateHelper(double* pRow, GPointerArray* pLayers)
+
+
+struct GSynapse
 {
-	// Copy inputs into a working buffer
-	int nLayer = pLayers->GetSize() - 1;
-	GNeuralNetLayer* pIn = (GNeuralNetLayer*)pLayers->GetPointer(nLayer);
-	GNeuralNetLayer* pOut;
-	int nCount = pIn->m_nNodes;
-	GAssert(nCount == m_pRelation->GetInputCount(), "node count mismatch");
-	int n, i;
-	for(n = 0; n < nCount; n++)
-		pIn->m_pOutputs[n] = pRow[m_pRelation->GetInputIndex(n)];
+	double m_dWeight; // Synapse
+	double m_dWeightDelta;
+	GNeuron* m_pInput;
+	GNeuron* m_pOutput;
 
-	// Propagate over all the layers
-	double dSum;
-	while(nLayer > 0)
+	GSynapse()
 	{
-		nLayer--;
-		pOut = (GNeuralNetLayer*)pLayers->GetPointer(nLayer);
+		m_dWeight = (randomDouble() * INIT_THRESH) - (INIT_THRESH / 2);
+		m_dWeightDelta = 0;
+		m_pInput = NULL;
+		m_pOutput = NULL;
+	}
+};
 
-		// Calculate each output value
-		int nIndex = 0;
-		for(n = 0; n < pOut->m_nNodes; n++)
-		{
-			// Sum up the weighted inputs
-			dSum = 0;
-			for(i = 0; i < pIn->m_nNodes; i++)
-			{
-				dSum += pIn->m_pWeights[nIndex] * pIn->m_pOutputs[i];
-				nIndex++;
-			}
 
-			// Squash the sum
-			pOut->m_pOutputs[n] = GMath::sigmoid(dSum, m_dSigmoidSteepness);
-		}
 
-		// Move to the next layer
-		pIn = pOut;
+class GNeuron
+{
+public:
+	virtual double PullEvalDownStream() = 0;
+	virtual double PullErrorBackUpStream() = 0;
+	virtual double GetOutput() = 0;
+	virtual void SetOutput(double d) = 0;
+	virtual void SetError(double d) = 0;
+	virtual void AjustWeights(double dLearningRate, double dMomentum) = 0;
+	virtual int SerializeWeights(double* pBuffer) = 0;
+	virtual int DeserializeWeights(double* pBuffer) = 0;
+	virtual void AddInput(GNeuron* pNeuron) = 0;
+
+	// For internal use only
+	virtual void ConnectOutputToSynapse(GSynapse* pSynapse) = 0;
+	virtual void RemapSynapse(GSynapse* pOld, GSynapse* pNew) = 0;
+};
+
+
+
+class GStandardNeuron : public GNeuron
+{
+protected:
+	double m_dOutput; // Axon
+	double m_dError;
+	int m_nInputs;
+	int m_nInputSpace;
+	struct GSynapse* m_pInputs;
+	int m_nOutputs;
+	int m_nOutputSpace;
+	struct GSynapse** m_pOutputs;
+
+public:
+	GStandardNeuron() : GNeuron()
+	{
+		m_dOutput = 1e50;
+		m_dError = 1e50;
+		m_nInputs = 0;
+		m_nInputSpace = 0;
+		m_pInputs = NULL;
+		AddInput(NULL); // Add the constant 1 (for bias) input
+		m_nOutputs = 0;
+		m_nOutputSpace = 0;
+		m_pOutputs = NULL;
 	}
 
-	// Copy the outputs back into the row
-	nCount = pOut->m_nNodes;
-	GAssert(nCount == m_pRelation->GetOutputCount(), "node count mismatch");
+	virtual ~GStandardNeuron()
+	{
+		delete [] m_pInputs;
+		delete(m_pOutputs);
+	}
+
+	virtual double PullEvalDownStream()
+	{
+		if(m_dOutput == 1e50)
+		{
+			// Sum up the weighted inputs
+			double dSum = m_pInputs[0].m_dWeight;
+			int n;
+			for(n = 1; n < m_nInputs; n++)
+				dSum += (m_pInputs[n].m_dWeight * m_pInputs[n].m_pInput->PullEvalDownStream());
+
+			// Squash the sum
+			m_dOutput = GMath::sigmoid(dSum, 1);
+		}
+		return m_dOutput;
+	}
+
+	virtual double PullErrorBackUpStream()
+	{
+		GAssert(m_dOutput != 1e50, "output was not calculated");
+		if(m_dError == 1e50)
+		{
+			// Sum up the errors from each output
+			double dSum = 0;
+			int n;
+			for(n = 0; n < m_nOutputs; n++)
+				dSum += (m_pOutputs[n]->m_dWeight * m_pOutputs[n]->m_pOutput->PullErrorBackUpStream());
+
+			// Multiply by derivative of squashing function
+			m_dError = dSum * m_dOutput * ((double)1 - m_dOutput);
+		}
+		return m_dError;
+	}
+
+	virtual double GetOutput()
+	{
+		GAssert(m_dOutput != 1e50, "output was not calculated");
+		return m_dOutput;
+	}
+
+	virtual void SetOutput(double d)
+	{
+		m_dOutput = d;
+	}
+
+	virtual void SetError(double d)
+	{
+		m_dError = d;
+	}
+
+	virtual void AjustWeights(double dLearningRate, double dMomentum)
+	{
+		GAssert(m_dError != 1e50, "output was not calculated");
+		GSynapse* pNeuronRef;
+		pNeuronRef = &m_pInputs[0];
+		pNeuronRef->m_dWeightDelta *= dMomentum;
+		pNeuronRef->m_dWeightDelta += (dLearningRate * m_dError);
+		pNeuronRef->m_dWeight += pNeuronRef->m_dWeightDelta;
+		int n;
+		for(n = 1; n < m_nInputs; n++)
+		{
+			pNeuronRef = &m_pInputs[n];
+			pNeuronRef->m_dWeightDelta *= dMomentum;
+			pNeuronRef->m_dWeightDelta += (dLearningRate * m_dError * pNeuronRef->m_pInput->GetOutput());
+			pNeuronRef->m_dWeight += pNeuronRef->m_dWeightDelta;
+		}
+	}
+
+	virtual int SerializeWeights(double* pBuffer)
+	{
+		if(pBuffer)
+		{
+			int n;
+			for(n = 0; n < m_nInputs; n++)
+				pBuffer[n] = m_pInputs[n].m_dWeight;
+		}
+		return m_nInputs;
+	}
+
+	virtual int DeserializeWeights(double* pBuffer)
+	{
+		int n;
+		for(n = 0; n < m_nInputs; n++)
+			m_pInputs[n].m_dWeight = pBuffer[n];
+		return m_nInputs;
+	}
+
+	virtual void AddInput(GNeuron* pNeuron)
+	{
+		if(m_nInputs >= m_nInputSpace)
+		{
+			// Reallocate input space
+			int nInputSpace = MAX(4, m_nInputSpace * 2);
+			GSynapse* pInputs = new GSynapse[nInputSpace];
+			memcpy(pInputs, m_pInputs, sizeof(GSynapse) * m_nInputSpace);
+
+			// Remap everything
+			int n;
+			for(n = 0; n < m_nInputs; n++)
+			{
+				if(m_pInputs[n].m_pInput)
+					m_pInputs[n].m_pInput->RemapSynapse(&m_pInputs[n], &pInputs[n]);
+			}
+			delete(m_pInputs);
+			m_pInputs = pInputs;
+			m_nInputSpace = nInputSpace;
+		}
+		m_pInputs[m_nInputs].m_pInput = pNeuron;
+		m_pInputs[m_nInputs].m_pOutput = this;
+		if(pNeuron)
+			pNeuron->ConnectOutputToSynapse(&m_pInputs[m_nInputs]);
+		else
+		{
+			GAssert(m_nInputs == 0, "only the first input should be NULL");
+		}
+		m_nInputs++;
+	}
+
+	virtual void RemapSynapse(GSynapse* pOld, GSynapse* pNew)
+	{
+		int n;
+		for(n = 0; n < m_nOutputs; n++)
+		{
+			if(m_pOutputs[n] == pOld)
+			{
+				m_pOutputs[n] = pNew;
+				break;
+			}
+		}
+	}
+
+protected:
+	virtual void ConnectOutputToSynapse(GSynapse* pSynapse)
+	{
+		if(m_nOutputs >= m_nOutputSpace)
+		{
+			// Reallocate output space
+			int nOutputSpace = MAX(4, m_nOutputSpace * 2);
+			GSynapse** pOutputs = new GSynapse*[nOutputSpace];
+			memcpy(pOutputs, m_pOutputs, sizeof(GSynapse*) * m_nOutputSpace);
+			delete(m_pOutputs);
+			m_pOutputs = pOutputs;
+			m_nOutputSpace = nOutputSpace;
+		}
+		m_pOutputs[m_nOutputs++] = pSynapse;
+	}
+};
+
+
+
+
+// ----------------------------------------------------------------------
+
+GNeuralNet::GNeuralNet(GArffRelation* pRelation)
+{
+	m_pRelation = pRelation;
+	m_pNeurons = new GPointerArray(64);
+	m_pBestSet = NULL;
+	m_nWeightCount = 0;
+	m_nInputStart = 0;
+	m_nLayerStart = 0;
+	m_nLayerSize = 0;
+	int nOutputs = pRelation->GetOutputCount();
+	AddLayer(nOutputs);
+
+	// Default settings
+	m_dLearningRate = .315;
+	m_dLearningDecay = 1;
+	m_dMomentum = .9;
+	m_dHopefulness = .25;
+	m_nMinimumEpochs = 2500;
+	m_nMaximumEpochs = 50000;
+	m_nEpochsPerValidationCheck = 5;
+	m_dAcceptableMeanSquareError = 0.000001;
+	m_nPasses = 1;
+}
+
+GNeuralNet::~GNeuralNet()
+{
+	int nCount = m_pNeurons->GetSize();
+	int n;
 	for(n = 0; n < nCount; n++)
-		pRow[m_pRelation->GetOutputIndex(n)] = pOut->m_pOutputs[n];
+		delete((GNeuron*)m_pNeurons->GetPointer(n));
+	delete(m_pNeurons);
+	delete(m_pBestSet);
 }
 
-void GNeuralNet::Evaluate(double* pRow)
+void GNeuralNet::AddLayer(int nNodes)
 {
-	EvaluateHelper(pRow, m_pBest);
+	int nPrevLayerStart = m_nLayerStart;
+	int nPrevLayerSize = m_nLayerSize;
+	m_nLayerStart = m_pNeurons->GetSize();
+	m_nLayerSize = nNodes;
+	int n, i;
+	for(n = 0; n < nNodes; n++)
+	{
+		GStandardNeuron* pNewNeuron = new GStandardNeuron();
+		m_pNeurons->AddPointer(pNewNeuron);
+		for(i = 0; i < nPrevLayerSize; i++)
+		{
+			GNeuron* pOldNeuron = (GNeuron*)m_pNeurons->GetPointer(nPrevLayerStart + i);
+			pOldNeuron->AddInput(pNewNeuron);
+		}
+	}
 }
 
-void GNeuralNet::EvaluateTraining(double* pRow)
-{
-	EvaluateHelper(pRow, m_pLayers);
-}
-
-double GNeuralNet::MeasureError(GArffData* pData, double* pSample, GPointerArray* pLayers)
+double GNeuralNet::MeasureError(GArffData* pData, double* pSample)
 {
 	int n, i, nIndex;
 	double* pRow;
@@ -187,11 +315,11 @@ double GNeuralNet::MeasureError(GArffData* pData, double* pSample, GPointerArray
 	{
 		pRow = pData->GetRow(n);
 		memcpy(pSample, pRow, sizeof(double) * nAttributeCount);
-		EvaluateHelper(pSample, pLayers);
+		Eval(pSample);
 		for(i = 0; i < nOutputs; i++)
 		{
 			nIndex = m_pRelation->GetOutputIndex(i);
-			d = pSample[nIndex] - pRow[nIndex];
+			d = pRow[nIndex] - pSample[nIndex];
 			d *= d;
 			dError += d;
 		}
@@ -204,48 +332,53 @@ double GNeuralNet::GetMeanSquareError(GArffData* pData)
 {
 	int nAttributeCount = m_pRelation->GetAttributeCount();
 	double* pSample = (double*)alloca(sizeof(double) * nAttributeCount);
-	return MeasureError(pData, pSample, m_pBest);
+	return MeasureError(pData, pSample);
 }
 
 void GNeuralNet::UpdateBestWeights()
 {
-	int nCount = m_pLayers->GetSize();
-	int n, i, nWeights;
-	GNeuralNetLayer* pLayerSource;
-	GNeuralNetLayer* pLayerTarget;
-	GNeuralNetLayer* pPrev = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
-	for(n = 1; n < nCount; n++)
+	int n;
+	int nCount = m_pNeurons->GetSize();
+	GNeuron* pNeuron;
+	if(!m_pBestSet)
 	{
-		pLayerSource = (GNeuralNetLayer*)m_pLayers->GetPointer(n);
-		pLayerTarget = (GNeuralNetLayer*)m_pBest->GetPointer(n);
-		nWeights = pLayerSource->m_nNodes * pPrev->m_nNodes;
-		for(i = 0; i < nWeights; i++)
-			pLayerTarget->m_pWeights[i] = pLayerSource->m_pWeights[i];
-		pPrev = pLayerSource;
+		// Allocate a buffer for the weights
+		m_nWeightCount = 0;
+		for(n = 0; n < nCount; n++)
+		{
+			pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+			m_nWeightCount += pNeuron->SerializeWeights(NULL);
+		}
+		m_pBestSet = new double[m_nWeightCount];
 	}
+
+	// Serialize the weights
+	int nPos = 0;
+	for(n = 0; n < nCount; n++)
+	{
+		pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+		nPos += pNeuron->SerializeWeights(&m_pBestSet[nPos]);
+	}
+	GAssert(nPos == m_nWeightCount, "serialization size inconsistent");
 }
 
 void GNeuralNet::RestoreBestWeights()
 {
-	int nCount = m_pLayers->GetSize();
-	int n, i, nWeights;
-	GNeuralNetLayer* pLayerSource;
-	GNeuralNetLayer* pLayerTarget;
-	GNeuralNetLayer* pPrev = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
-	for(n = 1; n < nCount; n++)
+	int n;
+	int nCount = m_pNeurons->GetSize();
+	GNeuron* pNeuron;
+	int nPos = 0;
+	for(n = 0; n < nCount; n++)
 	{
-		pLayerSource = (GNeuralNetLayer*)m_pLayers->GetPointer(n);
-		pLayerTarget = (GNeuralNetLayer*)m_pBest->GetPointer(n);
-		nWeights = pLayerSource->m_nNodes * pPrev->m_nNodes;
-		for(i = 0; i < nWeights; i++)
-			pLayerSource->m_pWeights[i] = pLayerTarget->m_pWeights[i];
-		pPrev = pLayerSource;
+		pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+		nPos += pNeuron->DeserializeWeights(&m_pBestSet[nPos]);
 	}
+	GAssert(nPos == m_nWeightCount, "serialization size inconsistent");
 }
-
+/*
 void GNeuralNet::RandomlyTweakWeights(double dAmount)
 {
-	int nCount = m_pLayers->GetSize();
+	int nCount = m_pNeurons->GetSize();
 	int n, i, nWeights;
 	GNeuralNetLayer* pLayer;
 	GNeuralNetLayer* pPrev = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
@@ -258,132 +391,159 @@ void GNeuralNet::RandomlyTweakWeights(double dAmount)
 		pPrev = pLayer;
 	}
 }
+*/
 
-void GNeuralNet::UpdateWeights(double* pRow, double* pSample)
+void GNeuralNet::Eval(double* pRow)
 {
-	int i, j, k, nIndex;
-	int nLayers = m_pLayers->GetSize();
-	GNeuralNetLayer* pLayerIn = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
-	GNeuralNetLayer* pLayerOut;
-	GNeuralNetLayer* pPrevLayer = NULL;
-	double dErrorSum, dOutput;
-	for(i = 1; i < nLayers; i++)
+	// Clear the outputs of all non-input neurons
+	int n, nIndex;
+	GNeuron* pNeuron;
+	for(n = 0; n < m_nInputStart; n++)
 	{
-		pLayerOut = pLayerIn;
-		pLayerIn = (GNeuralNetLayer*)m_pLayers->GetPointer(i);
-		for(j = 0; j < pLayerOut->m_nNodes; j++)
-		{
-			// Calculate the error on this node
-			dOutput = pLayerOut->m_pOutputs[j];
-			if(i <= 1)
-			{
-				nIndex = m_pRelation->GetOutputIndex(j);
-				dErrorSum = pRow[nIndex] - dOutput;
-			}
-			else
-			{
-				dErrorSum = 0;
-				for(k = 0; k < pPrevLayer->m_nNodes; k++)
-					dErrorSum += (pLayerOut->m_pWeights[j + k * pLayerOut->m_nNodes] * pPrevLayer->m_pError[k]);
-			}
-			pLayerOut->m_pError[j] = m_dSigmoidSteepness * dOutput * ((double)1 - dOutput) * dErrorSum;
-
-			// Update all the weights for this node
-			nIndex = j * pLayerIn->m_nNodes;
-			for(k = 0; k < pLayerIn->m_nNodes; k++)
-			{
-				// todo: implement decaying learning rate
-				pLayerIn->m_pWeightDeltas[nIndex] *= m_dMomentum;
-				pLayerIn->m_pWeightDeltas[nIndex] += (m_dLearningRate * pLayerOut->m_pError[j] * pLayerIn->m_pOutputs[k]);
-				pLayerIn->m_pWeights[nIndex] += pLayerIn->m_pWeightDeltas[nIndex];
-				nIndex++;
-			}
-		}
-		pPrevLayer = pLayerOut;
+		pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+		pNeuron->SetOutput(1e50);
 	}
+
+	// Copy inputs into input neurons
+	int nInputs = m_pRelation->GetInputCount();
+	int nCount = m_nInputStart + nInputs;
+	GAssert(nCount == m_pNeurons->GetSize(), "neurons added after input neurons?");
+	int nInput = 0;
+	for( ; n < nCount; n++)
+	{
+		pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+		nIndex = m_pRelation->GetInputIndex(nInput);
+		pNeuron->SetOutput(pRow[nIndex]);
+		nInput++;
+	}
+
+	// Pull the evaluation downstream to the output nodes
+	int nOutputs = m_pRelation->GetOutputCount();
+	for(n = 0; n < nOutputs; n++)
+	{
+		pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+		nIndex = m_pRelation->GetOutputIndex(n);
+		pRow[nIndex] = pNeuron->PullEvalDownStream();
+	}
+}
+
+void GNeuralNet::Criticize(double* pModel)
+{
+	// Calculate the error on all output nodes
+	double dOutput;
+	int n, nIndex;
+	GNeuron* pNeuron;
+	int nOutputs = m_pRelation->GetOutputCount();
+	for(n = 0; n < nOutputs; n++)
+	{
+		pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+		nIndex = m_pRelation->GetOutputIndex(n);
+		dOutput = pNeuron->GetOutput();
+		pNeuron->SetError((pModel[nIndex] - dOutput) * dOutput * (1.0 - dOutput));
+	}
+
+	// Clear the error on the rest of the nodes
+	int nInputs = m_pRelation->GetInputCount();
+	for( ; n <= m_nInputStart; n++)
+	{
+		pNeuron = (GNeuron*)m_pNeurons->GetPointer(n);
+		pNeuron->SetError(1e50);
+	}
+
+	// Backpropagate the error (we only need to call PullErrorBackUpStream
+	// on one input neuron because any input is connected to all the nodes
+	// in the next layer and we don't need the error value for the inputs
+	pNeuron->PullErrorBackUpStream();
 }
 
 void GNeuralNet::Train(GArffData* pTrainingData, GArffData* pValidationData)
 {
-	GAssert(!m_pBest, "Already trained");
+	GAssert(m_nInputStart == 0, "already trained");
+	GAssert(m_nMinimumEpochs < m_nMaximumEpochs, "conflicting settings");
 
-	// Prepare the data by making sure it all falls between 0 and 1
-	pTrainingData->Analogize(m_pRelation);
+	// Normalize all the output values since the sigmoids can only handle between 0 and 1
+	int nOutputCount = m_pRelation->GetOutputCount();
+	double* pTrainingMinAndRanges = (double*)alloca(sizeof(double) * 2 * nOutputCount);
+	double* pValidationMinAndRanges = NULL;
+	int n, i;
+	for(n = 0; n < nOutputCount; n++)
+	{
+		i = m_pRelation->GetOutputIndex(n);
+		pTrainingData->GetMinAndRange(i, &pTrainingMinAndRanges[2 * n], &pTrainingMinAndRanges[2 * n + 1]);
+		if(pTrainingMinAndRanges[2 * n + 1] < .00001)
+			pTrainingMinAndRanges[2 * n + 1] = .00001;
+		pTrainingData->Normalize(i, pTrainingMinAndRanges[2 * n], pTrainingMinAndRanges[2 * n + 1], .1, .8);
+	}
 	if(pValidationData != pTrainingData)
-		pValidationData->Analogize(m_pRelation);
+	{
+		pValidationMinAndRanges = (double*)alloca(sizeof(double) * 2 * nOutputCount);
+		for(n = 0; n < nOutputCount; n++)
+		{
+			i = m_pRelation->GetOutputIndex(n);
+			pValidationData->GetMinAndRange(i, &pValidationMinAndRanges[2 * n], &pValidationMinAndRanges[2 * n + 1]);
+			pValidationData->Normalize(i, pValidationMinAndRanges[2 * n], pValidationMinAndRanges[2 * n + 1], .1, .8);
+		}
+	}
 
 	// Add the input layer
-	GNeuralNetLayer* pTmpLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(m_pLayers->GetSize() - 1);
-	m_pLayers->AddPointer(new GNeuralNetLayer(m_pRelation->GetInputCount(), pTmpLayer));
-
-	// Make layers to hold the best found set of weights
-	m_pBest = new GPointerArray(8);
-	int nCount = m_pLayers->GetSize();
-	int n, i;
-	GNeuralNetLayer* pPrevLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
-	m_pBest->AddPointer(new GNeuralNetLayer(pPrevLayer, NULL));
-	for(n = 1; n < nCount; n++)
-	{
-		GNeuralNetLayer* pLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(n);
-		m_pBest->AddPointer(new GNeuralNetLayer(pLayer, pPrevLayer));
-		pPrevLayer = pLayer;
-	}
-	double dBestError = 1e20;
+	m_nInputStart = m_pNeurons->GetSize();
+	AddLayer(m_pRelation->GetInputCount());
 
 	// Do the passes
+	double dBestError = 1e20;
 	double* pSample = (double*)alloca(sizeof(double) * m_pRelation->GetAttributeCount());
 	double* pRow;
-	nCount = pTrainingData->GetRowCount();
+	GNeuron* pNeuron;
+	int nRowCount = pTrainingData->GetRowCount();
 	int nAttributeCount = m_pRelation->GetAttributeCount();
 	int nPass;
 	for(nPass = 0; nPass < m_nPasses; nPass++)
 	{
 		// Initialize all the nodes in the working net to small random values
-		pPrevLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
-		double dHalfThresh = m_dInitThresh / 2;
-		for(n = 1; n < m_pLayers->GetSize(); n++)
-		{
-			GNeuralNetLayer* pLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(n);
-			int nTotalWeights = pLayer->m_nNodes * pPrevLayer->m_nNodes;
-			for(i = 0; i < nTotalWeights; i++)
-			{
-				pLayer->m_pWeights[i] = (randomDouble() * m_dInitThresh) - dHalfThresh;
-				pLayer->m_pWeightDeltas[i] = 0;
-			}
-			pPrevLayer = pLayer;
-		}
+		GAssert(m_nPasses == 1, "only one pass currently supported--todo: reinitialize weights to small random values");
 
 		// Perform training cycles
-		int nIterationsSinceValidationCheck = 0;
-		int nBestIteration = 0;
-		int nItters;
-		for(nItters = 0; nItters < m_nMaximumIterations; nItters++)
+		int nEpochsSinceValidationCheck = 0;
+		int nBestEpoch = 0;
+		int nEpochs;
+		for(nEpochs = 0; true; nEpochs++)
 		{
-			// Run each of the training examples
-			for(n = 0; n < nCount; n++)
+//printf("Epoch: %d\n", nEpochs);
+			// Train with each of the training examples (one epoch)
+			for(n = 0; n < nRowCount; n++)
 			{
 				// Compute output for this sample and update the weights
 				pRow = pTrainingData->GetRow(n);
 				memcpy(pSample, pRow, sizeof(double) * nAttributeCount);
-				EvaluateHelper(pSample, m_pLayers);
-				UpdateWeights(pRow, pSample);
+				Eval(pSample);
+
+				// Backpropagate the error
+				Criticize(pRow);
+
+				// Ajust the weights
+				for(i = 0; i < m_nInputStart; i++)
+				{
+					pNeuron = (GNeuron*)m_pNeurons->GetPointer(i);
+					pNeuron->AjustWeights(m_dLearningRate, m_dMomentum);
+				}
 			}
 			m_dLearningRate *= m_dLearningDecay;
 
 			// Check for termination condition
-			nIterationsSinceValidationCheck++;
-			if(nIterationsSinceValidationCheck >= m_nIterationsPerValidationCheck)
+			nEpochsSinceValidationCheck++;
+			if(nEpochsSinceValidationCheck >= m_nEpochsPerValidationCheck)
 			{
-				nIterationsSinceValidationCheck = 0;
-				if(nItters > m_nMinimumIterations)
+				nEpochsSinceValidationCheck = 0;
+				if(nEpochs > m_nMinimumEpochs)
 				{
 					int nValidationCount = pValidationData->GetRowCount();
-					double dMeanSquareError = MeasureError(pValidationData, pSample, m_pLayers);
+					double dMeanSquareError = MeasureError(pValidationData, pSample);
+//printf("Epoch: %d\tError=%lf\n", nEpochs, dBestError);
 					if(dMeanSquareError < dBestError)
 					{
 						// Found a new best set of weights
 						dBestError = dMeanSquareError;
-						nBestIteration = nItters;
+						nBestEpoch = nEpochs;
 						UpdateBestWeights();
 						if(dMeanSquareError <= m_dAcceptableMeanSquareError)
 							break;
@@ -391,78 +551,82 @@ void GNeuralNet::Train(GArffData* pTrainingData, GArffData* pValidationData)
 					else
 					{
 						// Test for termination condition
-						if((double)(nItters - nBestIteration) / nItters >= m_dHopefulness)
+						if((double)(nEpochs - nBestEpoch) / nEpochs >= m_dHopefulness)
 						{
-							m_nMinimumIterations = nItters; // If there's another pass, make sure it does at least this many iterations
+							m_nMinimumEpochs = nEpochs; // If there's another pass, make sure it does at least this many iterations
 							break;
 						}
 					}
+					if(nEpochs >= m_nMaximumEpochs)
+						break;
 				}
-//printf("Itters=%d\tError=%f\n", nItters++, dBestError);
 			}
 		}
 	}
-	GAssert(dBestError < 1e10, "Total failure!");
+	if(dBestError < 1e10)
+		RestoreBestWeights();
+	else
+	{
+		GAssert(dBestError < 1e10, "Total failure!");
+	}
 
 	// Put the data back the way it was
-	pTrainingData->Unanalogize(m_pRelation);
+	for(n = 0; n < nOutputCount; n++)
+	{
+		i = m_pRelation->GetOutputIndex(n);
+		pTrainingData->Normalize(i, .1, .8, pTrainingMinAndRanges[2 * n], pTrainingMinAndRanges[2 * n + 1]);
+	}
+	pTrainingData->DiscretizeNonContinuousOutputs(m_pRelation);
 	if(pValidationData != pTrainingData)
-		pValidationData->Unanalogize(m_pRelation);
+	{
+		for(n = 0; n < nOutputCount; n++)
+		{
+			i = m_pRelation->GetOutputIndex(n);
+			pValidationData->Normalize(i, .1, .8, pValidationMinAndRanges[2 * n], pValidationMinAndRanges[2 * n + 1]);
+		}
+		pValidationData->DiscretizeNonContinuousOutputs(m_pRelation);
+	}
 }
 
+/*
 void GNeuralNet::TrainByCritic(CriticFunc pCritic, void* pThis)
 {
 	GAssert(!m_pBest, "Already trained");
 
 	// Add the input layer
-	GNeuralNetLayer* pTmpLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(m_pLayers->GetSize() - 1);
-	m_pLayers->AddPointer(new GNeuralNetLayer(m_pRelation->GetInputCount(), pTmpLayer));
-
-	// Make layers to hold the best found set of weights
-	m_pBest = new GPointerArray(8);
-	int nCount = m_pLayers->GetSize();
-	int n, i;
-	GNeuralNetLayer* pPrevLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
-	m_pBest->AddPointer(new GNeuralNetLayer(pPrevLayer, NULL));
-	for(n = 1; n < nCount; n++)
-	{
-		GNeuralNetLayer* pLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(n);
-		m_pBest->AddPointer(new GNeuralNetLayer(pLayer, pPrevLayer));
-		pPrevLayer = pLayer;
-	}
-	double dBestError = 1e20;
+	AddHiddenLayer(m_pRelation->GetInputCount());
 
 	// Do the passes
+	double dBestError = 1e20;
 	double dMeanSquareError;
-	int nPass;
+	int n, i, nPass;
 	for(nPass = 0; nPass < m_nPasses; nPass++)
 	{
 		// Initialize all the nodes in the working net to small random values
-		pPrevLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
-		double dHalfThresh = m_dInitThresh / 2;
+		GNeuralNetLayer* pPrevLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(0);
 		for(n = 1; n < m_pLayers->GetSize(); n++)
 		{
 			GNeuralNetLayer* pLayer = (GNeuralNetLayer*)m_pLayers->GetPointer(n);
 			int nTotalWeights = pLayer->m_nNodes * pPrevLayer->m_nNodes;
 			for(i = 0; i < nTotalWeights; i++)
 			{
-				pLayer->m_pWeights[i] = (randomDouble() * m_dInitThresh) - dHalfThresh;
+				pLayer->m_pWeights[i] = (randomDouble() * INIT_THRESH) - (INIT_THRESH / 2);
 				pLayer->m_pWeightDeltas[i] = 0;
 			}
 			pPrevLayer = pLayer;
 		}
 
 		// Perform training cycles
-		int nBestIteration = 0;
-		int nItters;
-		for(nItters = 0; nItters < m_nMaximumIterations; nItters++)
+		int nBestEpoch = 0;
+		int nEpochs;
+		for(nEpochs = 0; nEpochs < m_nMaximumEpochs; nEpochs++)
 		{
 			// Check for a new best set of weights
 			dMeanSquareError = pCritic(pThis, this); 
 			if(dMeanSquareError < dBestError)
 			{
 				dBestError = dMeanSquareError;
-				nBestIteration = nItters;
+				nBestEpoch = nEpochs;
 				UpdateBestWeights();
 				if(dMeanSquareError <= m_dAcceptableMeanSquareError)
 					break;
@@ -471,21 +635,22 @@ void GNeuralNet::TrainByCritic(CriticFunc pCritic, void* pThis)
 				RestoreBestWeights();
 
 			// Check for termination condition
-			if(nItters > m_nMinimumIterations)
+			if(nEpochs > m_nMinimumEpochs)
 			{
 				// Test for termination condition
-				if((double)(nItters - nBestIteration) / nItters >= m_dHopefulness)
+				if((double)(nEpochs - nBestEpoch) / nEpochs >= m_dHopefulness)
 				{
-					m_nMinimumIterations = nItters; // If there's another pass, make sure it does at least this many iterations
+					m_nMinimumEpochs = nEpochs; // If there's another pass, make sure it does at least this many iterations
 					break;
 				}
 			}
-//printf("Itters=%d\tError=%f\n", nItters++, dBestError);
+//printf("Itters=%d\tError=%f\n", nEpochs++, dBestError);
 
 			// Try tweaking the weights
 			RandomlyTweakWeights(m_dLearningRate);
 			m_dLearningRate *= m_dLearningDecay;
 		}
 	}
-	GAssert(dBestError < 1e10, "Total failure!");
+	//GAssert(dBestError < 1e10, "Total failure!");
 }
+*/

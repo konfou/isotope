@@ -111,11 +111,3 @@
 		}
 	}
 }
-
-/*static*/ GWidgetTextButton* ViewPort::MakeNewButton(GWidgetGroup* pParent, int x, int y, int w, int h, const wchar_t* wszText)
-{
-	GString sText(wszText);
-	GWidgetTextButton* pNewButton = new GWidgetTextButton(pParent, x, y, w, h, &sText);
-	pNewButton->Update();
-	return pNewButton;
-}

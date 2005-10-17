@@ -36,12 +36,15 @@ public:
 
 	// Add
 	void Add(GString* pString);
+	void Add(const char c);
 	void Add(const wchar_t wChar);
 	void Add(const wchar_t* wszString);
 	void Add(const char* szString);
 	void Add(const wchar_t* wszString, int nLen);
 	void Add(GString* pString, int nStartPos, int nLen);
 	void Add(int n);
+	void Add(double d);
+	void Add(float f);
 
 	// Copy
 	void Copy(GString* pString);
@@ -49,6 +52,9 @@ public:
 	void Copy(const wchar_t* wszString);
 	void Copy(const wchar_t* wszString, int nLen);
 	void Copy(GString* pString, int nStartPos, int nLen);
+	void Copy(int n);
+	void Copy(double d);
+	void Copy(float f);
 
 	// Compare
 	int CompareTo(GString* pString);
@@ -66,6 +72,7 @@ public:
 	void Clear();
 	void SetChar(int nPos, wchar_t wc);
 	void InsertChar(int nPos, wchar_t wc);
+	void RemoveLastChar();
 	void ToUpper();
 	void ToLower();
 	void SetBufferLengthAtLeast(int nNewLength);

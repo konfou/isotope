@@ -23,6 +23,7 @@ class GXMLTag;
 class Model;
 class MImageStore;
 class GPointerArray;
+class MCollisionMap;
 
 // This class represents the model for a single realm (AKA world, AKA map).  Basically it just
 // holds a linked list of objects.  If I ever get around to adding support for terrain maps, it
@@ -36,8 +37,11 @@ protected:
 	float m_fXMin, m_fXMax, m_fYMin, m_fYMax;
 	GImage* m_pTerrain;
 	Model* m_pModel;
+	MCollisionMap* m_pCollisionMap;
 
 public:
+	GBillboardCamera* m_pCurrentCamera;
+
 	MRealm(Model* pModel);
 	~MRealm();
 
@@ -90,6 +94,10 @@ public:
 	void SortObjects(GBillboardCamera* pCamera);
 
 	static int CompareByCameraDistance(GBillboardCamera* pCamera, MObject* pThis, MObject* pThat);
+
+	void RecompileCollisionMap();
+
+	bool CheckForSolidObject(float x, float y);
 
 protected:
 	int IdToIndex(int nID);

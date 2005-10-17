@@ -119,7 +119,7 @@ bool EngineTests::RunGashTest(const char* szFilename, bool bPositive, bool bDebu
 		strcpy(szTestScript, "../src/Gash/MainLib/make.gash");
 	else
 	{
-		strcpy(szTestScript, "../src/Gash/Test/engine/");
+		strcpy(szTestScript, "../src/Gash/Test/Engine/");
 		strcat(szTestScript, szFilename);
 	}
 	char* args[3];

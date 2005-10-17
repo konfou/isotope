@@ -28,6 +28,7 @@ class MSpotStore;
 class GPointerArray;
 class NSendObjectPacket;
 class VarHolder;
+class MStatCollector;
 
 // This class represents the model (all the internal data including maps, players, objects, scripts, etc)
 // when the application is running as the client (as opposed to the server, which uses a different model).
@@ -52,7 +53,6 @@ protected:
 	double m_dFrameRateTime;
 	int m_nFrames;
 //#endif // _DEBUG
-	IsotopeErrorHandler* m_pErrorHandler;
 	MScriptEngine* m_pScriptEngine;
 	MObject* m_pAvatar;
 	MObject* m_pGoalFlag;
@@ -64,6 +64,7 @@ protected:
 	GXMLTag* m_pAccountTag;
 	GXMLTag* m_pAccountRefTag;
 	VarHolder* m_pRemoteVar;
+	MStatCollector* m_pStatCollector;
 
 public:
 	MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag);
@@ -74,11 +75,12 @@ public:
 	MSoundStore* GetSounds() { return m_pSoundStore; }
 	MSpotStore* GetSpots() { return m_pSpotStore; }
 
-	// Loads the script that contains logic for the objects
-	void LoadScript(Controller* pController, MRealm* pRealm, const char* szUrl, GXMLTag* pMapTag);
+	// Unloads the current realm
+	void UnloadRealm();
 
 	// Load the XML realm file
-	void LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter);
+	void LoadRealmPhase1(GXMLTag* pMap, const char* szUrl);
+	void LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngine* pScriptEngine, double time, int nScreenVerticalCenter, MImageStore* pImageStore, MAnimationStore* pAnimationStore, MSoundStore* pSoundStore, MSpotStore* pSpotStore);
 
 	const char* GetRemoteFolder() { return m_szRemoteFolder; }
 
@@ -110,9 +112,6 @@ public:
 	// Returns a pointer to the avatar object
 	MObject* GetAvatar() { return m_pAvatar; }
 
-	// Loads all the images, animations, sound effects, and spots
-	void LoadMedia(GXMLTag* pModelTag);
-
 	// Unloads the images, animations, sound effects, and spots
 	void UnloadMedia();
 
@@ -137,8 +136,10 @@ public:
 	void DoActionOnSelectedObjects(float x, float y);
 	MObject* GetGoalFlag() { return m_pGoalFlag; }
 	void SaveState();
-	char* LoadFileFromUrl(const char* szUrl, int* pnBufSize);
 	GXMLTag* GetAccountTag() { return m_pAccountTag; }
+	const char* GetAccountVar(const char* szName);
+	void SetAccountVar(const char* szName, const char* szValue);
+	void ReportStats(GPointerArray* pNameValuePairs);
 
 protected:
 	void SynchronizeWithServer(double time);
@@ -146,9 +147,7 @@ protected:
 	void UpdateObject(NUpdateObjectPacket* pPacket);
 	void ReceiveObject(NSendObjectPacket* pPacket);
 	void LoadObjects(MRealm* pRealm, GXMLTag* pModelTag);
-
-	// Unloads the current realm
-	void UnloadRealm();
+	void SetRemoteFolder(const char* szRemoteFolder);
 
 	// Makes an intangible scenery object from an image in the global cache
 	MObject* MakeIntangibleGlobalObject(const char* szID, float x, float y, float z);

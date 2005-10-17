@@ -102,7 +102,7 @@ public:
 
 
 
-#define MAX_PARAMS 8
+#define MAX_PARAMS 12
 
 // This class wraps the virtual machine that runs Gash scripts, and contains methods that
 // let you call from C++ into Gash functions.
@@ -136,7 +136,7 @@ protected:
 	VarHolder* m_pParams[MAX_PARAMS + 1];
 
 public:
-	MScriptEngine(const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm);
+	MScriptEngine(const char* szScriptUrl, const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm);
 	virtual ~MScriptEngine();
 
 	// Copies the values from a GRect structure into a Gash Rect object
@@ -259,6 +259,12 @@ public:
 	void sendToClient(Engine* pEngine, EVar* pObj, EVar* pConnection);
 	void sendToServer(Engine* pEngine, EVar* pObj);
 	void addInventoryItem(Engine* pEngine, EVar* pString);
+	void checkForSolidObject(Engine* pEngine, EVar* pBool, EVar* pX, EVar* pY);
+	void setAccountVar(Engine* pEngine, EVar* pName, EVar* pValue);
+	void getAccountVar(Engine* pEngine, EVar* pValue, EVar* pName);
+	void reportStats(Engine* pEngine, EVar* pNameValuePairs);
+	void setSkyImage(Engine* pEngine, EVar* pID);
+	void setGroundImage(Engine* pEngine, EVar* pID);
 };
 
 

@@ -106,6 +106,7 @@ public:
 	COMethod* GetNoop();
 	bool LoadSources(const char** ppFiles, const char** pszFilenames, int nFileCount, ErrorHandler* pErrorHandler);
 	bool LoadLibraries(const char* szLibrariesPath, ErrorHandler* pErrorHandler);
+	void ReplaceType(COType* pOld, COType* pNew);
 
 	// note: this may return NULL
 	const char* GetFilename() { return m_szFilename; }

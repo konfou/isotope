@@ -69,7 +69,7 @@ DebugSourceManager::DebugSourceManager(Library* pLibrary)
 	
 	// todo: remove these two lines
 	DebugSourceManagerAssertingErrorHandler errorHandler;
-	m_pPartialProject->LoadLibraries("c:\\mike\\cpp\\source\\gash\\xlib", &errorHandler);
+	m_pPartialProject->LoadLibraries("c:\\mike\\cpp\\bin", &errorHandler);
 	
 	int nDisassemblyLength;
 	m_szDisassembly = Disassembler::DisassembleLibraryToText(pLibrary, &nDisassemblyLength);

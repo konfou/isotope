@@ -1,14 +1,24 @@
 ################
 # Call child makefiles
 ################
-SUBDIRS= Engine MachineObjects GashSDL Command ../GClasses
+SUBDIRS= _Engine _MachineObjects _GashSDL _Command _../GClasses
 
-.PHONY: children $(SUBDIRS)
+DBG_SUBDIRS= $(SUBDIRS:_%=DBG_%)
+OPT_SUBDIRS= $(SUBDIRS:_%=OPT_%)
 
-children: $(SUBDIRS)
+.PHONY: dbg opt $(DBG_SUBDIRS) $(OPT_SUBDIRS)
 
-$(SUBDIRS):
-	$(MAKE) -C $@
+dbg: $(DBG_SUBDIRS)
+
+opt: $(OPT_SUBDIRS)
+
+
+$(DBG_SUBDIRS): DBG_% : 
+	$(MAKE) -C $*
+
+$(OPT_SUBDIRS): OPT_% : 
+	$(MAKE) -C $* opt
+
 
 ################
 # Dependencies

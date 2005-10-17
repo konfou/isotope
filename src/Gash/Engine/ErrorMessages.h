@@ -34,21 +34,22 @@ ERROR_MACRO(EXPECTED_VALUE_ATTRIBUTE, L"This tag should have a \"Value\" attribu
 ERROR_MACRO(EXPECTED_TYPE_ATTRIBUTE, L"This tag should have a \"Class\" or an \"Interface\" attribute.", 0)
 ERROR_MACRO(EXPECTED_EXP_ATTRIBUTE, L"This tag should have a \"Exp\" attribute.", 0)
 ERROR_MACRO(EXPECTED_SYNTAX_ATTRIBUTE, L"This tag should have a \"Syntax\" attribute.", 0)
+ERROR_MACRO(EXPECTED_GEN_ATTRIBUTE, L"This tag should have a \"Gen\" attribute.", 0)
 ERROR_MACRO(EMPTY_EXPRESSION, L"This is an empty expression.", 0)
 
 // Bad Attribute Values
 ERROR_MACRO(EXPECTED_NONE_OBJ_OR_ALL, L"Expected the value to be \"None\", \"Obj\", or \"All\".", 0)
 
 // Not found errors
-ERROR_MACRO(TYPE_NOT_FOUND, L"There is no type named \"%s\".", 1)
-ERROR_MACRO(METHOD_NOT_FOUND, L"There is no method named \"%s\".", 1)
+ERROR_MACRO(TYPE_NOT_FOUND, L"There is no type named \"%ls\".", 1)
+ERROR_MACRO(METHOD_NOT_FOUND, L"There is no method named \"%ls\".", 1)
 ERROR_MACRO(INTERFACE_NOT_FOUND, L"There is no interface with that name.", 0)
 ERROR_MACRO(MEMBER_NOT_FOUND, L"This class has no member with that name.", 0)
 ERROR_MACRO(NAMED_CONSTANT_NOT_FOUND, L"There is no named constant with that name.", 0)
-ERROR_MACRO(VARIABLE_NOT_FOUND, L"There is no variable named \"%s\" defined in this scope.", 1)
+ERROR_MACRO(VARIABLE_NOT_FOUND, L"There is no variable named \"%ls\" defined in this scope.", 1)
 
 // Variables
-ERROR_MACRO(VARIABLE_ALREADY_DECLARED, L"A variable named \"%s\" is already defined in this scope.", 1)
+ERROR_MACRO(VARIABLE_ALREADY_DECLARED, L"A variable named \"%ls\" is already defined in this scope.", 1)
 
 // Parameters
 ERROR_MACRO(TOO_MANY_PARAMETERS, L"Too many parameters.", 0)
@@ -72,15 +73,15 @@ ERROR_MACRO(EXPECTED_PERIOD_TOKEN, L"Expected a \".\" token.", 0)
 ERROR_MACRO(EXPECTED_METHOD_TOKEN, L"Expected a \"Method\" token.", 0)
 ERROR_MACRO(EXPECTED_INSTRUCTION, L"Expected a \"Method\", \"Proc\", \"Const\", \"Interface\", or \"[\" token.", 0)
 ERROR_MACRO(EXPECTED_COLON, L"Expected a \":\".", 0)
-ERROR_MACRO(EXPECTED_BANG_MODIFIER, L"Expected a \"!\" in front of this expression because the variable \"%s\" will be modified.", 1);
-ERROR_MACRO(EXPECTED_AMPERSAND_MODIFIER, L"Expected an \"&\" in front of this expression because the object \"%s\" will be modified.", 1);
+ERROR_MACRO(EXPECTED_BANG_MODIFIER, L"Expected a \"!\" in front of this expression because the variable \"%ls\" will be modified.", 1);
+ERROR_MACRO(EXPECTED_AMPERSAND_MODIFIER, L"Expected an \"&\" in front of this expression because the object \"%ls\" will be modified.", 1);
 
 // File IO Errors
 ERROR_MACRO(ERROR_OPENING_FILE_TO_READ, L"Unable to open the file for reading.  (This usually happens when the file doesn't exist.  If it does exist, then some other program probably has the file locked from sharing.)", 0)
 ERROR_MACRO(ERROR_READING_FILE, L"There was an error reading from the file.", 0)
-ERROR_MACRO(FILE_NOT_FOUND, L"The file \"%s\" was not found.", 1)
-ERROR_MACRO(ERROR_SAVING, L"Unable to save/create  the file \"%s\".", 1)
-ERROR_MACRO(UNRECOGNIZED_FILE_FORMAT, L"Unable to recognize the format of the file \"%s\".", 1)
+ERROR_MACRO(FILE_NOT_FOUND, L"The file \"%ls\" was not found.", 1)
+ERROR_MACRO(ERROR_SAVING, L"Unable to save/create  the file \"%ls\".", 1)
+ERROR_MACRO(UNRECOGNIZED_FILE_FORMAT, L"Unable to recognize the format of the file \"%ls\".", 1)
 
 // Other
 ERROR_MACRO(SOURCE_ALREADY_LOADED, L"There is already source loaded.  You must unload it before you can load other source.", 0)
@@ -97,7 +98,7 @@ ERROR_MACRO(ELSE_MUST_BE_CHILD_OF_IF, L"An \"Else\" instruction must be a child 
 ERROR_MACRO(BAD_CAST, L"Can not cast object to that class because neither class inherrits from the other.", 0)
 ERROR_MACRO(INVALID_SYNTAX_TYPE, L"Invalid syntax type.  Valid values are: \"Classic\", and \"XML\".", 0)
 ERROR_MACRO(COULDNT_FIND_GETCONSTANTSTRING, L"Couldn't find the machine method \"!String.getConstantString(Integer)\".", 0)
-ERROR_MACRO(COULDNT_FIND_IMPLICIT_CALL_TARGET, L"Couldn't find the target of an implicit call: %s", 1)
+ERROR_MACRO(COULDNT_FIND_IMPLICIT_CALL_TARGET, L"Couldn't find the target of an implicit call: %ls", 1)
 ERROR_MACRO(WRONG_SOURCE, L"This source code does not compile to that compiled code.", 0)
 ERROR_MACRO(ALLOCATE_MUST_BE_CALLED_IN_SAME_CLASS_PROC, L"\"allocate\" may only be called from the class you are constructing.  (This rule elliminates the need for constructors.)  Use the \"new\" method of that class instead (if it has one).", 0)
 ERROR_MACRO(CANT_MAKE_NEW_INTERFACE, L"You can't call \"New\" on an interface.  (But you can call \"New\" on a class that implements the interface.)", 0)
@@ -114,5 +115,7 @@ ERROR_MACRO(UNHANDLED_EXCEPTION, L"An unexpected exception was thrown.", 0)
 ERROR_MACRO(OUT_OF_MEMORY, L"Out of memory", 0)
 ERROR_MACRO(NO_MAIN_PROC, L"There is no procedure named main.", 0)
 ERROR_MACRO(CANT_BUILD_MULTIPLE_PROJECTS, L"Only one project may be built at a time.", 0)
-ERROR_MACRO(CANT_MODIFY_VARIABLE, L"You don't have permission to modify the variable \"%s\" because it wasn't declared with a \"!\".", 1)
-ERROR_MACRO(CANT_MODIFY_OBJECT, L"You don't have permission to modify that object because the variable \"%s\" wasn't declared with a \"&\" or a \"!\".", 1)
+ERROR_MACRO(CANT_MODIFY_VARIABLE, L"You don't have permission to modify the variable \"%ls\" because it wasn't declared with a \"!\".", 1)
+ERROR_MACRO(CANT_MODIFY_OBJECT, L"You don't have permission to modify that object because the variable \"%ls\" wasn't declared with a \"&\" or a \"!\".", 1)
+ERROR_MACRO(CONFLICTING_TYPES, L"Conflicting types", 0)
+ERROR_MACRO(MACHINE_PROCS_NOT_SUPPORTED_YET, L"Procs in machine classes are not supported yet.  For now, just use null for this and call as a method.", 0)

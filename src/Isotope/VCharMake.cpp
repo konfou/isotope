@@ -19,10 +19,57 @@
 #include "Controller.h"
 #include "MAnimation.h"
 
+#define BACKGROUND_COLOR 0x00004400
+
+class MCharMakeDialog : public GWidgetDialog
+{
+protected:
+	Controller* m_pController;
+	VCharMake* m_pView;
+	GWidgetTextButton* m_pCancelButton;
+	GWidgetTextButton* m_pOKButton;
+	const char* m_szTypeBuffer;
+
+public:
+	MCharMakeDialog(VCharMake* pView, Controller* pController, const char* szTypeBuffer, int w, int h)
+		: GWidgetDialog(w, h, BACKGROUND_COLOR)
+	{
+		m_pView = pView;
+		m_pController = pController;
+		m_szTypeBuffer = szTypeBuffer;
+		GString s;
+		s.Copy(L"Cancel");
+		m_pCancelButton = new GWidgetTextButton(this, 235, 420, 150, 24, &s);
+		s.Copy(L"OK");
+		m_pOKButton = new GWidgetTextButton(this, 235, 390, 150, 24, &s);
+	}
+
+	virtual ~MCharMakeDialog()
+	{
+	}
+
+	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
+	{
+		if(pButton == m_pCancelButton)
+			m_pController->CancelMakeNewChar();
+		else if(pButton == m_pOKButton)
+			m_pController->CreateNewCharacter(m_pView->GetAvatarID(), m_szTypeBuffer);
+		else
+			GAssert(false, "Unrecognized button");
+	}
+};
+
+
+
+
+// --------------------------------------------------------------------
+
+
+
 #define GAP_BETWEEN_AVATARS 20
 #define PARADE_BOX_BORDER 50
 
-VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer)
+VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer, Controller* pController)
 : ViewPort(pRect)
 {
 	// Make a list of avatar choices
@@ -30,14 +77,9 @@ VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer)
 	MakeAvatarList();
 
 	// Make the view stuff
-	m_pImage = new GImage();
-	GAssert(pRect->w >= 620 && pRect->h >= 460, "Screen not big enough to hold this view");
-	m_pImage->SetSize(620, 460);
-
 	m_szTypeBuffer = szTypeBuffer;
-	m_pWidgetContainer = new GWidgetContainer(620, 460);
-	m_pCancelButton = MakeNewButton(m_pWidgetContainer, 235, 420, 150, 24, L"Cancel");
-	m_pOKButton = MakeNewButton(m_pWidgetContainer, 235, 390, 150, 24, L"OK");
+	GAssert(pRect->w >= 620 && pRect->h >= 460, "Screen not big enough to hold this view");
+	m_pDialog = new MCharMakeDialog(this, pController, szTypeBuffer, 620, 460);
 	m_dTime = GameEngine::GetTime();
 	m_fCameraDirection = 0;
 	m_nFirstAvatar = 0;
@@ -51,8 +93,7 @@ VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer)
 
 /*virtual*/ VCharMake::~VCharMake()
 {
-	delete(m_pWidgetContainer);
-	delete(m_pImage);
+	delete(m_pDialog);
 	delete(m_pAvatarAnimations);
 }
 
@@ -80,46 +121,42 @@ void VCharMake::MakeAvatarList()
 
 void VCharMake::RefreshEntireImage()
 {
-	m_pImage->Clear(0x006644);
-
 	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
 	r.x = 10;
 	r.y = 10;
 	r.w = 600;
 	r.h = 25;
-	m_pImage->DrawHardText(&r, "Click on the character you would like:", 0x00ffff, 1);
-
-	m_pCancelButton->Draw(m_pImage);
+	pCanvas->DrawHardText(&r, "Click on the character you would like:", 0x00ffff, 1);
 }
 
 /*virtual*/ void VCharMake::Draw(SDL_Surface *pScreen)
 {
+	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
 	if(m_eState == PickCharacter || m_eState == ShowCharacter)
 		DrawAvatars();
 	if(m_eState == ShowCharacter)
 	{
-		GRect r;
 		r.x = 10;
 		r.y = 250;
 		r.w = 600;
 		r.h = 25;
-		m_pImage->DrawHardText(&r, "Please enter a password:", 0x00ffff, 1);
-		m_pOKButton->Draw(m_pImage);
+		pCanvas->DrawHardText(&r, "Please enter a password:", 0x00ffff, 1);
 		m_eState = EnterPassword;
 	}
 	else if(m_eState == EnterPassword)
 	{
-		m_pImage->DrawBox(10, 290, 600, 315, 0x0099ff, true);
-		GRect r;
+		pCanvas->DrawBox(10, 290, 600, 315, 0x0099ff, true);
 		r.x = 10;
 		r.y = 290;
 		r.w = 600;
 		r.h = 25;
-		m_pImage->DrawHardText(&r, m_szTypeBuffer, 0x000000, 1);
-		int nWidth = m_pImage->MeasureHardTextWidth(r.h, m_szTypeBuffer, 1);
-		m_pImage->DrawBox(10 + nWidth, 292, 12 + nWidth, 312, 0x000000, true);
+		pCanvas->DrawHardText(&r, m_szTypeBuffer, 0x000000, 1);
+		int nWidth = pCanvas->MeasureHardTextWidth(r.h, m_szTypeBuffer, 1);
+		pCanvas->DrawBox(10 + nWidth, 292, 12 + nWidth, 312, 0x000000, true);
 	}
-	BlitImage(pScreen, m_rect.x, m_rect.y, m_pImage);
+	BlitImage(pScreen, m_rect.x, m_rect.y, pCanvas);
 }
 
 void VCharMake::DrawAvatars()
@@ -130,7 +167,9 @@ void VCharMake::DrawAvatars()
 
 	// Move the parade forward
 	m_fCameraDirection += (float)(timeDelta / 2);
-	m_pImage->DrawBox(PARADE_BOX_BORDER, 50, 620 - PARADE_BOX_BORDER, 170, 0x330022, true);
+	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
+	pCanvas->DrawBox(PARADE_BOX_BORDER, 50, 620 - PARADE_BOX_BORDER, 170, 0x330022, true);
 	int nCount = m_pAvatarAnimations->GetSize();
 	if(nCount <= 0)
 		return;
@@ -140,7 +179,6 @@ void VCharMake::DrawAvatars()
 		nNextOnStage = nCount - 1;
 	VarHolder* pVH = (VarHolder*)m_pAvatarAnimations->GetPointer(nNextOnStage);
 	MAnimation* pAnim = (MAnimation*)pVH->GetGObject();
-	GRect r;
 	GImage* pImage = pAnim->GetColumnFrame(&r, 0);
 	if(m_fParadePos - PARADE_BOX_BORDER > r.w + GAP_BETWEEN_AVATARS)
 	{
@@ -171,30 +209,17 @@ void VCharMake::DrawAvatars()
 			{
 				bFoundClick = true;
 				m_szAvatarID = g_szAvatarIDList[nAvatar];
-				m_pImage->Blit(nPos, 60, pImage, &r);
+				pCanvas->Blit(nPos, 60, pImage, &r);
 			}
 		}
 		else
-			m_pImage->Blit(nPos, 60, pImage, &r);
+			pCanvas->Blit(nPos, 60, pImage, &r);
 		nPos += r.w;
 		nPos += GAP_BETWEEN_AVATARS;
 		nAvatar++;
 		if(nAvatar >= nCount)
 			nAvatar = 0;
 	}
-}
-
-void VCharMake::ReleaseButton(Controller* pController, GWidgetTextButton* pButton)
-{
-	if(pButton == m_pCancelButton)
-		pController->CancelMakeNewChar();
-	else if(pButton == m_pOKButton)
-	{
-		if(m_eState == EnterPassword)
-			pController->CreateNewCharacter(m_szAvatarID, m_szTypeBuffer);
-	}
-	else
-		GAssert(false, "Unrecognized button");
 }
 
 void VCharMake::OnMouseDown(Controller* pController, int x, int y)
@@ -211,32 +236,12 @@ void VCharMake::OnMouseDown(Controller* pController, int x, int y)
 		return;
 	}
 
-	// Normal widget handling
-	GWidgetAtomic* pNewWidget = m_pWidgetContainer->FindAtomicWidget(x, y);
-	if(!pNewWidget)
-		return;
-	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
-	if(pOldWidget == pNewWidget)
-		pOldWidget = NULL;
-	m_pWidgetContainer->GrabWidget(pNewWidget);
-	if(pOldWidget)
-		pOldWidget->Draw(m_pImage);
-	pNewWidget->Draw(m_pImage);
+	// Grab
+	GWidgetAtomic* pNewWidget = m_pDialog->FindAtomicWidget(x, y);
+	m_pDialog->GrabWidget(pNewWidget, x, y);
 }
 
 void VCharMake::OnMouseUp(Controller* pController, int x, int y)
 {
-	x -= m_rect.x;
-	y -= m_rect.y;
-	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
-	m_pWidgetContainer->ReleaseWidget();
-	if(!pOldWidget)
-		return;
-	pOldWidget->Draw(m_pImage);
-	switch(pOldWidget->GetType())
-	{
-		case GWidget::TextButton:
-			ReleaseButton(pController, (GWidgetTextButton*)pOldWidget);
-			break;
-	}
+	m_pDialog->ReleaseWidget();
 }

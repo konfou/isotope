@@ -70,6 +70,19 @@ void MAnimationFrame::FromXml(GXMLTag* pTag, int width, int height)
 
 // -------------------------------------------------------------------------
 
+void RegisterMAnimation(GConstStringHashTable* pTable)
+{
+	pTable->Add("method getFrame(!GImage, &Rect)", new EMethodPointerHolder((MachineMethod2)&MAnimation::getFrame));
+	pTable->Add("method getColumnFrame(!GImage, &Rect, Float)", new EMethodPointerHolder((MachineMethod3)&MAnimation::getColumnFrame));
+	pTable->Add("method !newCopy(Animation)", new EMethodPointerHolder((MachineMethod1)&MAnimation::newCopy));
+	pTable->Add("method toStream(&Stream, &Stream)", new EMethodPointerHolder((MachineMethod2)&MAnimation::toStream));
+	pTable->Add("method !fromStream(&Stream)", new EMethodPointerHolder((MachineMethod1)&MAnimation::fromStream));
+	pTable->Add("method &setRefs(&Stream)", new EMethodPointerHolder((MachineMethod1)&MAnimation::setRefs));
+	pTable->Add("method &advanceTime(&Bool, Float)", new EMethodPointerHolder((MachineMethod2)&MAnimation::advanceTime));
+	pTable->Add("method &setTime(Float)", new EMethodPointerHolder((MachineMethod1)&MAnimation::setTime));
+}
+
+
 GHashTable* MAnimation::s_pAllAnimations = new GHashTable(83);
 
 MAnimation::MAnimation(Engine* pEngine)
@@ -237,7 +250,7 @@ void MAnimation::fromStream(Engine* pEngine, EVar* pStream)
 
 bool MAnimation::AdvanceTime(double dt)
 {
-	GAssert(m_time >= 0 && m_time < m_pFrames[m_nFrames - 1].m_endTime, "m_time is out of range");
+	GAssert(m_time >= 0 && m_time <= m_pFrames[m_nFrames - 1].m_endTime, "m_time is out of range");
 	bool bRet = true;
 	m_time += dt;
 	if(dt >= 0)
@@ -245,6 +258,7 @@ bool MAnimation::AdvanceTime(double dt)
 		if(m_time >= m_pFrames[m_nFrames - 1].m_endTime)
 		{
 			m_time -= m_pFrames[m_nFrames - 1].m_endTime * (int)(m_time / m_pFrames[m_nFrames - 1].m_endTime);
+			GAssert(m_time >= 0 && m_time <= m_pFrames[m_nFrames - 1].m_endTime, "m_time is out of range");
 			m_nCurrentFrame = 0;
 			bRet = false;
 		}
@@ -255,7 +269,10 @@ bool MAnimation::AdvanceTime(double dt)
 	{
 		if(m_time < 0)
 		{
-			m_time += m_pFrames[m_nFrames - 1].m_endTime * ((int)(-m_time / m_pFrames[m_nFrames - 1].m_endTime) + 1);
+			m_time += m_pFrames[m_nFrames - 1].m_endTime * (int)((-m_time / m_pFrames[m_nFrames - 1].m_endTime) + 1);
+			if(m_time >= m_pFrames[m_nFrames - 1].m_endTime)
+				m_time -= m_pFrames[m_nFrames - 1].m_endTime; // some floating point rounding issue makes this necessary
+			GAssert(m_time >= 0 && m_time <= m_pFrames[m_nFrames - 1].m_endTime, "m_time is out of range");
 			m_nCurrentFrame = m_nFrames - 1;
 			bRet = false;
 		}
@@ -325,4 +342,10 @@ void MAnimation::advanceTime(Engine* pEngine, EVar* pOutLooped, EVar* pTime)
 	bool bLooped = AdvanceTime(pTime->pFloatObject->m_value) ? 1 : 0;
 	if(pOutLooped->pIntObject)
 		pOutLooped->pIntObject->m_value = bLooped;
+}
+
+void MAnimation::setTime(Engine* pEngine, EVar* pTime)
+{
+	m_time = 0;
+	AdvanceTime(pTime->pFloatObject->m_value);
 }

@@ -11,6 +11,20 @@
 
 #include "VarRef.h"
 #include "Variable.h"
+#include "Type.h"
+
+COVarRef::COVarRef(int nLine, int nCol, int nWid, COVariable* pVariable)
+	: COExpression(nLine, nCol, nWid, ET_VARREF),
+	m_bExpVarIsReadOnly(true),
+	m_bExpObjIsReadOnly(true)
+{
+	GAssert(pVariable != NULL, "Bad Var");
+	m_pVariable = pVariable;
+}
+
+/*virtual*/ COVarRef::~COVarRef()
+{
+}
 
 int COVarRef::ToString(char* pBuf)
 {

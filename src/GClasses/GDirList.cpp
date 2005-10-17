@@ -197,25 +197,26 @@ const char* GDirList::GetNext()
 
 GDirList::GDirList(bool bRecurseSubDirs, bool bReportFiles, bool bReportDirs, bool bReportPaths)
 {
-   m_bReportFiles = bReportFiles;
-   m_bReportDirs = bReportDirs;
-   m_bRecurseSubDirs = bRecurseSubDirs;
-   m_bReportPaths = bReportPaths;
-   getcwd(m_szOldDir, 255);
-   m_pBuffer = new GQueue();
-   m_nNests = 0;
-   m_pTempBuf = NULL;
-   m_pCurDir = opendir( "." );
+	m_bReportFiles = bReportFiles;
+	m_bReportDirs = bReportDirs;
+	m_bRecurseSubDirs = bRecurseSubDirs;
+	m_bReportPaths = bReportPaths;
+	getcwd(m_szOldDir, 255);
+	m_pBuffer = new GQueue();
+	m_nNests = 0;
+	m_pTempBuf = NULL;
+	m_pCurDir = opendir( "." );
 }
 
 GDirList::~GDirList()
 {
-   delete(m_pBuffer);
-   for( ; m_nNests > 0; m_nNests--){
-     closedir(m_pDirs[m_nNests]);
-     chdir("..");
-   }
-   delete(m_pTempBuf);
+	delete(m_pBuffer);
+	for( ; m_nNests > 0; m_nNests--)
+	{
+		closedir(m_pDirs[m_nNests]);
+		chdir("..");
+	}
+	delete(m_pTempBuf);
 }
 
 void GDirList::SetTempBuf(char* pNewString)
@@ -227,53 +228,51 @@ void GDirList::SetTempBuf(char* pNewString)
 const char* GDirList::GetNext()
 {
 	//The current directory isn't opening
-	if(m_pCurDir == NULL) {
+	if(m_pCurDir == NULL)
 		return NULL;
-  }
 
 	struct dirent *pDirent;
 	pDirent = readdir(m_pCurDir);
 	if(pDirent != NULL)
-	{  
-	  if(pDirent->d_type == DT_DIR)
-	  {
-		  //skip the . and .. directories
-      if(!strcmp(pDirent->d_name, ".") || !strcmp(pDirent->d_name, ".."))
-			  return(GetNext());
+	{
+		if(pDirent->d_type == DT_DIR)
+		{
+			//skip the . and .. directories
+			if(!strcmp(pDirent->d_name, ".") || !strcmp(pDirent->d_name, ".."))
+				return(GetNext());
 
-      //We need the full path if we want to open the next directory
-      if(m_bReportPaths)
-      {
-        char szBuff[256];
-        getcwd(szBuff, 255);
-        m_pBuffer->Flush();
-			  m_pBuffer->Push(szBuff);
-        m_pBuffer->Push("/");
-      }
-      else
-        m_pBuffer->Flush();
-
-      if(m_bRecurseSubDirs)
-      { 
-			  //Put the current Dir object on the recursion stack, 
-			  //change the current dir to the new one in preparation for next query
-        m_pDirs[m_nNests] = m_pCurDir;
-        m_nNests++;
-        chdir(pDirent->d_name);
-			  m_pCurDir = opendir(".");
-      }  
-      if(m_bReportDirs)
-      {
-        m_pBuffer->Push(pDirent->d_name);
-        if(m_bReportPaths)
-          m_pBuffer->Push("/");
-        SetTempBuf(m_pBuffer->DumpToString());
-			  return m_pTempBuf;
-		  }
-      else
-         return GetNext();
-         
-    }
+			//We need the full path if we want to open the next directory
+			if(m_bReportPaths)
+			{
+				char szBuff[256];
+				getcwd(szBuff, 255);
+				m_pBuffer->Flush();
+							m_pBuffer->Push(szBuff);
+				m_pBuffer->Push("/");
+			}
+			else
+				m_pBuffer->Flush();
+			
+			if(m_bRecurseSubDirs)
+			{ 
+				//Put the current Dir object on the recursion stack, 
+				//change the current dir to the new one in preparation for next query
+				m_pDirs[m_nNests] = m_pCurDir;
+				m_nNests++;
+				chdir(pDirent->d_name);
+				m_pCurDir = opendir(".");
+			}  
+			if(m_bReportDirs)
+			{
+				m_pBuffer->Push(pDirent->d_name);
+				if(m_bReportPaths)
+					m_pBuffer->Push("/");
+				SetTempBuf(m_pBuffer->DumpToString());
+					return m_pTempBuf;
+			}
+			else
+				return GetNext();
+		}
 		else
 		{
 			if(m_bReportFiles)
@@ -288,7 +287,7 @@ const char* GDirList::GetNext()
 				}
 				else
 					m_pBuffer->Flush();
-          
+
 				m_pBuffer->Push(pDirent->d_name);
 				SetTempBuf(m_pBuffer->DumpToString());
 				return m_pTempBuf;
@@ -298,26 +297,25 @@ const char* GDirList::GetNext()
 				return GetNext();
 			}
 		} 
-  } 
-  else
-  {
-     //In here, there are no more files in the current directory
-	   //Step out of the current nest, recurse up
-      if(m_nNests > 0)
-      {
-         chdir("..");
-	       closedir(m_pCurDir);
-         m_pCurDir = m_pDirs[m_nNests - 1];
-         m_nNests--;
-         return(GetNext());
-      }
-	  //all done! No more files.
-      else
-	    {
-		    closedir(m_pCurDir);
-        return NULL;
-	    }
-   }
+	} 
+	else
+	{
+		//In here, there are no more files in the current directory
+		//Step out of the current nest, recurse up
+		if(m_nNests > 0)
+		{
+			chdir("..");
+			closedir(m_pCurDir);
+			m_pCurDir = m_pDirs[m_nNests - 1];
+			m_nNests--;
+			return(GetNext());
+		}
+		else //all done! No more files.
+		{
+			closedir(m_pCurDir);
+			return NULL;
+		}
+	}
 }
 
 

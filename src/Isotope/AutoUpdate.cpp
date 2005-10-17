@@ -2,6 +2,7 @@
 #include <string.h>
 #include "AutoUpdate.h"
 #include "GameEngine.h"
+#include "Controller.h"
 #include "../GClasses/GKeyPair.h"
 #include "../GClasses/GBigNumber.h"
 #include "../GClasses/sha2.h"
@@ -9,6 +10,7 @@
 #include "../GClasses/GMacros.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GThread.h"
+#include "../GClasses/GHttp.h"
 
 const char* g_szTrustedPublicKey = "<KeyPair N=\"1b5d56db6338439933613b7dfbd6b687decdc03e1ef0ae02d93c02cd9270406cb6428d0757b552551ebd9426f8810b36d6f6348af1835e4539fb7f2689af46bf\" Public=\"5276ee4b56255a9784fe859cd5d7ae12028a81b983c44ccd9efdefbf4a34aab\" />";const char* GetTrustedPublicKey()
 {
@@ -167,8 +169,9 @@ void BlessThisApplication(const char* szPrivateKeyFilename, const char* szUrl)
 unsigned int CheckForUpdates(void* pData)
 {
 	// Download the update.xml file
+	GHttpClient httpClient;
 	int nSize;
-	Holder<char*> hUpdateFile(GameEngine::DownloadFile(UPDATE_DESCRIPTOR, &nSize, false));
+	Holder<char*> hUpdateFile(Controller::DownloadFile(&httpClient, UPDATE_DESCRIPTOR, &nSize, false, 60, NULL, NULL));
 	char* pUpdateFile = hUpdateFile.Get();
 	if(!pUpdateFile)
 	{
@@ -220,7 +223,7 @@ unsigned int CheckForUpdates(void* pData)
 		GAssert(false, "Bad update.xml file");
 		return 0;
 	}
-	Holder<char*> hNewAppFile(GameEngine::DownloadFile(pFileAttr->GetValue(), &nSize, false));
+	Holder<char*> hNewAppFile(Controller::DownloadFile(&httpClient, pFileAttr->GetValue(), &nSize, false, 60, NULL, NULL));
 	char* pNewAppFile = hNewAppFile.Get();
 	if(!pNewAppFile)
 	{

@@ -16,11 +16,10 @@
 
 struct GRect;
 struct AvatarAccount;
-class GWidgetContainer;
-class GWidgetTextButton;
-class GWidget;
+class MCharSelectDialog;
 class Controller;
 class GPointerArray;
+class GXMLTag;
 
 // This shows a screen where you can select your character
 class VCharSelect : public ViewPort
@@ -36,11 +35,8 @@ protected:
 
 	DialogState m_eState;
 	const char* m_szTypeBuffer;
-	GImage* m_pImage;
 	GPointerArray* m_pAvatarAnimations;
-	GWidgetContainer* m_pWidgetContainer;
-	GWidgetTextButton* m_pNewCharButton;
-	GWidgetTextButton* m_pOKButton;
+	MCharSelectDialog* m_pDialog;
 	double m_dTime;
 	float m_fCameraDirection;
 	int m_nFirstAvatar;
@@ -50,20 +46,21 @@ protected:
 	double m_dWrongPasswordTime;
 
 public:
-	VCharSelect(GRect* pRect, const char* szTypeBuffer);
+	VCharSelect(GRect* pRect, const char* szTypeBuffer, Controller* pController);
 	virtual ~VCharSelect();
 
 	virtual void Draw(SDL_Surface *pScreen);
 	void OnMouseDown(Controller* pController, int x, int y);
 	void OnMouseUp(Controller* pController, int x, int y);
 	void ReloadAccounts();
+	bool CheckPassword();
+	GXMLTag* GetSelectedAccountTag();
+	AvatarAccount* GetSelectedAccount() { return m_pSelectedAccount; }
 
 protected:
 	void RefreshEntireImage();
 	void ClearAvatarAnimations();
-	void ReleaseButton(Controller* pController, GWidgetTextButton* pButton);
 	void DrawAvatars();
-	void AttemptLogin(Controller* pController);
 	bool CheckFile(const char* szFilename);
 };
 

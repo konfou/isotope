@@ -28,7 +28,7 @@ void MLibrary::load(Engine* pEngine, EVar* pFilename)
 	char* pBuffer = hBuffer.Get();
 	Library* pLibrary = Library::LoadFromBuffer(pBuffer, nBufferSize, NULL, false);
 	if(!pLibrary)
-		pEngine->ThrowIOError(L"Error loading file: %s", pFilename->pStringObject->m_value.GetString());
+		pEngine->ThrowIOError(L"Error loading file: %ls", pFilename->pStringObject->m_value.GetString());
 	pEngine->SetThis(new MLibrary(pEngine, pLibrary));
 }
 
@@ -39,5 +39,5 @@ void MLibrary::save(Engine* pEngine, EVar* pFilename)
 	pEngine->OpenFile(&fh, &pFilename->pStringObject->m_value, "wb");
 	FILE* pFile = fh.Get();
 	if(!pTag->ToFile(pFile))
-		pEngine->ThrowIOError(L"Error writing file: %s", pFilename->pStringObject->m_value.GetString());
+		pEngine->ThrowIOError(L"Error writing file: %ls", pFilename->pStringObject->m_value.GetString());
 }

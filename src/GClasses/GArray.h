@@ -84,7 +84,7 @@ public:
 };
 
 
-typedef int (*PointerComparer)(void* pA, void* pB);
+typedef int (*PointerComparer)(void* pThis, void* pA, void* pB);
 
 // Dynamic array of pointers
 class GPointerArray : public GSmallArray
@@ -99,7 +99,7 @@ public:
 	void SetPointer(int nCell, void* p) { _SetCellByRef(nCell, &p); }
 
 	// Sorts the array with merge sort
-	void Sort(PointerComparer pCompareFunc);
+	void Sort(PointerComparer pCompareFunc, void* pThis);
 };
 
 // Dynamic array of integers

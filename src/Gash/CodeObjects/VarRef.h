@@ -22,18 +22,8 @@ protected:
 	bool m_bExpObjIsReadOnly;
 
 public:
-	COVarRef(int nLine, int nCol, int nWid, COVariable* pVariable)
-	 : COExpression(nLine, nCol, nWid, ET_VARREF),
-	   m_bExpVarIsReadOnly(true),
-	   m_bExpObjIsReadOnly(true)
-	{
-		GAssert(pVariable != NULL, "Bad Var");
-		m_pVariable = pVariable;
-	}
-
-	virtual ~COVarRef()
-	{
-	}
+	COVarRef(int nLine, int nCol, int nWid, COVariable* pVariable);
+	virtual ~COVarRef();
 
 	virtual COType* GetType(COProject* pCOProject);
 	virtual int ToString(char* pBuf);

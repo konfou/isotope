@@ -14,6 +14,11 @@
 #include "../SDL/SDL_audio.h"
 #include "../GClasses/GMacros.h"
 #include "GameEngine.h"
+#ifdef WIN32
+#include <windows.h>
+#else // WIN32
+#include <unistd.h>
+#endif // !WIN32
 
 #define AUDIO_CHANNELS 1
 
@@ -67,7 +72,6 @@ void mixWaves(void *pThis, Uint8 *stream, int len)
 
 VWavePlayer::VWavePlayer()
 {
-#ifdef WIN32 // todo: remove this
 	m_pActive = NULL;
 	m_pIdle = NULL;
 
@@ -85,26 +89,61 @@ VWavePlayer::VWavePlayer()
 	if(SDL_OpenAudio(&fmt, NULL) < 0)
 		GameEngine::ThrowError(SDL_GetError()); // unable to open audio device
 	SDL_PauseAudio(0);
-#endif // todo: remove this line
 }
 
 VWavePlayer::~VWavePlayer()
 {
-#ifdef WIN32 // todo: remove this
-	while(m_pActive)
+	if(m_pActive)
 	{
-		VWaveBuffer* pTmp = m_pActive;
-		UnLinkActive(pTmp);
-		delete(pTmp);
+		SDL_PauseAudio(1);
+		while(m_pActive)
+		{
+			VWaveBuffer* pBuf = m_pActive;
+			UnLinkActive(pBuf);
+			LinkIdle(pBuf);
+		}
 	}
+	SDL_CloseAudio();
 	while(m_pIdle)
 	{
 		VWaveBuffer* pTmp = m_pIdle;
 		UnLinkIdle(pTmp);
 		delete(pTmp);
 	}
-	SDL_CloseAudio();
-#endif // todo: remove this line
+}
+
+void VWavePlayer::StartAudio()
+{
+	SDL_PauseAudio(0);
+}
+
+void VWavePlayer::FinishAudio()
+{
+	if(m_pActive)
+	{
+		int n = 0;
+		while(m_pActive)
+		{
+			// Give it one second to finish whatever sound effect is currently playing
+			if((++n) % 100 == 0)
+			{
+				// Rudely stop the audio
+				SDL_PauseAudio(1);
+				while(m_pActive)
+				{
+					VWaveBuffer* pBuf = m_pActive;
+					UnLinkActive(pBuf);
+					LinkIdle(pBuf);
+				}
+				break;
+			}
+#ifdef WIN32
+			Sleep(10);
+#else // WIN32
+			usleep(10);
+#endif // !WIN32
+		}
+	}
 }
 
 void VWavePlayer::LinkActive(VWaveBuffer* pBuf)
@@ -150,25 +189,35 @@ void VWavePlayer::MixWaves(Uint8 *stream, int len)
 	VWaveBuffer* pBuf;
 	VWaveBuffer* pNext;
 	Uint32 nBlockSize;
-	for(pBuf = m_pActive; pBuf; pBuf = pNext)
+	if(m_pActive)
 	{
-		pNext = pBuf->m_pNext;
-		nBlockSize = pBuf->m_nLen - pBuf->m_nPos;
-		if(nBlockSize > (unsigned int)len)
-			nBlockSize = (unsigned int)len;
-		SDL_MixAudio(stream, &pBuf->m_pData[pBuf->m_nPos], nBlockSize, SDL_MIX_MAXVOLUME);
-		pBuf->m_nPos += nBlockSize;
-		if(nBlockSize >= pBuf->m_nLen)
+		for(pBuf = m_pActive; pBuf; pBuf = pNext)
 		{
-			UnLinkActive(pBuf);
-			LinkIdle(pBuf);
+			pNext = pBuf->m_pNext;
+			nBlockSize = pBuf->m_nLen - pBuf->m_nPos;
+			if(nBlockSize > (unsigned int)len)
+				nBlockSize = (unsigned int)len;
+			SDL_MixAudio(stream, &pBuf->m_pData[pBuf->m_nPos], nBlockSize, SDL_MIX_MAXVOLUME);
+			pBuf->m_nPos += nBlockSize;
+			if(nBlockSize >= pBuf->m_nLen)
+			{
+				UnLinkActive(pBuf);
+				LinkIdle(pBuf);
+			}
 		}
+	}
+	else
+	{
+#ifdef WIN32
+		Sleep(10);
+#else // WIN32
+		usleep(10);
+#endif // !WIN32
 	}
 }
 
 void VWavePlayer::Play(const MSound* pSound)
 {
-#ifdef WIN32 // todo: remove this
 	VWaveBuffer* pBuf = m_pIdle;
 	if(pBuf)
 		UnLinkIdle(pBuf);
@@ -180,7 +229,6 @@ void VWavePlayer::Play(const MSound* pSound)
 	SDL_LockAudio();
 	LinkActive(pBuf);
 	SDL_UnlockAudio();
-#endif // todo: remove this line
 }
 
 

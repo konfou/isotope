@@ -105,6 +105,21 @@ void GVM::Run()
 			GAssert(pException == m_pException, "unexpected thrower");
 			UnwindStackForException();
 		}
+		catch(const char* szException)
+		{
+			GString s;
+			s.Copy(szException);
+			const wchar_t* wszException = s.GetString();
+			GObject* pException = MakeException("NullReferenceException", wszException);
+			m_pException->SetGObject(pException);
+			UnwindStackForException();
+		}
+		catch(const wchar_t* wszException)
+		{
+			GObject* pException = MakeException("NullReferenceException", wszException);
+			m_pException->SetGObject(pException);
+			UnwindStackForException();
+		}
 		catch(...)
 		{
 			GAssert(false, "C++ exception");

@@ -23,6 +23,8 @@
 #else // WIN32
 #include <unistd.h>
 #endif // WIN32
+#include "Variable.h"
+
 COFileSet::COFileSet(const char* szFilename)
 {
 	m_szFilename = NULL;
@@ -184,7 +186,7 @@ bool COFileSet::LoadAllFileNames(GXMLTag* pSourceTag, GXMLTag* pXMLTags, ErrorHa
 	return bOK;
 }
 
-void COFileSet::LoadAllClassNames(GXMLTag* pXMLTags, COProject* pCOProject)
+void COFileSet::LoadAllTypeNames(GXMLTag* pXMLTags, COProject* pCOProject, bool bXLib)
 {
 	int nCount = GetFileCount();
 	GXMLTag* pFileTag = pXMLTags->GetFirstChildTag();
@@ -196,7 +198,7 @@ void COFileSet::LoadAllClassNames(GXMLTag* pXMLTags, COProject* pCOProject)
 		if(pFile->GetFileType() == FT_XLIB)
 			continue;
 		pCOProject->m_pCurrentFile = pFile;
-		pFile->LoadClassNames(pFileTag, pCOProject);
+		pFile->LoadTypeNames(pFileTag, pCOProject, bXLib);
 		pFileTag = pXMLTags->GetNextChildTag(pFileTag);
 	}
 }
@@ -232,6 +234,19 @@ void COFileSet::LoadMethodDeclarations(GXMLTag* pXMLTags, COProject* pCOProject)
 		pCOProject->m_pCurrentFile = pFile;
 		pFile->LoadMethodDeclarations(pFileTag, pCOProject, false);
 		pFileTag = pXMLTags->GetNextChildTag(pFileTag);
+	}
+}
+
+void COFileSet::ReplaceType(COType* pOld, COType* pNew)
+{
+	int nCount = GetFileCount();
+	int n;
+	for(n = 0; n < nCount; n++)
+		GetFile(n)->ReplaceType(pOld, pNew);
+	for(n = 0; n < nCount; n++)
+	{
+		if(GetFile(n)->RemoveUnlinkedType(pOld))
+			break;
 	}
 }
 
@@ -298,7 +313,6 @@ COType* COFileSet::GetType(int index)
 
 COClass* COFileSet::FindClass(const char* szClassName)
 {
-	// First search non-XLib files (so code types get precidence over imported types)
 	COClass* pClass;
 	COFile* pFile;
 	int nCount = GetFileCount();
@@ -306,19 +320,6 @@ COClass* COFileSet::FindClass(const char* szClassName)
 	for(n = 0; n < nCount; n++)
 	{
 		pFile = GetFile(n);
-		if(pFile->GetFileType() == FT_XLIB)
-			continue;
-		pClass = pFile->FindClass(szClassName);
-		if(pClass)
-			return pClass;
-	}
-
-	// Now search XLib files
-	for(n = 0; n < nCount; n++)
-	{
-		pFile = GetFile(n);
-		if(pFile->GetFileType() != FT_XLIB)
-			continue;
 		pClass = pFile->FindClass(szClassName);
 		if(pClass)
 			return pClass;
@@ -346,7 +347,6 @@ int COFileSet::FindClass(COClass* pClass)
 
 COInterface* COFileSet::FindInterface(const char* szName)
 {
-	// First search non-XLib files (so code types get precidence over imported types)
 	COInterface* pInterface;
 	COFile* pFile;
 	int nCount = GetFileCount();
@@ -354,30 +354,16 @@ COInterface* COFileSet::FindInterface(const char* szName)
 	for(n = 0; n < nCount; n++)
 	{
 		pFile = GetFile(n);
-		if(pFile->GetFileType() == FT_XLIB)
-			continue;
 		pInterface = pFile->FindInterface(szName);
 		if(pInterface)
 			return pInterface;
 	}
-
-	// Now search XLib files
-	for(n = 0; n < nCount; n++)
-	{
-		pFile = GetFile(n);
-		if(pFile->GetFileType() != FT_XLIB)
-			continue;
-		pInterface = pFile->FindInterface(szName);
-		if(pInterface)
-			return pInterface;
-	}
-
 	return NULL;
 }
 
+// todo: implement the generation thing here
 COMachineClass* COFileSet::FindMachineClass(const char* szName)
 {
-	// First search non-XLib files (so code types get precidence over imported types)
 	COMachineClass* pMachineClass;
 	COFile* pFile;
 	int nCount = GetFileCount();
@@ -385,19 +371,6 @@ COMachineClass* COFileSet::FindMachineClass(const char* szName)
 	for(n = 0; n < nCount; n++)
 	{
 		pFile = GetFile(n);
-		if(pFile->GetFileType() == FT_XLIB)
-			continue;
-		pMachineClass = pFile->FindMachineClass(szName);
-		if(pMachineClass)
-			return pMachineClass;
-	}
-
-	// Now search XLib files
-	for(n = 0; n < nCount; n++)
-	{
-		pFile = GetFile(n);
-		if(pFile->GetFileType() != FT_XLIB)
-			continue;
 		pMachineClass = pFile->FindMachineClass(szName);
 		if(pMachineClass)
 			return pMachineClass;
@@ -436,22 +409,18 @@ bool COFileSet::Save()
 	return bRet;
 }
 
-bool COFileSet::LoadAllLibraries(const char* szLibrariesFolder, ParseError* pError, COProject* pProject)
+void COFileSet::LoadAllLibraries(const char* szLibrariesFolder, COProject* pProject)
 {
 	char szOldDir[512];
 	getcwd(szOldDir, 512);
-	bool bRet = LoadAllLibraries2(szLibrariesFolder, pError, pProject);
+	LoadAllLibraries2(szLibrariesFolder, pProject);
 	chdir(szOldDir);
-	return bRet;
 }
 
-bool COFileSet::LoadAllLibraries2(const char* szLibrariesFolder, ParseError* pError, COProject* pProject)
+void COFileSet::LoadAllLibraries2(const char* szLibrariesFolder, COProject* pProject)
 {
 	if(chdir(szLibrariesFolder) != 0)
-	{
-		pError->SetError(&Error::INVALID_LIBRARIES_FOLDER, NULL);
-		return false;
-	}
+		pProject->ThrowError(&Error::INVALID_LIBRARIES_FOLDER, NULL);
 	GDirList dl(true, true, false, true);
 	const char* szLibraryName;
 	while(true)
@@ -469,17 +438,13 @@ bool COFileSet::LoadAllLibraries2(const char* szLibrariesFolder, ParseError* pEr
 		int nErrorColumn;
 		GXMLTag* pRoot = GXMLTag::FromFile(szLibraryName, &szErrorMessage, &nErrorOffset, &nErrorLine, &nErrorColumn);
 		if(!pRoot)
-		{
-			pError->SetError(&Error::BAD_LIBRARY, NULL);
-			return false;
-		}
+			pProject->ThrowError(&Error::BAD_LIBRARY, NULL);
 		COFile* pNewFile = new COXLibFile(szLibraryName);
 		pProject->m_pCurrentFile = pNewFile;
 		m_pFiles->AddPointer(pNewFile);
-		pNewFile->LoadClassNames(pRoot, pProject);
+		pNewFile->LoadTypeNames(pRoot, pProject, true);
 		pNewFile->LoadMembers(pRoot, pProject, false);
 		pNewFile->LoadMethodDeclarations(pRoot, pProject, false);
 	}
-	return true;
 }
 

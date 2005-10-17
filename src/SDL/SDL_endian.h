@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 #ifdef SAVE_RCSID
@@ -54,55 +54,118 @@ static char rcsid =
 extern "C" {
 #endif
 
-/* The macros used to swap values */
-/* Try to use superfast macros on systems that support them */
-#ifdef linux
-#include <asm/byteorder.h>
-#ifdef __arch__swab16
-#define SDL_Swap16  __arch__swab16
-#endif
-#ifdef __arch__swab32
-#define SDL_Swap32  __arch__swab32
-#endif
-#endif /* linux */
 /* Use inline functions for compilers that support them, and static
    functions for those that do not.  Because these functions become
    static for compilers that do not support inline functions, this
    header should only be included in files that actually use them.
 */
-#ifndef SDL_Swap16
-static __inline__ Uint16 SDL_Swap16(Uint16 D) {
-	return((D<<8)|(D>>8));
+#if defined(__GNUC__) && defined(__i386__)
+static __inline__ Uint16 SDL_Swap16(Uint16 x)
+{
+	__asm__("xchgb %b0,%h0" : "=q" (x) :  "0" (x));
+	return x;
+}
+#elif defined(__GNUC__) && defined(__x86_64__)
+static __inline__ Uint16 SDL_Swap16(Uint16 x)
+{
+	__asm__("xchgb %b0,%h0" : "=Q" (x) :  "0" (x));
+	return x;
+}
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__ppc__))
+static __inline__ Uint16 SDL_Swap16(Uint16 x)
+{
+	Uint16 result;
+
+	__asm__("rlwimi %0,%2,8,16,23" : "=&r" (result) : "0" (x >> 8), "r" (x));
+	return result;
+}
+#elif defined(__GNUC__) && (defined(__M68000__) || defined(__M68020__))
+static __inline__ Uint16 SDL_Swap16(Uint16 x)
+{
+	__asm__("rorw #8,%0" : "=d" (x) :  "0" (x) : "cc");
+	return x;
+}
+#else
+static __inline__ Uint16 SDL_Swap16(Uint16 x) {
+	return((x<<8)|(x>>8));
 }
 #endif
-#ifndef SDL_Swap32
-static __inline__ Uint32 SDL_Swap32(Uint32 D) {
-	return((D<<24)|((D<<8)&0x00FF0000)|((D>>8)&0x0000FF00)|(D>>24));
+
+#if defined(__GNUC__) && defined(__i386__)
+static __inline__ Uint32 SDL_Swap32(Uint32 x)
+{
+	__asm__("bswap %0" : "=r" (x) : "0" (x));
+	return x;
+}
+#elif defined(__GNUC__) && defined(__x86_64__)
+static __inline__ Uint32 SDL_Swap32(Uint32 x)
+{
+	__asm__("bswapl %0" : "=r" (x) : "0" (x));
+	return x;
+}
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__ppc__))
+static __inline__ Uint32 SDL_Swap32(Uint32 x)
+{
+	Uint32 result;
+
+	__asm__("rlwimi %0,%2,24,16,23" : "=&r" (result) : "0" (x>>24), "r" (x));
+	__asm__("rlwimi %0,%2,8,8,15"   : "=&r" (result) : "0" (result),    "r" (x));
+	__asm__("rlwimi %0,%2,24,0,7"   : "=&r" (result) : "0" (result),    "r" (x));
+	return result;
+}
+#elif defined(__GNUC__) && (defined(__M68000__) || defined(__M68020__))
+static __inline__ Uint32 SDL_Swap32(Uint32 x)
+{
+	__asm__("rorw #8,%0\n\tswap %0\n\trorw #8,%0" : "=d" (x) :  "0" (x) : "cc");
+	return x;
+}
+#else
+static __inline__ Uint32 SDL_Swap32(Uint32 x) {
+	return((x<<24)|((x<<8)&0x00FF0000)|((x>>8)&0x0000FF00)|(x>>24));
 }
 #endif
+
 #ifdef SDL_HAS_64BIT_TYPE
-#ifndef SDL_Swap64
-static __inline__ Uint64 SDL_Swap64(Uint64 val) {
+#if defined(__GNUC__) && defined(__i386__)
+static __inline__ Uint64 SDL_Swap64(Uint64 x)
+{
+	union { 
+		struct { Uint32 a,b; } s;
+		Uint64 u;
+	} v;
+	v.u = x;
+	__asm__("bswapl %0 ; bswapl %1 ; xchgl %0,%1" 
+	        : "=r" (v.s.a), "=r" (v.s.b) 
+	        : "0" (v.s.a), "1" (v.s.b)); 
+	return v.u;
+}
+#elif defined(__GNUC__) && defined(__x86_64__)
+static __inline__ Uint64 SDL_Swap64(Uint64 x)
+{
+	__asm__("bswapq %0" : "=r" (x) : "0" (x));
+	return x;
+}
+#else
+static __inline__ Uint64 SDL_Swap64(Uint64 x)
+{
 	Uint32 hi, lo;
 
 	/* Separate into high and low 32-bit values and swap them */
-	lo = (Uint32)(val&0xFFFFFFFF);
-	val >>= 32;
-	hi = (Uint32)(val&0xFFFFFFFF);
-	val = SDL_Swap32(lo);
-	val <<= 32;
-	val |= SDL_Swap32(hi);
-	return(val);
+	lo = (Uint32)(x&0xFFFFFFFF);
+	x >>= 32;
+	hi = (Uint32)(x&0xFFFFFFFF);
+	x = SDL_Swap32(lo);
+	x <<= 32;
+	x |= SDL_Swap32(hi);
+	return(x);
 }
 #endif
 #else
-#ifndef SDL_Swap64
 /* This is mainly to keep compilers from complaining in SDL code.
    If there is no real 64-bit datatype, then compilers will complain about
    the fake 64-bit datatype that SDL provides when it compiles user code.
 */
 #define SDL_Swap64(X)	(X)
-#endif
 #endif /* SDL_HAS_64BIT_TYPE */
 
 
@@ -124,25 +187,25 @@ static __inline__ Uint64 SDL_Swap64(Uint64 val) {
 #endif
 
 /* Read an item of the specified endianness and return in native format */
-extern DECLSPEC Uint16 SDL_ReadLE16(SDL_RWops *src);
-extern DECLSPEC Uint16 SDL_ReadBE16(SDL_RWops *src);
-extern DECLSPEC Uint32 SDL_ReadLE32(SDL_RWops *src);
-extern DECLSPEC Uint32 SDL_ReadBE32(SDL_RWops *src);
-extern DECLSPEC Uint64 SDL_ReadLE64(SDL_RWops *src);
-extern DECLSPEC Uint64 SDL_ReadBE64(SDL_RWops *src);
+extern DECLSPEC Uint16 SDLCALL SDL_ReadLE16(SDL_RWops *src);
+extern DECLSPEC Uint16 SDLCALL SDL_ReadBE16(SDL_RWops *src);
+extern DECLSPEC Uint32 SDLCALL SDL_ReadLE32(SDL_RWops *src);
+extern DECLSPEC Uint32 SDLCALL SDL_ReadBE32(SDL_RWops *src);
+extern DECLSPEC Uint64 SDLCALL SDL_ReadLE64(SDL_RWops *src);
+extern DECLSPEC Uint64 SDLCALL SDL_ReadBE64(SDL_RWops *src);
 
 /* Write an item of native format to the specified endianness */
-extern DECLSPEC int SDL_WriteLE16(SDL_RWops *dst, Uint16 value);
-extern DECLSPEC int SDL_WriteBE16(SDL_RWops *dst, Uint16 value);
-extern DECLSPEC int SDL_WriteLE32(SDL_RWops *dst, Uint32 value);
-extern DECLSPEC int SDL_WriteBE32(SDL_RWops *dst, Uint32 value);
-extern DECLSPEC int SDL_WriteLE64(SDL_RWops *dst, Uint64 value);
-extern DECLSPEC int SDL_WriteBE64(SDL_RWops *dst, Uint64 value);
+extern DECLSPEC int SDLCALL SDL_WriteLE16(SDL_RWops *dst, Uint16 value);
+extern DECLSPEC int SDLCALL SDL_WriteBE16(SDL_RWops *dst, Uint16 value);
+extern DECLSPEC int SDLCALL SDL_WriteLE32(SDL_RWops *dst, Uint32 value);
+extern DECLSPEC int SDLCALL SDL_WriteBE32(SDL_RWops *dst, Uint32 value);
+extern DECLSPEC int SDLCALL SDL_WriteLE64(SDL_RWops *dst, Uint64 value);
+extern DECLSPEC int SDLCALL SDL_WriteBE64(SDL_RWops *dst, Uint64 value);
 
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
-};
+}
 #endif
 #include "close_code.h"
 

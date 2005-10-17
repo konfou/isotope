@@ -1,3 +1,14 @@
+/*
+	Copyright (C) 2006, Edumetrics Institute
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/gpl.html
+*/
+
 #include "MInductionPuzzle.h"
 #include "../Gash/BuiltIns/GashString.h"
 #include "../GClasses/GXML.h"
@@ -27,7 +38,7 @@ void MInductionPuzzle::allocate(Engine* pEngine, EVar* pSpecification)
 	Holder<GXMLTag*> hTag(GXMLTag::FromString(szSpecString, pSpecString->GetLength(), &szErrorMessage, NULL, &nErrorLine, NULL));
 	GXMLTag* pTag = hTag.Get();
 	if(!pTag)
-		GameEngine::ThrowError("Failed to parse induction puzzle spec xml string: %s", szErrorMessage);
+		GameEngine::ThrowError("Failed to parse induction puzzle spec xml string: %s at line %d", szErrorMessage, nErrorLine);
 
 	// Construct the puzzle
 	pEngine->SetThis(new MInductionPuzzle(pEngine, pTag));

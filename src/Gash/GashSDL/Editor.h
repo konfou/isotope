@@ -19,7 +19,7 @@ class GWidgetListBox;
 class EditorList;
 class COProject;
 class GWidgetStyle;
-class GWidgetContainer;
+class GWidgetDialog;
 class ErrorHandler;
 class EditorController;
 
@@ -27,10 +27,16 @@ class EditorController;
 void EditFile(const char* szFilename, const char* szAppPath, ErrorHandler* pErrorHandler);
 
 
-inline Uint32* getPixMem(SDL_Surface *surface, int x, int y)
+inline Uint32* getPixMem32(SDL_Surface *surface, int x, int y)
 {
-    return (Uint32*)((Uint8*)surface->pixels + y * surface->pitch + (x << 2));
+	return (Uint32*)((Uint8*)surface->pixels + y * surface->pitch + (x << 2));
 }
+
+inline Uint16* getPixMem16(SDL_Surface *pScreen, int x, int y)
+{
+	return (Uint16*)pScreen->pixels + y * pScreen->pitch / 2 + x;
+}
+
 
 
 
@@ -49,7 +55,7 @@ protected:
 	int m_nScreenHeight;
 	SDL_Surface* m_pScreen;
 	GRect m_screenRect;
-	GWidgetContainer* m_pWidgetContainer;
+	GWidgetDialog* m_pDialog;
 	EditorList* m_pLists[EDITOR_VIEW_MAX_LIST_COUNT];
 	int m_nLists;
 	int m_nCursorCol;
@@ -64,7 +70,7 @@ public:
 	void MoveRow(int dy);
 	void MoveCol(int dx);
 	GWidgetStyle* GetWidgetStyle();
-	GWidgetContainer* GetWidgetContainer() { return m_pWidgetContainer; }
+	GWidgetDialog* GetDialog() { return m_pDialog; }
 	bool OnChar(char c);
 
 protected:
@@ -112,7 +118,7 @@ public:
 	void HandleKeyPress(SDLKey eKey);
 	void HandleMouseClick();
 	GWidgetStyle* GetWidgetStyle() { return m_pView->GetWidgetStyle(); }
-	GWidgetContainer* GetWidgetContainer() { return m_pView->GetWidgetContainer(); }
+	GWidgetDialog* GetDialog() { return m_pView->GetDialog(); }
 	COProject* GetProject() { return m_pModel; }
 };
 

@@ -86,7 +86,7 @@ bool COHive::LoadAllLibraries2(const char* szLibrariesFolder, ParseError* pError
 		}
 		COFile* pNewFile = new COFile(COFile::SYNTAX_LIBRARY, szLibraryName);
 		m_pFiles->AddPointer(pNewFile);
-		pNewFile->LoadAllClassNames(pRoot, pError, pProject);
+		pNewFile->LoadAllTypeNames(pRoot, pError, pProject, true);
 		if(pError->HaveError())
 		{
 			pError->SetError(&Error::BAD_LIBRARY, NULL);

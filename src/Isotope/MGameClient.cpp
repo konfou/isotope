@@ -20,6 +20,7 @@
 #include "../GClasses/GBillboardCamera.h"
 #include "../GClasses/GWindows.h"
 #include "../GClasses/GSocket.h"
+#include "../GClasses/GHashTable.h"
 #include "../GClasses/GFile.h"
 #include "Controller.h"
 #include "MScriptEngine.h"
@@ -27,6 +28,7 @@
 #include "MObject.h"
 #include "MGameImage.h"
 #include "MSpot.h"
+#include "MStatCollector.h"
 #ifdef WIN32
 #include <direct.h>
 #else // WIN32
@@ -50,7 +52,6 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_dFrameRateTime = 0;
 	m_nFrames = 0;
 //#endif // _DEBUG
-	m_pErrorHandler = new IsotopeErrorHandler();
 	m_pScriptEngine = NULL;
 	m_pGoalFlag = NULL;
 	m_pInfoCloud = NULL;
@@ -58,7 +59,7 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_pMap = NULL;
 	m_szScript = NULL;
 	m_szRemoteFolder = NULL;
-
+	m_pStatCollector = new MStatCollector();
 	m_pImageStore = NULL;
 	m_pAnimationStore = NULL;
 	m_pSoundStore = NULL;
@@ -74,17 +75,18 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	delete(m_pAccountTag);
 	delete(m_szAccountFilename);
 	UnloadRealm();
-	delete(m_pErrorHandler);
 	delete(m_pPlayer);
 	delete(m_pMap);
 	delete(m_szScript);
 	delete(m_szRemoteFolder);
 	delete(m_pSelectedObjects);
+	delete(m_pStatCollector);
 }
 
 void MGameClient::UnloadRealm()
 {
 	// Unload the current realm
+	m_pSelectedObjects->Clear();
 	delete(m_pCamera);
 	m_pCamera = NULL;
 	delete(m_pCurrentRealm);
@@ -107,55 +109,119 @@ void MGameClient::UnloadRealm()
 	m_szRemoteFolder = NULL;
 }
 
-char* MGameClient::LoadFileFromUrl(const char* szUrl, int* pnBufSize)
+void MGameClient::SetRemoteFolder(const char* szUrl)
 {
-	return GameEngine::LoadFileFromUrl(m_szRemoteFolder, szUrl, pnBufSize);
-}
-
-void MGameClient::LoadScript(Controller* pController, MRealm* pRealm, const char* szUrl, GXMLTag* pMapTag)
-{
-	int nBufSize;
-	delete(m_szScript);
-	m_szScript = LoadFileFromUrl(szUrl, &nBufSize);
-	m_pScriptEngine = new MScriptEngine(m_szScript, nBufSize, m_pErrorHandler, pMapTag, this, pController, pRealm);
-}
-
-void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double time, int nScreenVerticalCenter)
-{
-	UnloadRealm();
-
-	// Download the file into memory
-	GAssert(m_pCamera == NULL && m_pAvatar == NULL && m_pConnection == NULL && m_pMap == NULL, "The realm was not unloaded");
-	if(strnicmp(szUrl, "http://", 7) != 0)
-		GameEngine::ThrowError("the URL should begin with \"http://\"");
-	int nLine, nCol;
-	const char* szError;
-	int nBufSize;
-	Holder<char*> hMap(GameEngine::LoadFileFromUrl("", szUrl, &nBufSize));
-	delete(m_pMap);
-	m_pMap = GXMLTag::FromString(hMap.Get(), nBufSize, &szError, NULL, &nLine, &nCol);
-	if(!m_pMap)
-		GameEngine::ThrowError("Failed to parse XML file \"%s\". %s", szUrl, szError);
-
-	// Parse the URL
+	// Set the remote folder
 	int nLen = strlen(szUrl);
-	GTEMPBUF(pHost, nLen + 1);
-	GTEMPBUF(pProtocol, nLen + 1);
-	GTEMPBUF(pParams, nLen + 1);
-	GSocket::ParseURL(szUrl, pProtocol, pHost, NULL, NULL, pParams);
 	delete(m_szRemoteFolder);
 	m_szRemoteFolder = new char[nLen + 1];
 	strcpy(m_szRemoteFolder, szUrl);
+
+	// Cut down to the '?'
 	int n;
-	for(n = nLen; n > 0; n--)
+	for(n = 0; n < nLen; n++)
+	{
+		if(m_szRemoteFolder[n] == '?')
+			break;
+	}
+	for( ; n > 0; n--)
 	{
 		if(m_szRemoteFolder[n] == '/' || m_szRemoteFolder[n] == '\\')
 			break;
 		m_szRemoteFolder[n] = '\0';
 	}
-	char* szSpot = NULL;
 
-	// Look for a URL parameter specifying the spot
+	// Remove extra ".." folders in the path
+	bool bGotOne = true;
+	while(bGotOne)
+	{
+		bGotOne = false;
+		int nPrevSlash = -1;
+		int nPrevPrevSlash = -1;
+		int n;
+		for(n = 0; m_szRemoteFolder[n] != '\0'; n++)
+		{
+			if(m_szRemoteFolder[n] == '/')
+			{
+				nPrevPrevSlash = nPrevSlash;
+				nPrevSlash = n;
+				if(nPrevPrevSlash >= 0 && strncmp(m_szRemoteFolder + n, "/../", 4) == 0)
+				{
+					bGotOne = true;
+					int nDelSize = n - nPrevPrevSlash + 3;
+					int i;
+					for(i = nPrevPrevSlash; ; i++)
+					{
+						m_szRemoteFolder[i] = m_szRemoteFolder[i + nDelSize];
+						if(m_szRemoteFolder[i] == '\0')
+							break;
+					}
+				}
+			}
+		}
+	}
+}
+
+void MGameClient::LoadRealmPhase1(GXMLTag* pMap, const char* szUrl)
+{
+	delete(m_pMap);
+	m_pMap = pMap;
+
+	// Parse the URL
+	int nLen = strlen(szUrl);
+	GTEMPBUF(pHost, nLen + 1);
+	GTEMPBUF(pProtocol, nLen + 1);
+	GSocket::ParseURL(szUrl, pProtocol, pHost, NULL, NULL, NULL);
+	SetRemoteFolder(szUrl);
+
+	// Set the multiplayer flag
+	GXMLAttribute* pAttrMultiplayer = m_pMap->GetAttribute("Multiplayer");
+	if(!pAttrMultiplayer)
+		GameEngine::ThrowError("Expected a \"Multiplayer\" attribute in the realm file");
+	if(stricmp(pAttrMultiplayer->GetValue(), "true") == 0)
+		m_bLoner = false;
+	else
+		m_bLoner = true;
+
+	// Create the Realm
+	m_pCurrentRealm = new MRealm(this);
+
+	// Connect to the server
+	if(!m_bLoner)
+	{
+		m_pConnection = new NRealmClientConnection(this, pHost);
+		NSetPathPacket packet(szUrl);
+		m_pConnection->SendPacket(&packet);
+	}
+}
+
+void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngine* pScriptEngine, double time, int nScreenVerticalCenter, MImageStore* pImageStore, MAnimationStore* pAnimationStore, MSoundStore* pSoundStore, MSpotStore* pSpotStore)
+{
+	m_szScript = szScript;
+	m_pScriptEngine = pScriptEngine;
+	m_pImageStore = pImageStore;
+	m_pAnimationStore = pAnimationStore;
+	m_pSoundStore = pSoundStore;
+	m_pSpotStore = pSpotStore;
+
+	// Make the remote var
+	delete(m_pRemoteVar);
+	m_pRemoteVar = NULL;
+	GXMLAttribute* pRemoteAttr = m_pMap->GetAttribute("Remote");
+	if(pRemoteAttr)
+	{
+		m_pRemoteVar = new VarHolder(m_pScriptEngine->GetEngine());
+		m_pScriptEngine->MakeRemoteObject(m_pRemoteVar, pRemoteAttr->GetValue());
+	}
+
+	// Load the realm boundaries and terrain map
+	m_pCurrentRealm->FromXml(m_pMap, m_pImageStore);
+
+	// Look for a URL parameter specifying the starting spot
+	char* szSpot = NULL;
+	int nLen = strlen(szUrl);
+	GTEMPBUF(pParams, nLen + 1);
+	GSocket::ParseURL(szUrl, NULL, NULL, NULL, NULL, pParams);
 	if(strlen(pParams) > 0)
 	{
 		char* szName;
@@ -172,15 +238,14 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 			}
 		}
 	}
-
-	// Set the multiplayer flag
-	GXMLAttribute* pAttrMultiplayer = m_pMap->GetAttribute("Multiplayer");
-	if(!pAttrMultiplayer)
-		GameEngine::ThrowError("Expected a \"Multiplayer\" attribute in the realm file");
-	if(stricmp(pAttrMultiplayer->GetValue(), "true") == 0)
-		m_bLoner = false;
-	else
-		m_bLoner = true;
+	int nSpotIndex = m_pSpotStore->GetIndex(szSpot ? szSpot : "default");
+	float x = 0;
+	float y = 0;
+	if(nSpotIndex >= 0)
+	{
+		MSpot* pSpot = m_pSpotStore->GetSpot(nSpotIndex);
+		pSpot->GetPos(&x, &y);
+	}
 
 	// Set the point of view
 	m_bFirstPerson = false;
@@ -198,47 +263,6 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 			else
 				GameEngine::ThrowError("Unrecognized point of view: %s", pAttrPointOfView->GetValue());
 		}
-	}
-
-	// Load the script
-	m_pCurrentRealm = new MRealm(this);
-	GXMLAttribute* pAttrScript = m_pMap->GetAttribute("Script");
-	if(!pAttrScript)
-		GameEngine::ThrowError("Expected a \"Script\" attribute in file: %s", szUrl);
-	LoadScript(pController, m_pCurrentRealm, pAttrScript->GetValue(), m_pMap);
-
-	// Make the remote var
-	delete(m_pRemoteVar);
-	m_pRemoteVar = NULL;
-	GXMLAttribute* pRemoteAttr = m_pMap->GetAttribute("Remote");
-	if(pRemoteAttr)
-	{
-		m_pRemoteVar = new VarHolder(m_pScriptEngine->GetEngine());
-		m_pScriptEngine->MakeRemoteObject(m_pRemoteVar, pRemoteAttr->GetValue());
-	}
-
-	// Connect to the server
-	if(!m_bLoner)
-	{
-		m_pConnection = new NRealmClientConnection(this, pHost);
-		NSetPathPacket packet(szUrl);
-		m_pConnection->SendPacket(&packet);
-	}
-
-	// Load the media
-	LoadMedia(m_pMap);
-
-	// Load the realm
-	m_pCurrentRealm->FromXml(m_pMap, m_pImageStore);
-
-	// Find the starting spot
-	float x = 0;
-	float y = 0;
-	int nSpotIndex = m_pSpotStore->GetIndex(szSpot ? szSpot : "Default");
-	if(nSpotIndex >= 0)
-	{
-		MSpot* pSpot = m_pSpotStore->GetSpot(nSpotIndex);
-		pSpot->GetPos(&x, &y);
 	}
 
 	// Load the static objects
@@ -297,18 +321,11 @@ void MGameClient::LoadRealm(Controller* pController, const char* szUrl, double t
 			m_pCamera->SetPos(x, y);
 	}
 
-	// Record URL in the account
-	GXMLTag* pStartTag = m_pAccountTag->GetChildTag("Start");
-	if(!pStartTag)
-	{
-		pStartTag = new GXMLTag("Start");
-		m_pAccountTag->AddChildTag(pStartTag);
-	}
-	GXMLAttribute* pAttrUrl = pStartTag->GetAttribute("url");
-	if(pAttrUrl)
-		pAttrUrl->SetValue(szUrl);
-	else
-		pStartTag->AddAttribute(new GXMLAttribute("url", szUrl));
+	// Build collision map
+	m_pCurrentRealm->RecompileCollisionMap();
+
+	// Start the audio
+	m_pPlayer->StartAudio();
 }
 
 void MGameClient::SaveState()
@@ -580,43 +597,11 @@ void MGameClient::UnloadMedia()
 	m_pImageStore = NULL;
 	delete(m_pAnimationStore);
 	m_pAnimationStore = NULL;
+	m_pPlayer->FinishAudio();
 	delete(m_pSoundStore);
 	m_pSoundStore = NULL;
 	delete(m_pSpotStore);
 	m_pSpotStore = NULL;
-}
-
-void MGameClient::LoadMedia(GXMLTag* pModelTag)
-{
-	UnloadMedia();
-
-	// Load the image store
-	GXMLTag* pImages = pModelTag->GetChildTag("Images");
-	if(!pImages)
-		GameEngine::ThrowError("Expected an 'Images' tag");
-	m_pImageStore = new MImageStore();
-	m_pImageStore->FromXml(m_szRemoteFolder, pImages, m_pScriptEngine);
-
-	// Load the animation store
-	GXMLTag* pAnimations = pModelTag->GetChildTag("Animations");
-	if(!pAnimations)
-		GameEngine::ThrowError("Expected an 'Animations' tag");
-	m_pAnimationStore = new MAnimationStore(m_pScriptEngine);
-	m_pAnimationStore->FromXml(pAnimations, m_pImageStore);
-
-	// Load the sound store
-	GXMLTag* pSounds = pModelTag->GetChildTag("Sounds");
-	if(!pSounds)
-		GameEngine::ThrowError("Expected a 'Sounds' tag");
-	m_pSoundStore = new MSoundStore();
-	m_pSoundStore->FromXml(m_szRemoteFolder, pSounds);
-
-	// Load the spot store
-	GXMLTag* pSpots = pModelTag->GetChildTag("Spots");
-	if(!pSpots)
-		GameEngine::ThrowError("Expected a 'Spots' tag");
-	m_pSpotStore = new MSpotStore();
-	m_pSpotStore->FromXml(pSpots);
 }
 
 void MGameClient::LoadObjects(MRealm* pRealm, GXMLTag* pModelTag)
@@ -625,6 +610,8 @@ void MGameClient::LoadObjects(MRealm* pRealm, GXMLTag* pModelTag)
 	GAssert(pObjectsTag, "Expected a 'Scenery' tag");
 	if(!pObjectsTag)
 		return;
+	GHashTable ht(pModelTag->GetChildTagCount() * 3);
+	void* pTmp;
 	GXMLTag* pChildTag;
 	for(pChildTag = pObjectsTag->GetFirstChildTag(); pChildTag; pChildTag = pObjectsTag->GetNextChildTag(pChildTag))
 	{
@@ -636,6 +623,9 @@ void MGameClient::LoadObjects(MRealm* pRealm, GXMLTag* pModelTag)
 		if(!pIDAttr)
 			GameEngine::ThrowError("Expected an \"id\" attribute");
 		int nID = atoi(pIDAttr->GetValue());
+		if(ht.Get(nID, &pTmp))
+			GameEngine::ThrowError("Duplicate object ID: %d", nID);
+		ht.Add(nID, NULL);
 		GXMLAttribute* pXAttr = pChildTag->GetAttribute("x");
 		GXMLAttribute* pYAttr = pChildTag->GetAttribute("y");
 		GXMLAttribute* pZAttr = pChildTag->GetAttribute("z");
@@ -676,11 +666,20 @@ void MGameClient::LoadObjects(MRealm* pRealm, GXMLTag* pModelTag)
 		// Allocate the object and add it to the realm
 		MObject* pOb = m_pScriptEngine->NewObject(pClassAttr->GetValue(), x, y, z, sx, sy, sz, pParams, nParamCount);
 
-		GXMLAttribute* pModeAttr = pChildTag->GetAttribute("mode");
-		if(pModeAttr)
+		// Check for panel attribute
+		GXMLAttribute* pPanelAttr = pChildTag->GetAttribute("panel");
+		if(pPanelAttr)
 		{
-			if(stricmp(pModeAttr->GetValue(), "panel") == 0)
+			if(stricmp(pPanelAttr->GetValue(), "true") == 0)
 				pOb->SetIsPanel(true);
+		}
+
+		// Check for solid attribute
+		GXMLAttribute* pSolidAttr = pChildTag->GetAttribute("solid");
+		if(pSolidAttr)
+		{
+			if(stricmp(pSolidAttr->GetValue(), "true") == 0)
+				pOb->SetIsSolid(true);
 		}
 
 		pOb->SetUid(nID);
@@ -776,4 +775,47 @@ void MGameClient::AddInventoryItem(GXMLTag* pTag)
 	}
 
 	pInventoryTag->AddChildTag(pTag);
+}
+
+const char* MGameClient::GetAccountVar(const char* szName)
+{
+	GXMLTag* pVarsTag = m_pAccountTag->GetChildTag("Vars");
+	if(!pVarsTag)
+		return "";
+	GXMLTag* pNameTag = pVarsTag->GetChildTag(szName);
+	if(!pNameTag)
+		return "";
+	GXMLAttribute* pValueAttr = pNameTag->GetAttribute("Value");
+	if(!pValueAttr)
+		return "";
+	return pValueAttr->GetValue();
+}
+
+void MGameClient::SetAccountVar(const char* szName, const char* szValue)
+{
+	GXMLTag* pVarsTag = m_pAccountTag->GetChildTag("Vars");
+	if(!pVarsTag)
+	{
+		pVarsTag = new GXMLTag("Vars");
+		m_pAccountTag->AddChildTag(pVarsTag);
+	}
+	GXMLTag* pNameTag = pVarsTag->GetChildTag(szName);
+	if(!pNameTag)
+	{
+		pNameTag = new GXMLTag(szName);
+		pVarsTag->AddChildTag(pNameTag);
+	}
+	GXMLAttribute* pValueAttr = pNameTag->GetAttribute("Value");
+	if(pValueAttr)
+		pValueAttr->SetValue(szValue);
+	else
+	{
+		pValueAttr = new GXMLAttribute("Value", szValue);
+		pNameTag->AddAttribute(pValueAttr);
+	}
+}
+
+void MGameClient::ReportStats(GPointerArray* pNameValuePairs)
+{
+	m_pStatCollector->ReportStats(pNameValuePairs);
 }

@@ -241,6 +241,24 @@ void COClass::LoadAllMethodDefinitions(GXMLTag* pTag, COProject* pCOProject, boo
 	}
 }
 
+void COClass::ReplaceType(COType* pOld, COType* pNew)
+{
+	if(m_pParent == pOld)
+		m_pParent = (COClass*)pNew;
+	int n;
+	for(n = 0; n < GetInterfaceCount(); n++)
+	{
+		if(GetInterface(n) == pOld)
+			m_pInterfaceRefs->SetPointer(n, pNew);
+	}
+	for(n = 0; n < GetExtendedMemberCount(); n++)
+		GetExtendedMember(n)->ReplaceType(pOld, pNew);
+	for(n = 0; n < GetMethodCount(); n++)
+		GetMethod(n)->ReplaceType(pOld, pNew);
+	for(n = 0; n < GetProcedureCount(); n++)
+		GetProcedure(n)->ReplaceType(pOld, pNew);
+}
+
 void COClass::LoadAllInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial)
 {
 	int nMethod = 0;
@@ -332,7 +350,7 @@ GXMLTag* COClass::SaveToXML()
 	return pClass;
 }
 
-GXMLTag* COClass::ToXMLForLibrary(GCompiler* pCompiler)
+GXMLTag* COClass::ToXMLForLibrary(GCompiler* pCompiler, bool bImport)
 {
 	GXMLTag* pClassTag = new GXMLTag(TAG_NAME_CLASS);
 	pClassTag->AddAttribute(new GXMLAttribute(ATTR_NAME, GetName()));
@@ -350,6 +368,8 @@ GXMLTag* COClass::ToXMLForLibrary(GCompiler* pCompiler)
 	{
 		GAssert(stricmp(GetName(), CLASS_NAME_OBJECT) == 0, "class should have a parent");
 	}
+	itoa(m_nGeneration + (bImport ? 1 : 0), szTmp, 10);
+	pClassTag->AddAttribute(new GXMLAttribute(ATTR_GEN, szTmp));
 	const char* szSource = GetSource();
 	if(szSource)
 		pClassTag->AddAttribute(new GXMLAttribute(ATTR_SOURCE, szSource));

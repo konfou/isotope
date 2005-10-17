@@ -19,6 +19,15 @@ class GPointerArray;
 class GWidgetAtomic;
 class GWidgetGroup;
 class GWidget;
+class GWidgetListBox;
+class GWidgetTextButton;
+class GWidgetVCRButton;
+class GWidgetHorizScrollBar;
+class GWidgetVertScrollBar;
+class GWidgetGroupWithCanvas;
+class GWidgetTextLabel;
+class GWidgetFileSystemBrowser;
+class GWidgetSliderTab;
 
 
 class GWidgetStyle
@@ -44,7 +53,7 @@ public:
 	int GetListBoxLineHeight() { return 16; }
 	int GetDefaultScrollBarSize() { return 16; }
 	void DrawButtonText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool pressed);
-	void DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft);
+	void DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft, bool bright);
 	void DrawHorizCurvedOutSurface(GImage* pImage, int x, int y, int w, int h);
 	void DrawHorizCurvedInSurface(GImage* pImage, int x, int y, int w, int h, int colorMaskRed = 0, int colorMaskGreen = 0, int colorMaskBlue = 255);
 	void DrawVertCurvedOutSurface(GImage* pImage, int x, int y, int w, int h);
@@ -59,15 +68,20 @@ public:
 class GWidget
 {
 friend class GWidgetGroup;
+friend class GWidgetGroupWithCanvas;
 public:
 	enum WidgetType
 	{
 		CheckBox,
-		Container,
 		Custom,
+		Dialog,
+		FileSystemBrowser,
 		Grid,
 		HScrollBar,
 		ListBox,
+		ListBoxItem,
+		ProgressBar,
+		SliderTab,
 		TextBox,
 		TextButton,
 		TextLabel,
@@ -78,23 +92,23 @@ public:
 protected:
 	GRect m_rect;
 	GWidgetGroup* m_pParent;
-	int m_nAbsoluteX;
-	int m_nAbsoluteY;
+	GWidgetStyle* m_pStyle;
+	int m_nID; // for use by the owning parent
+#ifdef _DEBUG
+	unsigned int m_nDebugCheck;
+#endif // _DEBUG
 
 public:
 	GWidget(GWidgetGroup* m_pParent, int x, int y, int w, int h);
 	virtual ~GWidget();
 
 	virtual WidgetType GetType() = 0;
-	virtual GImage* GetImage(GRect* pOutRect) = 0;
 	virtual bool IsAtomicWidget() = 0;
-	virtual void Draw(GImage* pImage) = 0;
+	virtual void Draw(GWidgetGroupWithCanvas* pTarget) = 0;
+	virtual GImage* GetImage(GRect* pOutRect) = 0;
 	void SetPos(int x, int y);
 	GRect* GetRect() { return &m_rect; }
 	GWidgetGroup* GetParent() { return m_pParent; }
-
-protected:
-	void CalcAbsolutePos();
 };
 
 
@@ -104,12 +118,15 @@ protected:
 
 class GWidgetAtomic : public GWidget
 {
-friend class GWidgetContainer;
+friend class GWidgetDialog;
 public:
 	GWidgetAtomic(GWidgetGroup* pParent, int x, int y, int w, int h);
 	virtual ~GWidgetAtomic();
 
 	virtual bool IsAtomicWidget() { return true; }
+	virtual void Draw(GWidgetGroupWithCanvas* pTarget);
+	virtual void OnChar(char c);
+	virtual void OnMouseMove(int dx, int dy);
 
 protected:
 	virtual void Grab() = 0;
@@ -121,11 +138,14 @@ protected:
 
 
 
+
 class GWidgetGroup : public GWidget
 {
 friend class GWidget;
+friend class GWidgetAtomic;
 protected:
 	GPointerArray* m_pWidgets;
+	bool m_dirty;
 
 public:
 	GWidgetGroup(GWidgetGroup* pParent, int x, int y, int w, int h);
@@ -133,7 +153,70 @@ public:
 
 	virtual bool IsAtomicWidget() { return false; }
 	virtual GWidgetStyle* GetStyle() { return m_pParent->GetStyle(); }
-	GWidgetAtomic* FindAtomicWidget(int x, int y);
+	virtual GWidgetAtomic* FindAtomicWidget(int x, int y);
+	virtual void OnDestroyWidget(GWidget* pWidget);
+	int GetChildWidgetCount();
+	GWidget* GetChildWidget(int n);
+
+	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
+	{
+		if(m_pParent)
+			m_pParent->OnReleaseTextButton(pButton);
+	}
+
+	virtual void OnPushVCRButton(GWidgetVCRButton* pButton)
+	{
+		if(m_pParent)
+			m_pParent->OnPushVCRButton(pButton);
+	}
+
+	virtual void OnHorizScroll(GWidgetHorizScrollBar* pScrollBar)
+	{
+		if(m_pParent)
+			m_pParent->OnHorizScroll(pScrollBar);
+	}
+
+	virtual void OnVertScroll(GWidgetVertScrollBar* pScrollBar)
+	{
+		if(m_pParent)
+			m_pParent->OnVertScroll(pScrollBar);
+	}
+
+	virtual void OnClickTextLabel(GWidgetTextLabel* pLabel)
+	{
+		if(m_pParent)
+			m_pParent->OnClickTextLabel(pLabel);
+	}
+
+	virtual void OnSelectFilename(GWidgetFileSystemBrowser* pBrowser, const char* szFilename)
+	{
+		if(m_pParent)
+			m_pParent->OnSelectFilename(pBrowser, szFilename);
+	}
+
+	virtual void OnChangeListSelection(GWidgetListBox* pListBox)
+	{
+		if(m_pParent)
+			m_pParent->OnChangeListSelection(pListBox);
+	}
+
+	virtual void OnChar(char c)
+	{
+		if(m_pParent)
+			m_pParent->OnChar(c);
+	}
+
+	virtual void OnClickTab(GWidgetSliderTab* pTab)
+	{
+		if(m_pParent)
+			m_pParent->OnClickTab(pTab);
+	}
+
+	virtual void OnSlideTab(GWidgetSliderTab* pTab, int dx, int dy)
+	{
+		if(m_pParent)
+			m_pParent->OnSlideTab(pTab, dx, dy);
+	}
 
 protected:
 	void AddWidget(GWidget* pWidget);
@@ -144,23 +227,53 @@ protected:
 
 
 
-class GWidgetContainer : public GWidgetGroup
+
+class GWidgetGroupWithCanvas : public GWidgetGroup
 {
 protected:
-	GWidgetStyle* m_pStyle;
-	GWidgetAtomic* m_pGrabbedWidget;
+	GImage m_image;
 
 public:
-	GWidgetContainer(int w, int h);
-	virtual ~GWidgetContainer();
+	GWidgetGroupWithCanvas(GWidgetGroup* pParent, int x, int y, int w, int h);
+	virtual ~GWidgetGroupWithCanvas();
 
-	virtual WidgetType GetType() { return Container; }
-	virtual GImage* GetImage(GRect* pOutRect) { return NULL; }
-	virtual void Draw(GImage* pImage);
+	virtual GImage* GetImage(GRect* pOutRect);
+	virtual void Draw(GWidgetGroupWithCanvas* pTarget);
+
+protected:
+	virtual void Update() = 0;
+};
+
+
+
+
+
+
+
+class GWidgetDialog : public GWidgetGroupWithCanvas
+{
+protected:
+	GWidgetAtomic* m_pGrabbedWidget;
+	GWidgetAtomic* m_pFocusWidget;
+	GColor m_cBackground;
+	int m_prevMouseX;
+	int m_prevMouseY;
+
+public:
+	GWidgetDialog(int w, int h, GColor cBackground);
+	virtual ~GWidgetDialog();
+
+	virtual WidgetType GetType() { return Dialog; }
 	virtual GWidgetStyle* GetStyle() { return m_pStyle; }
 	GWidgetAtomic* GetGrabbedWidget() { return m_pGrabbedWidget; }
-	void GrabWidget(GWidgetAtomic* pWidget);
+	void GrabWidget(GWidgetAtomic* pWidget, int mouseX, int mouseY);
 	void ReleaseWidget();
+	virtual void OnDestroyWidget(GWidget* pWidget);
+	void HandleChar(char c);
+	bool HandleMousePos(int x, int y);
+
+protected:
+	virtual void Update();
 };
 
 
@@ -170,10 +283,10 @@ public:
 class GWidgetTextButton : public GWidgetAtomic
 {
 protected:
-	GWidgetStyle* m_pStyle;
 	GImage m_image;
 	GString m_text;
 	bool m_pressed;
+	bool m_dirty;
 
 public:
 	GWidgetTextButton(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText);
@@ -181,13 +294,13 @@ public:
 
 	virtual WidgetType GetType() { return TextButton; }
 	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
 	void SetSize(int w, int h);
 	void SetText(GString* pText);
-	void Update();
+	void SetText(const char* szText);
 	bool IsPressed() { return m_pressed; }
 
 protected:
+	void Update();
 	virtual void Grab();
 	virtual void Release();
 };
@@ -196,27 +309,30 @@ protected:
 
 
 
+
 class GWidgetTextLabel : public GWidgetAtomic
 {
 protected:
-	GWidgetStyle* m_pStyle;
 	GImage m_image;
 	GString m_text;
 	bool m_alignLeft;
+	bool m_bBright;
+	bool m_dirty;
 
 public:
-	GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText);
+	GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText, bool bBright);
 	virtual ~GWidgetTextLabel();
 
 	virtual WidgetType GetType() { return TextLabel; }
 	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
 	void SetSize(int w, int h);
+	GString* GetText() { return &m_text; }
 	void SetText(GString* pText);
-	void Update();
-	void SetAlignLeft(bool bAlignLeft) { m_alignLeft = bAlignLeft; }
+	void SetText(const char* szText);
+	void SetAlignLeft(bool bAlignLeft) { m_alignLeft = bAlignLeft; m_dirty = true; }
 
 protected:
+	void Update();
 	virtual void Grab();
 	virtual void Release();
 };
@@ -238,10 +354,10 @@ public:
 	};
 
 protected:
-	GWidgetStyle* m_pStyle;
 	GImage m_image;
 	VCR_Type m_eType;
 	bool m_pressed;
+	bool m_dirty;
 
 public:
 	GWidgetVCRButton(GWidgetGroup* pParent, int x, int y, int w, int h, VCR_Type eType);
@@ -249,13 +365,12 @@ public:
 
 	virtual WidgetType GetType() { return VCRButton; }
 	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
 	void SetSize(int w, int h);
 	void SetType(VCR_Type eType);
-	void Update();
 	bool IsPressed() { return m_pressed; }
 
 protected:
+	void Update();
 	virtual void Grab();
 	virtual void Release();
 	void DrawIcon(int nHorizOfs, int nVertOfs);
@@ -266,26 +381,25 @@ protected:
 
 
 
-class GWidgetCheckBox : public GWidgetAtomic
+class GWidgetProgressBar : public GWidgetAtomic
 {
 protected:
-	GWidgetStyle* m_pStyle;
 	GImage m_image;
-	bool m_checked;
+	float m_fProgress;
+	bool m_dirty;
 
 public:
-	GWidgetCheckBox(GWidgetGroup* pParent, int x, int y, int w, int h);
-	virtual ~GWidgetCheckBox();
+	GWidgetProgressBar(GWidgetGroup* pParent, int x, int y, int w, int h);
+	virtual ~GWidgetProgressBar();
 
-	virtual WidgetType GetType() { return CheckBox; }
+	virtual WidgetType GetType() { return ProgressBar; }
 	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
 	void SetSize(int w, int h);
-	void SetChecked(bool checked);
-	void Update();
-	bool IsChecked() { return m_checked; }
+	void SetProgress(float fProgress);
+	float GetProgress() { return m_fProgress; }
 
 protected:
+	void Update();
 	virtual void Grab();
 	virtual void Release();
 };
@@ -295,32 +409,27 @@ protected:
 
 
 
-class GWidgetHorizScrollBar : public GWidgetAtomic
+class GWidgetCheckBox : public GWidgetAtomic
 {
 protected:
-	GWidgetStyle* m_pStyle;
 	GImage m_image;
-	int m_nViewSize;
-	int m_nModelSize;
-	int m_nPos;
+	bool m_checked;
+	bool m_dirty;
 
 public:
-	GWidgetHorizScrollBar(GWidgetGroup* pParent, int x, int y, int w, int h, int nViewSize, int nModelSize);
-	virtual ~GWidgetHorizScrollBar();
+	GWidgetCheckBox(GWidgetGroup* pParent, int x, int y, int w, int h);
+	virtual ~GWidgetCheckBox();
 
-	virtual WidgetType GetType() { return HScrollBar; }
+	virtual WidgetType GetType() { return CheckBox; }
 	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
-	void SetViewSize(int n) { m_nViewSize = n; }
-	void SetModelSize(int n) { m_nModelSize = n; }
-	void SetPos(int n) { m_nPos = n; }
 	void SetSize(int w, int h);
-	static void Draw(GImage* pImage, GRect* pR, GWidgetStyle* pStyle, int nPos, int nViewSize, int nModelSize);
-	void Update();
+	void SetChecked(bool checked);
+	bool IsChecked() { return m_checked; }
 
 protected:
-	virtual void Grab() {};
-	virtual void Release() {};
+	void Update();
+	virtual void Grab();
+	virtual void Release();
 };
 
 
@@ -328,32 +437,109 @@ protected:
 
 
 
-class GWidgetVertScrollBar : public GWidgetAtomic
+
+class GWidgetSliderTab : public GWidgetAtomic
 {
 protected:
-	GWidgetStyle* m_pStyle;
 	GImage m_image;
+	bool m_vertical;
+	bool m_impressed;
+	bool m_dirty;
+
+public:
+	GWidgetSliderTab(GWidgetGroup* pParent, int x, int y, int w, int h, bool vertical, bool impressed);
+	virtual ~GWidgetSliderTab();
+
+	virtual WidgetType GetType() { return SliderTab; }
+	virtual GImage* GetImage(GRect* pOutRect);
+	void SetSize(int w, int h);
+
+	// for internal implementation
+	virtual void OnMouseMove(int dx, int dy);
+
+protected:
+	void Update();
+	virtual void Grab();
+	virtual void Release();
+};
+
+
+
+
+
+
+
+
+
+class GWidgetHorizScrollBar : public GWidgetGroupWithCanvas
+{
+protected:
 	int m_nViewSize;
 	int m_nModelSize;
 	int m_nPos;
+	GWidgetVCRButton* m_pLeftButton;
+	GWidgetVCRButton* m_pRightButton;
+	GWidgetSliderTab* m_pLeftTab;
+	GWidgetSliderTab* m_pTab;
+	GWidgetSliderTab* m_pRightTab;
+
+public:
+	GWidgetHorizScrollBar(GWidgetGroup* pParent, int x, int y, int w, int h, int nViewSize, int nModelSize);
+	virtual ~GWidgetHorizScrollBar();
+
+	virtual WidgetType GetType() { return HScrollBar; }
+	void SetViewSize(int n) { m_nViewSize = n; m_dirty = true; }
+	void SetModelSize(int n) { m_nModelSize = n; m_dirty = true; }
+	int GetPos() { return m_nPos; }
+	void SetPos(int n) { m_nPos = n; m_dirty = true; }
+	void SetSize(int w, int h);
+
+	// for internal implementation
+	virtual void OnPushVCRButton(GWidgetVCRButton* pButton);
+	virtual void OnSlideTab(GWidgetSliderTab* pTab, int dx, int dy);
+	virtual void OnClickTab(GWidgetSliderTab* pTab);
+
+protected:
+	virtual void Update();
+	int GetButtonWidth();
+};
+
+
+
+
+
+
+class GWidgetVertScrollBar : public GWidgetGroupWithCanvas
+{
+protected:
+	int m_nViewSize;
+	int m_nModelSize;
+	int m_nPos;
+	GWidgetVCRButton* m_pUpButton;
+	GWidgetVCRButton* m_pDownButton;
+	GWidgetSliderTab* m_pAboveTab;
+	GWidgetSliderTab* m_pTab;
+	GWidgetSliderTab* m_pBelowTab;
 
 public:
 	GWidgetVertScrollBar(GWidgetGroup* pParent, int x, int y, int w, int h, int nViewSize, int nModelSize);
 	virtual ~GWidgetVertScrollBar();
 
 	virtual WidgetType GetType() { return VScrollBar; }
-	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
-	void SetViewSize(int n) { m_nViewSize = n; }
-	void SetModelSize(int n) { m_nModelSize = n; }
-	void SetPos(int n) { m_nPos = n; }
+	void SetViewSize(int n) { m_nViewSize = n; m_dirty = true; }
+	void SetModelSize(int n) { m_nModelSize = n; m_dirty = true; }
+	int GetPos() { return m_nPos; }
+	void SetPos(int n) { m_nPos = n; m_dirty = true; }
 	void SetSize(int w, int h);
-	static void Draw(GImage* pImage, GRect* pR, GWidgetStyle* pStyle, int nPos, int nViewSize, int nModelSize);
-	void Update();
+
+	// for internal implementation
+	virtual void OnPushVCRButton(GWidgetVCRButton* pButton);
+	virtual void OnSlideTab(GWidgetSliderTab* pTab, int dx, int dy);
+	virtual void OnClickTab(GWidgetSliderTab* pTab);
 
 protected:
-	virtual void Grab() {};
-	virtual void Release() {};
+	virtual void Update();
+	int GetButtonHeight();
 };
 
 
@@ -365,9 +551,9 @@ protected:
 class GWidgetTextBox : public GWidgetAtomic
 {
 protected:
-	GWidgetStyle* m_pStyle;
 	GImage m_image;
 	GString m_text;
+	bool m_dirty;
 
 public:
 	GWidgetTextBox(GWidgetGroup* pParent, int x, int y, int w, int h);
@@ -375,14 +561,14 @@ public:
 
 	virtual WidgetType GetType() { return TextBox; }
 	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
 	GString* GetText() { return &m_text; }
-	void SetText(const char* szText) { m_text.Copy(szText); Update(); }
-	void Update();
+	void SetText(const char* szText);
+	virtual void OnChar(char c);
 
 protected:
-	virtual void Grab() {};
-	virtual void Release() {};
+	void Update();
+	virtual void Grab() {}
+	virtual void Release() {}
 };
 
 
@@ -390,8 +576,41 @@ protected:
 
 
 
-class GWidgetListBox : public GWidgetAtomic
+
+
+class GWidgetListBoxItem : public GWidgetAtomic
 {
+protected:
+	char* m_szText;
+	int m_nIndex;
+
+public:
+	GWidgetListBoxItem(GWidgetListBox* pParent, const char* szText);
+	virtual ~GWidgetListBoxItem();
+
+	virtual WidgetType GetType() { return ListBoxItem; }
+	virtual GImage* GetImage(GRect* pOutRect) { return NULL; }
+	virtual void Draw(GWidgetGroupWithCanvas* pTarget);
+	const char* GetText() { return m_szText; }
+
+protected:
+	virtual void Grab();
+
+	virtual void Release()
+	{
+	}
+};
+
+
+
+
+
+
+
+
+class GWidgetListBox : public GWidgetGroupWithCanvas
+{
+friend class GWidgetListBoxItem;
 public:
 	enum BaseColor
 	{
@@ -404,51 +623,46 @@ public:
 	};
 
 protected:
-	GWidgetStyle* m_pStyle;
-	GImage m_image;
-	GPointerArray* m_pItems;
 	int m_nSelectedIndex;
 	int m_nScrollPos;
 	BaseColor m_eBaseColor;
 
 public:
 	// Takes ownership of pItems
-	GWidgetListBox(GWidgetGroup* pParent, GPointerArray* pItems, int x, int y, int w, int h);
+	GWidgetListBox(GWidgetGroup* pParent, int x, int y, int w, int h);
 	virtual ~GWidgetListBox();
 
 	virtual WidgetType GetType() { return ListBox; }
-	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
 	void SetSize(int w, int h);
-	void SetBaseColor(BaseColor eBaseColor) { m_eBaseColor = eBaseColor; }
+	void SetBaseColor(BaseColor eBaseColor) { m_eBaseColor = eBaseColor; m_dirty = true; }
 	int GetSelection() { return m_nSelectedIndex; }
 	void SetSelection(int n);
 	int GetScrollPos() { return m_nScrollPos; }
 	void SetScrollPos(int n);
-	GPointerArray* GetItems() { return m_pItems; }
-	void Update();
+	int GetSize();
+	GWidgetListBoxItem* GetItem(int n);
+	void Clear();
 
 protected:
-	virtual void Grab() {};
-	virtual void Release() {};
+	virtual void Update();
+	void OnGrabItem(int nIndex);
+	void SetItemRect(GRect* pRect, int nIndex);
 };
 
 
 
 
 
-class GWidgetGrid : public GWidgetGroup
+class GWidgetGrid : public GWidgetGroupWithCanvas
 {
 protected:
-	GWidgetStyle* m_pStyle;
-	GImage m_image;
 	GPointerArray* m_pRows;
-	int m_nHScrollPos;
-	int m_nVScrollPos;
 	int m_nColumns;
 	int m_nRowHeight;
 	GWidget** m_pColumnHeaders;
 	int* m_nColumnWidths;
+	GWidgetVertScrollBar* m_pVertScrollBar;
+	GWidgetHorizScrollBar* m_pHorizScrollBar;
 
 public:
 	// Takes ownership of pItems
@@ -456,13 +670,12 @@ public:
 	virtual ~GWidgetGrid();
 
 	virtual WidgetType GetType() { return Grid; }
-	virtual GImage* GetImage(GRect* pOutRect);
-	virtual void Draw(GImage* pImage);
+	virtual GWidgetAtomic* FindAtomicWidget(int x, int y);
 	void SetSize(int w, int h);
 	int GetRowHeight() { return m_nRowHeight; }
-	void SetRowHeight(int n) { m_nRowHeight = n; }
-	int GetHScrollPos() { return m_nHScrollPos; }
-	int GetVScrollPos() { return m_nVScrollPos; }
+	void SetRowHeight(int n) { m_nRowHeight = n; m_dirty = true; }
+	int GetHScrollPos() { return m_pHorizScrollBar->GetPos(); }
+	int GetVScrollPos() { return m_pVertScrollBar->GetPos(); }
 	void SetHScrollPos(int n);
 	void SetVScrollPos(int n);
 
@@ -497,9 +710,50 @@ public:
 	// you should do that before calling UpdateCell.
 	//void UpdateCell(int col, int row);
 
-	// Updates all the visible cells
-	void UpdateAll();
+	// Deletes all the rows and all the widgets in them
+	void FlushItems();
+
+	// for internal implementation
+	virtual void OnVertScroll(GWidgetVertScrollBar* pScrollBar);
+
+	// for internal implementation
+	virtual void OnHorizScroll(GWidgetHorizScrollBar* pScrollBar);
+
+protected:
+	virtual void Update();
 };
+
+
+
+
+
+class GWidgetFileSystemBrowser : public GWidgetGroup
+{
+protected:
+	GWidgetTextLabel* m_pPath;
+	GWidgetGrid* m_pFiles;
+	GPointerArray* m_pListItems;
+	char* m_szExtension;
+	char m_szPath[256];
+
+public:
+	// szExtension should be NULL if you want to allow all extensions
+	GWidgetFileSystemBrowser(GWidgetGroup* pParent, int x, int y, int w, int h, const char* szExtension);
+	virtual ~GWidgetFileSystemBrowser();
+
+	virtual WidgetType GetType() { return FileSystemBrowser; }
+	virtual GImage* GetImage(GRect* pOutRect) { return NULL; }
+	virtual void Draw(GWidgetGroupWithCanvas* pTarget);
+
+	// for internal implementation
+	virtual void OnClickTextLabel(GWidgetTextLabel* pLabel);
+
+protected:
+	void ReloadFileList();
+	void AddFilename(bool bDir, const char* szFilename);
+};
+
+
 
 
 #endif // __GWIDGETS_H__

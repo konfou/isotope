@@ -314,6 +314,12 @@ void GHeap::DeallocateRemainderOfCurrentBlock()
 		unsigned int nVal = (nSize << 8) | 4 | 1;
 		*pObject = nVal;
 		*(pObject + nSize - 1) = nVal;
+#ifdef _DEBUG
+		m_nAllocs++;
+#endif // _DEBUG
+#ifdef FIND_MEMORY_LEAK
+		m_pLeakTable->Add(pObject + 1, (const void*)-1);
+#endif // FIND_MEMORY_LEAK
 		Deallocate(pObject + 1);
 	}
 	LinkCurrentBlock();

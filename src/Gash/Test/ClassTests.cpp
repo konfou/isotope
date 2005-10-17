@@ -200,7 +200,7 @@ bool TestGLList(ClassTests* pThis)
 	return true;
 }
 
-int PointerArrayComparer(void* pA, void* pB)
+int PointerArrayComparer(void* pThis, void* pA, void* pB)
 {
 	if((int)pA > (int)pB)
 		return 1;
@@ -252,7 +252,7 @@ bool TestGSmallArray(ClassTests* pThis)
 	GPointerArray arr(64);
 	for(n = 34; n >= 0; n--)
 		arr.AddPointer((void*)n);
-	arr.Sort(PointerArrayComparer);
+	arr.Sort(PointerArrayComparer, NULL);
 	for(n = 0; n <= 34; n++)
 	{
 		if((int)arr.GetPointer(n) != n)

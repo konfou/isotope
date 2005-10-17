@@ -186,10 +186,11 @@ COExpression* COCall::GetParam(int n)
 	// If we haven't found anything to call yet, something's wrong
 	if(!hNewCall.Get())
 	{
+		pType = pTypeOrig;
 		if(pErrorMessage == &Error::METHOD_NOT_FOUND)
 		{
-			char* szError = (char*)alloca(strlen(pTypeOrig->GetName()) + strlen(szName) + 10);
-			strcpy(szError, pTypeOrig->GetName());
+			char* szError = (char*)alloca(strlen(pType->GetName()) + strlen(szName) + 10);
+			strcpy(szError, pType->GetName());
 			strcat(szError, ".");
 			strcat(szError, szName);
 			pCOProject->ThrowError(pErrorMessage, pTag, szError);

@@ -63,6 +63,7 @@ public:
 	EMethodSignature* GetSignature();
 	Library* GetLibrary();
 	bool Compile(GCompiler* pCompiler);
+	void ReplaceType(COType* pOld, COType* pNew);
 
 protected:
 	void SetSignature(EMethodSignature* pSig); // takes ownership of pSig

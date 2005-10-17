@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 /* This file sets things up for C dynamic library function definitions,
@@ -31,6 +31,11 @@
 #endif
 #define _begin_code_h
 
+/* Make sure the correct platform symbols are defined */
+#if !defined(WIN32) && defined(_WIN32)
+#define WIN32
+#endif /* Windows */
+
 /* Some compilers use a special export keyword */
 #ifndef DECLSPEC
 # ifdef __BEOS__
@@ -41,22 +46,53 @@
 #  endif
 # else
 # ifdef WIN32
-#  define DECLSPEC	__declspec(dllexport)
+#  ifdef __BORLANDC__
+#   ifdef BUILD_SDL
+#    define DECLSPEC 
+#   else
+#    define DECLSPEC __declspec(dllimport)
+#   endif
+#  else
+#   define DECLSPEC	__declspec(dllexport)
+#  endif
 # else
 #  define DECLSPEC
 # endif
 # endif
 #endif
 
-/* Force structure packing at 4 byte alignment on VC++
+/* By default SDL uses the C calling convention */
+#ifndef SDLCALL
+#if defined(WIN32) && !defined(__GNUC__)
+#define SDLCALL __cdecl
+#else
+#define SDLCALL
+#endif
+#endif /* SDLCALL */
+
+/* Removed DECLSPEC on Symbian OS because SDL cannot be a DLL in EPOC */
+#ifdef __SYMBIAN32__ 
+#undef DECLSPEC
+#define DECLSPEC
+#endif /* __SYMBIAN32__ */
+
+/* Force structure packing at 4 byte alignment.
    This is necessary if the header is included in code which has structure
    packing set to an alternate value, say for loading structures from disk.
    The packing is reset to the previous value in close_code.h
  */
+#if defined(_MSC_VER) || defined(__MWERKS__) || defined(__BORLANDC__)
 #ifdef _MSC_VER
 #pragma warning(disable: 4103)
-#pragma pack(push,4)
 #endif
+#ifdef __BORLANDC__
+#pragma nopackwarning
+#endif
+#pragma pack(push,4)
+#elif (defined(__MWERKS__) && defined(macintosh))
+#pragma options align=mac68k4byte
+#pragma enumsalwaysint on
+#endif /* Compiler needs structure packing set */
 
 /* Set up compiler-specific options for inlining functions */
 #ifndef SDL_INLINE_OKAY
@@ -64,10 +100,20 @@
 #define SDL_INLINE_OKAY
 #else
 /* Add any special compiler-specific cases here */
-#if !defined(_MSC_VER) && !defined(__MRC__) && !defined(_SGI_SOURCE)
+#if defined(_MSC_VER) || defined(__BORLANDC__) || \
+    defined(__DMC__) || defined(__SC__) || \
+    defined(__WATCOMC__) || defined(__LCC__) || \
+    defined(__DECC)
+#ifndef __inline__
+#define __inline__	__inline
+#endif
+#define SDL_INLINE_OKAY
+#else
+#if !defined(__MRC__) && !defined(_SGI_SOURCE)
 #define __inline__ inline
 #define SDL_INLINE_OKAY
 #endif /* Not a funky compiler */
+#endif /* Visual C++ */
 #endif /* GNU C */
 #endif /* SDL_INLINE_OKAY */
 
@@ -79,3 +125,13 @@
 #define __inline__
 #endif
 
+/* Apparently this is needed by several Windows compilers */
+#if !defined(__MACH__)
+#ifndef NULL
+#ifdef __cplusplus
+#define NULL 0
+#else
+#define NULL ((void *)0)
+#endif
+#endif /* NULL */
+#endif /* ! MacOS X - breaks precompiled headers */

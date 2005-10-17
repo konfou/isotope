@@ -62,7 +62,7 @@ void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pMapTag, Controll
 	const char* pFile = hBuf.Get();
 	if(!pFile)
 		GameEngine::ThrowError("Failed to load script file: %s", szFilename);
-	m_pScriptEngine = new MScriptEngine(pFile, nBufSize, m_pErrorHandler, pMapTag, NULL, pController, pRealm);
+	m_pScriptEngine = new MScriptEngine(szFilename, pFile, nBufSize, m_pErrorHandler, pMapTag, NULL, pController, pRealm);
 }
 
 /*static*/ MRealmServer* MRealmServer::LoadRealm(const char* szFilename, MGameServer* pGameServer, Controller* pController)
@@ -84,7 +84,7 @@ void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pMapTag, Controll
 	Holder<GXMLTag*> hModelTag(GXMLTag::FromString(szFile, nSize, &szError, NULL, &nLine, &nCol));
 	GXMLTag* pModelTag = hModelTag.Get();
 	if(!pModelTag)
-		GameEngine::ThrowError("Failed to parse XML file \"%s\". %s", szFilename, szError);
+		GameEngine::ThrowError("Failed to parse XML file \"%s\" at line %d. %s", szFilename, nLine, szError);
 
 	// Make the realm server
 	Holder<MRealmServer*> hRS(new MRealmServer(szFilename, pGameServer));

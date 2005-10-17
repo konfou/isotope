@@ -32,6 +32,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GDaftLearner.cpp\
                    $(GCLASSES_PATH)/GDataBase.cpp\
                    $(GCLASSES_PATH)/GDate.cpp\
+                   $(GCLASSES_PATH)/GDecisionTree.cpp\
                    $(GCLASSES_PATH)/GDiff.cpp\
                    $(GCLASSES_PATH)/GDirList.cpp\
                    $(GCLASSES_PATH)/GEZSocket.cpp\
@@ -48,6 +49,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GMath.cpp\
                    $(GCLASSES_PATH)/GMatrix.cpp\
                    $(GCLASSES_PATH)/GMipsEmulator.cpp\
+                   $(GCLASSES_PATH)/GNaiveBayes.cpp\
                    $(GCLASSES_PATH)/GNeuralNet.cpp\
                    $(GCLASSES_PATH)/GParseTree.cpp\
                    $(GCLASSES_PATH)/GPNG.cpp\
@@ -85,6 +87,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GCrypto.h\
                    $(GCLASSES_PATH)/GDaftLearner.h\
                    $(GCLASSES_PATH)/GDataBase.h\
+                   $(GCLASSES_PATH)/GDecisionTree.h\
                    $(GCLASSES_PATH)/GEZSocket.h\
                    $(GCLASSES_PATH)/GFile.h\
                    $(GCLASSES_PATH)/GFlipTable.h\
@@ -99,6 +102,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GLList.h\
                    $(GCLASSES_PATH)/GMacros.h\
                    $(GCLASSES_PATH)/GMemChunk.h\
+                   $(GCLASSES_PATH)/GNaiveBayes.h\
                    $(GCLASSES_PATH)/GNeuralNet.h\
                    $(GCLASSES_PATH)/GParseTree.h\
                    $(GCLASSES_PATH)/GPNG.h\

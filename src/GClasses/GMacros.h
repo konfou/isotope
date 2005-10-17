@@ -95,6 +95,21 @@ inline unsigned int ReverseEndian(unsigned int in)
 #define UCHAR(c) ((c) & (~32))
 #endif // UCHAR
 
+inline float ABS(float f)
+{
+	return (f >= 0 ? f : -f);
+}
+
+inline double ABS(double d)
+{
+	return (d >= 0 ? d : -d);
+}
+
+inline int ABS(int n)
+{
+	return (int)((unsigned int)n & 0x7fffffff);
+}
+
 #ifndef ABS
 #define ABS(n) ((n) >= 0 ? (n) : (-(n)))
 #endif // ABS
@@ -121,7 +136,7 @@ inline unsigned int ReverseEndian(unsigned int in)
                 {                           \
 				    if(!(x))                \
 					{                       \
-					    fprintf(stderr, y); \
+						fprintf(stderr, y); \
 						assert(x);          \
 				    }                       \
 				}
@@ -130,6 +145,9 @@ inline unsigned int ReverseEndian(unsigned int in)
 #define GAssert(x,y)	((void)0)
 #endif // else _DEBUG
 #endif // GAssert
+
+void ThrowError(wchar_t* wszFormat, ...);
+
 
 inline bool IsPowerOfTwo(unsigned int n)
 {
@@ -395,8 +413,9 @@ inline void HexToBuffer(const char* pHex, int nHexSize, unsigned char* pBuffer)
 // ----------------------------
 
 #ifdef WIN32
-
-#define swprintf(a, b, c, d) swprintf(a, c, d)
+// The Windows version of swprintf doesn't conform to the prototype required by the ISO C Standard,
+// but _snwprintf is provided to replace it with a safe version that does conform to the standard.
+#define swprintf _snwprintf
 
 #else // WIN32
 inline char* itoa(int n, char* szBuf, int b)

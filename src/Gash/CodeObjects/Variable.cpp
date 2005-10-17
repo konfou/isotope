@@ -164,3 +164,14 @@ void COVariable::SaveToClassicSyntax(GQueue* pQ)
 		return this;
 	return NULL;
 }
+
+void COVariable::SetType(COType* pType)
+{
+	m_pType = pType;
+}
+
+void COVariable::ReplaceType(COType* pOld, COType* pNew)
+{
+	if(m_pType == pOld)
+		m_pType = pNew;
+}

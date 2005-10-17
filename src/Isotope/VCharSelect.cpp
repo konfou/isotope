@@ -22,6 +22,63 @@
 #include "MStore.h"
 #include "../GClasses/sha2.h"
 
+#define BACKGROUND_COLOR 0x00000000
+
+class MCharSelectDialog : public GWidgetDialog
+{
+protected:
+	Controller* m_pController;
+	VCharSelect* m_pView;
+	GWidgetTextButton* m_pNewCharButton;
+	GWidgetTextButton* m_pOKButton;
+	const char* m_szTypeBuffer;
+
+public:
+	MCharSelectDialog(VCharSelect* pView, Controller* pController, const char* szTypeBuffer, int w, int h)
+		: GWidgetDialog(w, h, BACKGROUND_COLOR)
+	{
+		m_pView = pView;
+		m_pController = pController;
+		m_szTypeBuffer = szTypeBuffer;
+		GString s;
+		s.Copy(L"Make New Character");
+		m_pNewCharButton = new GWidgetTextButton(this, 10, 180, 150, 24, &s);
+		s.Copy(L"OK");
+		m_pOKButton = new GWidgetTextButton(this, 235, 390, 150, 24, &s);
+	}
+
+	virtual ~MCharSelectDialog()
+	{
+	}
+
+	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
+	{
+		if(pButton == m_pNewCharButton)
+			m_pController->MakeNewCharView();
+		else if(pButton == m_pOKButton)
+			AttemptLogin();
+		else
+			GAssert(false, "Unrecognized button");
+	}
+
+	void AttemptLogin()
+	{
+		if(!m_pView->GetSelectedAccount())
+			return;
+		if(m_pView->CheckPassword())
+			m_pController->LogIn(m_pView->GetSelectedAccountTag(), m_szTypeBuffer);
+		else
+			m_pController->ClearTypeBuffer();
+	}
+};
+
+
+// --------------------------------------------------------------------
+
+
+
+
+
 #define GAP_BETWEEN_AVATARS 20
 #define PARADE_BOX_BORDER 50
 
@@ -40,20 +97,16 @@ public:
 	}
 };
 
-VCharSelect::VCharSelect(GRect* pRect, const char* szTypeBuffer)
+VCharSelect::VCharSelect(GRect* pRect, const char* szTypeBuffer, Controller* pController)
 : ViewPort(pRect)
 {
 	m_pAvatarAnimations = new GPointerArray(32);
 	ReloadAccounts();
 
-	m_pImage = new GImage();
 	GAssert(pRect->w >= 620 && pRect->h >= 460, "Screen not big enough to hold this view");
-	m_pImage->SetSize(620, 460);
 
 	m_szTypeBuffer = szTypeBuffer;
-	m_pWidgetContainer = new GWidgetContainer(620, 460);
-	m_pNewCharButton = MakeNewButton(m_pWidgetContainer, 10, 180, 150, 24, L"Make New Character");
-	m_pOKButton = MakeNewButton(m_pWidgetContainer, 235, 390, 150, 24, L"OK");
+	m_pDialog = new MCharSelectDialog(this, pController, szTypeBuffer, 620, 460);
 	m_dTime = GameEngine::GetTime();
 	m_fCameraDirection = 0;
 	m_nFirstAvatar = 0;
@@ -67,8 +120,7 @@ VCharSelect::VCharSelect(GRect* pRect, const char* szTypeBuffer)
 
 /*virtual*/ VCharSelect::~VCharSelect()
 {
-	delete(m_pWidgetContainer);
-	delete(m_pImage);
+	delete(m_pDialog);
 	ClearAvatarAnimations();
 	delete(m_pAvatarAnimations);
 }
@@ -119,6 +171,8 @@ void VCharSelect::ReloadAccounts()
 
 /*virtual*/ void VCharSelect::Draw(SDL_Surface *pScreen)
 {
+	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
 	if(m_eState == PickCharacter || m_eState == ShowCharacter)
 		DrawAvatars();
 	if(m_eState == ShowCharacter)
@@ -128,21 +182,20 @@ void VCharSelect::ReloadAccounts()
 		r.y = 250;
 		r.w = 600;
 		r.h = 25;
-		m_pImage->DrawHardText(&r, "Please enter your password:", 0x00ffff, 1);
-		m_pOKButton->Draw(m_pImage);
+		pCanvas->DrawHardText(&r, "Please enter your password:", 0x00ffff, 1);
 		m_eState = EnterPassword;
 	}
 	else if(m_eState == EnterPassword)
 	{
-		m_pImage->DrawBox(10, 290, 600, 315, 0x0099ff, true);
+		pCanvas->DrawBox(10, 290, 600, 315, 0x0099ff, true);
 		GRect r;
 		r.x = 10;
 		r.y = 290;
 		r.w = 600;
 		r.h = 25;
-		m_pImage->DrawHardText(&r, m_szTypeBuffer, 0x000000, 1);
-		int nWidth = m_pImage->MeasureHardTextWidth(r.h, m_szTypeBuffer, 1);
-		m_pImage->DrawBox(10 + nWidth, 292, 12 + nWidth, 312, 0x000000, true);
+		pCanvas->DrawHardText(&r, m_szTypeBuffer, 0x000000, 1);
+		int nWidth = pCanvas->MeasureHardTextWidth(r.h, m_szTypeBuffer, 1);
+		pCanvas->DrawBox(10 + nWidth, 292, 12 + nWidth, 312, 0x000000, true);
 	}
 	else if(m_eState == WrongPassword)
 	{
@@ -152,7 +205,7 @@ void VCharSelect::ReloadAccounts()
 			RefreshEntireImage();
 		}
 	}
-	BlitImage(pScreen, m_rect.x, m_rect.y, m_pImage);
+	BlitImage(pScreen, m_rect.x, m_rect.y, pCanvas);
 }
 
 void VCharSelect::DrawAvatars()
@@ -163,7 +216,9 @@ void VCharSelect::DrawAvatars()
 
 	// Move the parade forward
 	m_fCameraDirection += (float)(timeDelta / 2);
-	m_pImage->DrawBox(PARADE_BOX_BORDER, 50, 620 - PARADE_BOX_BORDER, 170, 0x330022, true);
+	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
+	pCanvas->DrawBox(PARADE_BOX_BORDER, 50, 620 - PARADE_BOX_BORDER, 170, 0x330022, true);
 	int nCount = m_pAvatarAnimations->GetSize();
 	if(nCount <= 0)
 		return;
@@ -172,7 +227,6 @@ void VCharSelect::DrawAvatars()
 	if(nNextOnStage < 0)
 		nNextOnStage = nCount - 1;
 	AvatarAccount* pAccount = (AvatarAccount*)m_pAvatarAnimations->GetPointer(nNextOnStage);
-	GRect r;
 	GImage* pImage = pAccount->m_pAnimation->GetColumnFrame(&r, 0);
 	if(m_fParadePos - PARADE_BOX_BORDER > r.w + GAP_BETWEEN_AVATARS)
 	{
@@ -202,64 +256,62 @@ void VCharSelect::DrawAvatars()
 			{
 				bFoundClick = true;
 				m_pSelectedAccount = pAccount;
-				m_pImage->Blit(nPos, 60, pImage, &r);
+				pCanvas->Blit(nPos, 60, pImage, &r);
 			}
 		}
 		else
-			m_pImage->Blit(nPos, 60, pImage, &r);
+			pCanvas->Blit(nPos, 60, pImage, &r);
 		nPos += r.w;
 		nPos += GAP_BETWEEN_AVATARS;
 		nAvatar++;
 		if(nAvatar >= nCount)
 			nAvatar = 0;
 	}
+	if(m_eState == ShowCharacter && !bFoundClick)
+		m_eState = PickCharacter;
 }
 
 void VCharSelect::RefreshEntireImage()
 {
-	m_pImage->Clear(0x002244);
-
 	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
+
 	r.x = 10;
 	r.y = 10;
 	r.w = 600;
 	r.h = 25;
-	m_pImage->DrawHardText(&r, "Please select your character", 0x00ffff, 1);
+	pCanvas->DrawHardText(&r, "Please select your character", 0x00ffff, 1);
 
 	//m_pImage->DrawBox(0, 0, m_pImage->GetWidth() - 1, m_pImage->GetHeight() - 1, 0xffffff, false);
-	m_pNewCharButton->Draw(m_pImage);
 }
 
-void VCharSelect::AttemptLogin(Controller* pController)
+GXMLTag* VCharSelect::GetSelectedAccountTag()
+{
+	GAssert(m_pSelectedAccount, "no account selected");
+	return m_pSelectedAccount->m_pTag;
+}
+
+bool VCharSelect::CheckPassword()
 {
 	// Check the password
 	GAssert(m_pSelectedAccount, "no account selected");
 	char szPasswordHash[2 * SHA512_DIGEST_LENGTH + 1];
 	GameEngine::MakePasswordHash(szPasswordHash, m_szTypeBuffer);
 	if(stricmp(szPasswordHash, m_pSelectedAccount->m_pPasswordHash) == 0)
-		pController->LogIn(m_pSelectedAccount->m_pTag, m_szTypeBuffer);
+		return true;
 	else
 	{
 		GRect r;
+		GImage* pCanvas = m_pDialog->GetImage(&r);
 		r.x = 50;
 		r.y = 300;
 		r.w = 600;
 		r.h = 50;
-		m_pImage->DrawHardText(&r, "Wrong Password!", 0xff3333, 1);
+		pCanvas->DrawHardText(&r, "Wrong Password!", 0xff3333, 1);
 		m_dWrongPasswordTime = GameEngine::GetTime();
 		m_eState = WrongPassword;
-		pController->ClearTypeBuffer();
+		return false;
 	}
-}
-
-void VCharSelect::ReleaseButton(Controller* pController, GWidgetTextButton* pButton)
-{
-	if(pButton == m_pNewCharButton && m_eState == PickCharacter)
-		pController->MakeNewCharView();
-	else if(pButton == m_pOKButton)
-		AttemptLogin(pController);
-	else
-		GAssert(false, "Unrecognized button");
 }
 
 void VCharSelect::OnMouseDown(Controller* pController, int x, int y)
@@ -276,32 +328,12 @@ void VCharSelect::OnMouseDown(Controller* pController, int x, int y)
 		return;
 	}
 
-	// Normal widget handling
-	GWidgetAtomic* pNewWidget = m_pWidgetContainer->FindAtomicWidget(x, y);
-	if(!pNewWidget)
-		return;
-	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
-	if(pOldWidget == pNewWidget)
-		pOldWidget = NULL;
-	m_pWidgetContainer->GrabWidget(pNewWidget);
-	if(pOldWidget)
-		pOldWidget->Draw(m_pImage);
-	pNewWidget->Draw(m_pImage);
+	// Grab the widget
+	GWidgetAtomic* pNewWidget = m_pDialog->FindAtomicWidget(x, y);
+	m_pDialog->GrabWidget(pNewWidget, x, y);
 }
 
 void VCharSelect::OnMouseUp(Controller* pController, int x, int y)
 {
-	x -= m_rect.x;
-	y -= m_rect.y;
-	GWidgetAtomic* pOldWidget = m_pWidgetContainer->GetGrabbedWidget();
-	m_pWidgetContainer->ReleaseWidget();
-	if(!pOldWidget)
-		return;
-	pOldWidget->Draw(m_pImage);
-	switch(pOldWidget->GetType())
-	{
-		case GWidget::TextButton:
-			ReleaseButton(pController, (GWidgetTextButton*)pOldWidget);
-			break;
-	}
+	m_pDialog->ReleaseWidget();
 }

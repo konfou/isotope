@@ -59,15 +59,17 @@ public:
 	bool GetModified() { return m_bModified; }
 	void SetModified(bool bModified) { m_bModified = bModified; }
 
-	bool LoadAllLibraries(const char* szStartPath, ParseError* pError, COProject* pProject);
+	void LoadAllLibraries(const char* szLibrariesFolder, COProject* pProject);
 	int CountTypes();
 	COType* GetType(int index);
 
+	void ReplaceType(COType* pOld, COType* pNew);
+
 protected:
-	bool LoadAllLibraries2(const char* szStartPath, ParseError* pError, COProject* pProject);
+	void LoadAllLibraries2(const char* szLibrariesFolder, COProject* pProject);
 	bool LoadAllFileNames(GXMLTag* pSourceTag, GXMLTag* pXMLTags, ErrorHandler* pErrorHandler, COProject* pCOProject);
 	void MakeFilesFromRefs(const char** ppFiles, const char** pszFilenames, int nFileCount, GXMLTag* pXMLTags, ParseError* pError, ClassicSyntaxError* pClassicSyntaxError, COProject* pCOProject);
-	void LoadAllClassNames(GXMLTag* pXMLTags, COProject* pCOProject);
+	void LoadAllTypeNames(GXMLTag* pXMLTags, COProject* pCOProject, bool bXLib);
 	void LoadAllClassDefinitions(GXMLTag* pXMLTags, COProject* pCOProject);
 	void LoadMethodDeclarations(GXMLTag* pXMLTags, COProject* pCOProject);
 	void LoadAllInstructions(GXMLTag* pXMLTags, COProject* pCOProject);

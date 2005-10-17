@@ -3,6 +3,7 @@ machine Animation
 	method getFrame(!GImage:i, &Rect:r)
 	method getColumnFrame(!GImage:i, &Rect:r, Float:cameraDirection)
 	method &advanceTime(&Bool:looped, Float:dt)
+	method &setTime(Float:t)
 	method !newCopy(Animation:that)
 }
 
@@ -24,6 +25,12 @@ machine GameMachine
 	method sendToClient(Object:obj, Integer:connection)
 	method sendToServer(Object:obj)
 	method addInventoryItem(String:url)
+	method checkForSolidObject(&Bool:b, Float:x, Float:y)
+	method getAccountVar(&String:value, String:name)
+	method setAccountVar(String:name, String:value)
+	method reportStats(Array:nameValuePairs)
+	method setSkyImage(String:id)
+	method setGroundImage(String:id)
 }
 
 machine GImage
@@ -37,6 +44,9 @@ machine GImage
 	method !load(String:filename)
 	method save(String:filename)
 	method &setText(String:text)
+	method &invert()
+	method &glow()
+	method !newCopy(GImage:that)
 }
 
 interface IObject
@@ -53,6 +63,33 @@ interface IRemote
 {
 	method &receiveFromServer(Object:obj)
 	method &receiveFromClient(Object:obj, Integer:connection)
+}
+
+class StatCollector(Object)
+{
+	!Array:nameValuePairs
+	
+	method !new()
+	{
+		!this.allocate()
+		!this.nameValuePairs.new(16)
+	}
+	
+	method &addValue(String:name, String:value)
+	{
+		!String:n.new()
+		&n.copy(name)
+		!String:v.new()
+		&v.copy(value)
+		&this.nameValuePairs.add(n)
+		&this.nameValuePairs.add(v)
+	}
+	
+	method report()
+	{
+		!GameMachine:gm.set(null)
+		gm.reportStats(this.nameValuePairs)
+	}
 }
 
 class RealmObject(Object)
@@ -145,6 +182,15 @@ class Avatar(RealmObject)
 		&this.y.add(ty)
 
 		!Bool:b.new()
+		!GameMachine:gm.checkForSolidObject(&b, this.x, this.y)
+		if(b)
+		{
+			&this.x.subtract(tx)
+			&this.y.subtract(ty)
+			&this.dx.copy(0)
+			&this.dy.copy(0)
+		}
+
 		this.dx.isNonZero(&b)
 		if(b)
 		{
@@ -270,6 +316,110 @@ class ChatCloud(RealmObject)
 
 	method &doAction(Float:x, Float:y)
 	{
+	}
+
+	method &onGetFocus()
+	{
+	}
+
+	method &onLoseFocus()
+	{
+	}
+
+	method verify(&Bool:ok, Integer:client, RealmObject:newObj)
+	{
+	}
+
+	proc floatText(RealmObject:obj, String:s)
+	{
+		!ChatCloud:cc.new(s)
+		&cc.x.copy(obj.x)
+		&cc.x.add(1)
+		&cc.y.copy(obj.y)
+		&cc.y.add(1)
+		&cc.z.copy(obj.z)
+		&cc.z.add(300)
+		!GameMachine:gm.addObject(cc)
+	}
+}
+
+class ImageLink(RealmObject)
+{
+	!String:url
+	!GImage:image
+
+	method !new(String:imageID, String:url)
+	{
+		!this.allocate()
+		&this.init()
+		!this.url.new()
+		&this.url.copy(url)
+		!GameMachine:gm.getImage(!this.image, imageID)
+	}
+
+	method &update(Float:time)
+	{
+	}
+
+	method getFrame(!GImage:i, &Rect:r, Float:cameraDirection)
+	{
+		!i.set(this.image)
+		i.getRect(&r)
+	}
+
+	method &doAction(Float:x, Float:y)
+	{
+		!GameMachine:gm.followLink(this.url)
+	}
+
+	method &onGetFocus()
+	{
+		ChatCloud.floatText(this, "Press ALT")
+	}
+
+	method &onLoseFocus()
+	{
+	}
+
+	method verify(&Bool:ok, Integer:client, RealmObject:newObj)
+	{
+	}
+}
+
+class AnimatedLink(RealmObject)
+{
+	!String:url
+	!Animation:anim
+
+	method !new(String:animID, String:url)
+	{
+		!this.allocate()
+		&this.init()
+		!this.url.new()
+		&this.url.copy(url)
+		!GameMachine:gm.getAnimation(!this.anim, animID)
+		!this.anim.newCopy(this.anim)
+	}
+
+	method &update(Float:time)
+	{
+		!Float:t.newcopy(time)
+		&t.subtract(this.time)
+
+		!Bool:looped.new()
+		&this.anim.advanceTime(&looped, t)
+
+		&this.time.add(t)
+	}
+
+	method getFrame(!GImage:i, &Rect:r, Float:cameraDirection)
+	{
+		this.anim.getFrame(!i, &r)
+	}
+
+	method &doAction(Float:x, Float:y)
+	{
+		!GameMachine:gm.followLink(this.url)
 	}
 
 	method &onGetFocus()

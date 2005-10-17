@@ -102,16 +102,29 @@ bool COProject::LoadLibraries(const char* szLibrariesPath, ErrorHandler* pErrorH
 	GAssert(szLibrariesPath, "No path specified");
 
 	// Make some variables to hold error values
-	ParseError error;
-	ParseError* pError = &error;
-	if(!GetSource()->LoadAllLibraries(szLibrariesPath, pError, this))
+	bool bRet = true;
+	try
 	{
-		pError->CheckError();
+		GetSource()->LoadAllLibraries(szLibrariesPath, this);
+	}
+	catch(ParseError* pError)
+	{
+		bRet = false;
 		if(pErrorHandler)
 			pErrorHandler->OnError(pError);
-		return false;
+		delete(m_pSource);
+		m_pSource = NULL;
+		delete(pError);
 	}
-	return true;
+
+	return bRet;
+}
+
+void COProject::ReplaceType(COType* pOld, COType* pNew)
+{
+	if(pOld->GetTypeType() != pNew->GetTypeType() || stricmp(pOld->GetName(), pNew->GetName()) != 0)
+		ThrowError(&Error::CONFLICTING_TYPES, NULL);
+	m_pSource->ReplaceType(pOld, pNew);
 }
 
 void COProject::ThrowError(ErrorStruct* pError, GXMLTag* pTagWithError, const char* szParam1)
@@ -196,7 +209,7 @@ bool COProject::LoadSourcesInProjectFile(const char* szFilename, ErrorHandler* p
 
 void COProject::LoadSources(GXMLTag* pXMLFiles)
 {
-	m_pSource->LoadAllClassNames(pXMLFiles, this);
+	m_pSource->LoadAllTypeNames(pXMLFiles, this, false);
 	m_pSource->LoadAllClassDefinitions(pXMLFiles, this);
 	m_pSource->LoadMethodDeclarations(pXMLFiles, this);
 	m_pSource->LoadAllInstructions(pXMLFiles, this);

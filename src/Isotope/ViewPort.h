@@ -45,7 +45,6 @@ public:
 	GRect* GetRect() { return &m_rect; }
 	static void BlitImage(SDL_Surface* pScreen, int x, int y, GImage* pImage);
 	static void StretchClipAndBlitImage(SDL_Surface* pScreen, GRect* pDestRect, GRect* pClipRect, GImage* pImage);
-	static GWidgetTextButton* MakeNewButton(GWidgetGroup* pParent, int x, int y, int w, int h, const wchar_t* wszText);
 };
 
 

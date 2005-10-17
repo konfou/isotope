@@ -13,8 +13,12 @@
 #include "GameEngine.h"
 #include "../GClasses/GArray.h"
 #include "../GClasses/GMacros.h"
+#include "../GClasses/GHashTable.h"
 #include "../GClasses/GBillboardCamera.h"
 #include "../GClasses/GXML.h"
+#include "../GClasses/GHttp.h"
+#include "../GClasses/GWindows.h"
+#include "../GClasses/GFile.h"
 #include "../GClasses/sha2.h"
 #include <math.h>
 #include "VGame.h"
@@ -31,6 +35,8 @@
 #include "VCharSelect.h"
 #include "VCharMake.h"
 #include "VLoading.h"
+#include "MGameImage.h"
+#include "MStore.h"
 #ifdef WIN32
 #include <direct.h>
 #else // WIN32
@@ -46,6 +52,7 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	for(n = 0; n < SDLK_LAST; n++)
 		m_keyboard[n] = 0;
 	m_nTypeBufferPos = 0;
+	LoadKeyControlValues();
 
 	// Init the mouse
 	m_mouse[1] = 0;
@@ -60,6 +67,7 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_bMouseDown = false;
 
 	m_pGameView = NULL;
+	m_pLoadingView = NULL;
 	m_mode = NOTHING;
 	m_goalX = 0;
 	m_goalY = 0;
@@ -69,6 +77,10 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_szNewUrl = NULL;
 	m_pGameClient = NULL;
 	m_bQuit = false;
+	m_downloadProgressMode = DPM_IGNORE;
+	m_pErrorHandler = new IsotopeErrorHandler();
+	m_pHttpClient = new GHttpClient();
+
 	if(eRunMode == SERVER)
 #ifdef SERVER_HAS_VIEW
 		m_pView = new View();
@@ -104,6 +116,224 @@ Controller::~Controller()
 	PopAllViewPorts();
 	delete(m_pModel);
 	delete(m_pView);
+	delete(m_pErrorHandler);
+	delete(m_pHttpClient);
+}
+
+int GetAttrValue(GConstStringHashTable* pKeyMappings, GXMLTag* pTag, const char* szAttrName)
+{
+	GXMLAttribute* pAttr = pTag->GetAttribute(szAttrName);
+	if(!pAttr)
+		GameEngine::ThrowError("Expected a '%s' attribute in the '%s' tag in the config file", szAttrName, pTag->GetName());
+	int nSdlKeySym = SDLK_DOWN;
+	bool bOk = pKeyMappings->Get(pAttr->GetValue(), (void**)&nSdlKeySym);
+	if(!bOk)
+		GameEngine::ThrowError("There is no key named \"%s\"", pAttr->GetValue());
+	return nSdlKeySym;
+}
+
+void AddKey(GConstStringHashTable* pHT, const char* szLabel, int nSdlKeySym)
+{
+	pHT->Add(szLabel, (const void*)nSdlKeySym);
+}
+
+void MakeKeyMappingsHashTable(GConstStringHashTable* pHT)
+{
+	AddKey(pHT, "BACKSPACE", 8);
+	AddKey(pHT, "TAB", 9);
+	AddKey(pHT, "CLEAR", 12);
+	AddKey(pHT, "RETURN", 13);
+	AddKey(pHT, "PAUSE", 19);
+	AddKey(pHT, "ESCAPE", 27);
+	AddKey(pHT, "SPACE", 32);
+	AddKey(pHT, "EXCLAIM", 33);
+	AddKey(pHT, "QUOTEDBL", 34);
+	AddKey(pHT, "HASH", 35);
+	AddKey(pHT, "DOLLAR", 36);
+	AddKey(pHT, "AMPERSAND", 38);
+	AddKey(pHT, "QUOTE", 39);
+	AddKey(pHT, "LEFTPAREN", 40);
+	AddKey(pHT, "RIGHTPAREN", 41);
+	AddKey(pHT, "ASTERISK", 42);
+	AddKey(pHT, "PLUS", 43);
+	AddKey(pHT, "COMMA", 44);
+	AddKey(pHT, "MINUS", 45);
+	AddKey(pHT, "PERIOD", 46);
+	AddKey(pHT, "SLASH", 47);
+	AddKey(pHT, "0", 48);
+	AddKey(pHT, "1", 49);
+	AddKey(pHT, "2", 50);
+	AddKey(pHT, "3", 51);
+	AddKey(pHT, "4", 52);
+	AddKey(pHT, "5", 53);
+	AddKey(pHT, "6", 54);
+	AddKey(pHT, "7", 55);
+	AddKey(pHT, "8", 56);
+	AddKey(pHT, "9", 57);
+	AddKey(pHT, "COLON", 58);
+	AddKey(pHT, "SEMICOLON", 59);
+	AddKey(pHT, "LESS", 60);
+	AddKey(pHT, "EQUALS", 61);
+	AddKey(pHT, "GREATER", 62);
+	AddKey(pHT, "QUESTION", 63);
+	AddKey(pHT, "AT", 64);
+
+	AddKey(pHT, "LEFTBRACKET", 91);
+	AddKey(pHT, "BACKSLASH", 92);
+	AddKey(pHT, "RIGHTBRACKET", 93);
+	AddKey(pHT, "CARET", 94);
+	AddKey(pHT, "UNDERSCORE", 95);
+	AddKey(pHT, "BACKQUOTE", 96);
+
+	// Alphabet
+	AddKey(pHT, "a", 97);
+	AddKey(pHT, "b", 98);
+	AddKey(pHT, "c", 99);
+	AddKey(pHT, "d", 100);
+	AddKey(pHT, "e", 101);
+	AddKey(pHT, "f", 102);
+	AddKey(pHT, "g", 103);
+	AddKey(pHT, "h", 104);
+	AddKey(pHT, "i", 105);
+	AddKey(pHT, "j", 106);
+	AddKey(pHT, "k", 107);
+	AddKey(pHT, "l", 108);
+	AddKey(pHT, "m", 109);
+	AddKey(pHT, "n", 110);
+	AddKey(pHT, "o", 111);
+	AddKey(pHT, "p", 112);
+	AddKey(pHT, "q", 113);
+	AddKey(pHT, "r", 114);
+	AddKey(pHT, "s", 115);
+	AddKey(pHT, "t", 116);
+	AddKey(pHT, "u", 117);
+	AddKey(pHT, "v", 118);
+	AddKey(pHT, "w", 119);
+	AddKey(pHT, "x", 120);
+	AddKey(pHT, "y", 121);
+	AddKey(pHT, "z", 122);
+	AddKey(pHT, "DELETE", 127);
+	// End of ASCII mapped keysyms
+
+	// Numeric keypad
+	AddKey(pHT, "KP0", 256);
+	AddKey(pHT, "KP1", 257);
+	AddKey(pHT, "KP2", 258);
+	AddKey(pHT, "KP3", 259);
+	AddKey(pHT, "KP4", 260);
+	AddKey(pHT, "KP5", 261);
+	AddKey(pHT, "KP6", 262);
+	AddKey(pHT, "KP7", 263);
+	AddKey(pHT, "KP8", 264);
+	AddKey(pHT, "KP9", 265);
+	AddKey(pHT, "KP_PERIOD", 266);
+	AddKey(pHT, "KP_DIVIDE", 267);
+	AddKey(pHT, "KP_MULTIPLY", 268);
+	AddKey(pHT, "KP_MINUS", 269);
+	AddKey(pHT, "KP_PLUS", 270);
+	AddKey(pHT, "KP_ENTER", 271);
+	AddKey(pHT, "KP_EQUALS", 272);
+
+	// Arrows + Home/End pad
+	AddKey(pHT, "UP", 273);
+	AddKey(pHT, "DOWN", 274);
+	AddKey(pHT, "RIGHT", 275);
+	AddKey(pHT, "LEFT", 276);
+	AddKey(pHT, "INSERT", 277);
+	AddKey(pHT, "HOME", 278);
+	AddKey(pHT, "END", 279);
+	AddKey(pHT, "PAGEUP", 280);
+	AddKey(pHT, "PAGEDOWN", 281);
+
+	// Function keys
+	AddKey(pHT, "F1", 282);
+	AddKey(pHT, "F2", 283);
+	AddKey(pHT, "F3", 284);
+	AddKey(pHT, "F4", 285);
+	AddKey(pHT, "F5", 286);
+	AddKey(pHT, "F6", 287);
+	AddKey(pHT, "F7", 288);
+	AddKey(pHT, "F8", 289);
+	AddKey(pHT, "F9", 290);
+	AddKey(pHT, "F10", 291);
+	AddKey(pHT, "F11", 292);
+	AddKey(pHT, "F12", 293);
+	AddKey(pHT, "F13", 294);
+	AddKey(pHT, "F14", 295);
+	AddKey(pHT, "F15", 296);
+
+	// Key state modifier keys
+	AddKey(pHT, "NUMLOCK", 300);
+	AddKey(pHT, "CAPSLOCK", 301);
+	AddKey(pHT, "SCROLLOCK", 302);
+	AddKey(pHT, "RSHIFT", 303);
+	AddKey(pHT, "LSHIFT", 304);
+	AddKey(pHT, "RCTRL", 305);
+	AddKey(pHT, "LCTRL", 306);
+	AddKey(pHT, "RALT", 307);
+	AddKey(pHT, "LALT", 308);
+	AddKey(pHT, "RMETA", 309);
+	AddKey(pHT, "LMETA", 310);
+	AddKey(pHT, "LSUPER", 311);		// Left "Windows" key
+	AddKey(pHT, "RSUPER", 312);		// Right "Windows" key
+	AddKey(pHT, "MODE", 313);		// "Alt Gr" key
+	AddKey(pHT, "COMPOSE", 314);		// Multi-key compose key
+
+	// Miscellaneous function keys
+	AddKey(pHT, "HELP", 315);
+	AddKey(pHT, "PRINT", 316);
+	AddKey(pHT, "SYSREQ", 317);
+	AddKey(pHT, "BREAK", 318);
+	AddKey(pHT, "MENU", 319);
+	AddKey(pHT, "POWER", 320);		// Power Macintosh power key
+	AddKey(pHT, "EURO", 321);		// Some european keyboards
+	AddKey(pHT, "UNDO", 322);		// Atari keyboard has Undo
+}
+
+void Controller::LoadKeyControlValues()
+{
+	GConstStringHashTable ht(307, false);
+	MakeKeyMappingsHashTable(&ht);
+
+	// Global key mappings
+	GXMLTag* pConfigTag = GameEngine::GetConfig();
+	GXMLTag* pKeyMappingsTag = pConfigTag->GetChildTag("KeyMappings");
+	if(!pKeyMappingsTag)
+		GameEngine::ThrowError("Expected a 'KeyMappings' tag in the config file");
+	m_keyMenu1 = GetAttrValue(&ht, pKeyMappingsTag, "menu1");
+	m_keyMenu2 = GetAttrValue(&ht, pKeyMappingsTag, "menu2");
+	m_keyAction1 = GetAttrValue(&ht, pKeyMappingsTag, "action1");
+	m_keyAction2 = GetAttrValue(&ht, pKeyMappingsTag, "action2");
+
+	// Third person mappings
+	GXMLTag* pThirdPersonTag = pKeyMappingsTag->GetChildTag("ThirdPerson");
+	if(!pThirdPersonTag)
+		GameEngine::ThrowError("Expected a 'ThirdPerson' tag in the config file");
+	m_ktpYawRight = GetAttrValue(&ht, pThirdPersonTag, "yawright");
+	m_ktpYawLeft = GetAttrValue(&ht, pThirdPersonTag, "yawleft");
+	m_ktpZoomIn = GetAttrValue(&ht, pThirdPersonTag, "zoomin");
+	m_ktpZoomOut = GetAttrValue(&ht, pThirdPersonTag, "zoomout");
+	m_ktpPitchUp = GetAttrValue(&ht, pThirdPersonTag, "pitchup");
+	m_ktpPitchDown = GetAttrValue(&ht, pThirdPersonTag, "pitchdown");
+	m_bFpsControls = false;
+	GXMLAttribute* pFpsControlsAttr = pThirdPersonTag->GetAttribute("fpscontrols");
+	if(pFpsControlsAttr && stricmp(pFpsControlsAttr->GetValue(), "true") == 0)
+		m_bFpsControls = true;
+
+	// First person mappings
+	GXMLTag* pFirstPersonTag = pKeyMappingsTag->GetChildTag("FirstPerson");
+	if(!pFirstPersonTag)
+		GameEngine::ThrowError("Expected a 'FirstPerson' tag in the config file");
+	m_kfpYawRight = GetAttrValue(&ht, pFirstPersonTag, "yawright");
+	m_kfpYawLeft = GetAttrValue(&ht, pFirstPersonTag, "yawleft");
+	m_kfpZoomIn = GetAttrValue(&ht, pFirstPersonTag, "zoomin");
+	m_kfpZoomOut = GetAttrValue(&ht, pFirstPersonTag, "zoomout");
+	m_kfpPitchUp = GetAttrValue(&ht, pFirstPersonTag, "pitchup");
+	m_kfpPitchDown = GetAttrValue(&ht, pFirstPersonTag, "pitchdown");
+	m_kfpTrackRight = GetAttrValue(&ht, pFirstPersonTag, "trackright");
+	m_kfpTrackLeft = GetAttrValue(&ht, pFirstPersonTag, "trackleft");
+	m_kfpTrackUp = GetAttrValue(&ht, pFirstPersonTag, "trackup");
+	m_kfpTrackDown = GetAttrValue(&ht, pFirstPersonTag, "trackdown");
 }
 
 void Controller::Run()
@@ -134,9 +364,10 @@ void Controller::Update(double dTimeDelta)
 	if(m_szNewUrl)
 	{
 		GAssert(m_pGameClient, "Only the client should try to follow a URL");
-		GoToRealm(m_szNewUrl);
-		delete(m_szNewUrl);
+		char* szNewUrl = m_szNewUrl;
 		m_szNewUrl = NULL;
+		GoToRealm(szNewUrl);
+		delete(szNewUrl);
 	}
 
 	// Check for events
@@ -171,14 +402,8 @@ void Controller::Update(double dTimeDelta)
 				break;
 
 			case SDL_MOUSEMOTION:
-#ifdef WIN32
 				m_mouseX = event.motion.x;
 				m_mouseY = event.motion.y;
-#else // WIN32
-				// This is a workaround for a packing bug in SDL on Linux
-				m_mouseX = event.motion.y;
-				m_mouseY = event.motion.xrel;
-#endif // !WIN32
 				break;
 
 			case SDL_QUIT:
@@ -244,29 +469,33 @@ void Controller::OnKeyDown(SDLKey key, SDLMod mod)
 {
 	if(key > SDLK_z)
 		return;
-	if(key == SDLK_BACKSPACE)
-	{
-		if(m_nTypeBufferPos > 0)
-		{
-			m_szTypeBuffer[--m_nTypeBufferPos] = '\0';
-			return;
-		}
-	}
-	else if(key == SDLK_RETURN)
-	{
-		if(m_mode == THIRDPERSON)
-		{
-			// Make the chat cloud
-			if(m_nTypeBufferPos <= 0)
-				return;
-			if(!m_pGameClient)
-				return;
-			m_pGameClient->MakeChatCloud(m_szTypeBuffer);
-			ClearTypeBuffer();
-		}
-	}
 	else if(key < SDLK_SPACE)
+	{
+		if(key == SDLK_BACKSPACE)
+		{
+			if(m_nTypeBufferPos > 0)
+			{
+				m_szTypeBuffer[--m_nTypeBufferPos] = '\0';
+				return;
+			}
+		}
+		else if(key == SDLK_RETURN)
+		{
+			if(m_mode == THIRDPERSON)
+			{
+				// Make the chat cloud
+				if(m_nTypeBufferPos <= 0)
+					return;
+				if(!m_pGameClient)
+					return;
+				m_pGameClient->MakeChatCloud(m_szTypeBuffer);
+				ClearTypeBuffer();
+			}
+		}
+		else if(key == SDLK_ESCAPE)
+			ShutDown();
 		return;
+	}
 	char c = (char)key;
 	if(c > 126)
 		return;
@@ -288,26 +517,6 @@ void Controller::ClearTypeBuffer()
 	m_szTypeBuffer[0] = '\0';
 }
 
-/*
-void Controller::GetArrowKeyVector(float* pdx, float* pdy)
-{
-	float dx = (float)(m_keyboard[SDLK_RIGHT] - m_keyboard[SDLK_LEFT]);
-	float dy = (float)(m_keyboard[SDLK_UP] - m_keyboard[SDLK_DOWN]);
-	float mag = dx * dx + dy * dy;
-	if(mag > .0001)
-	{
-		mag = sqrt(mag);
-		*pdx = dx / mag;
-		*pdy = dy / mag;
-	}
-	else
-	{
-		*pdx = 0;
-		*pdy = 0;
-	}
-}
-*/
-
 inline int CalculateSignVector(float x, float y)
 {
 	int n = 0;
@@ -320,23 +529,6 @@ inline int CalculateSignVector(float x, float y)
 
 void Controller::DoControl(double dTimeDelta)
 {
-	// Stop the avatar if he/she has reached the goal spot
-	if(m_pGameClient)
-	{
-		float xAvatar, yAvatar;
-		MObject* pAvatar = m_pGameClient->GetAvatar();
-		if(pAvatar)
-		{
-			pAvatar->GetPos(&xAvatar, &yAvatar);
-			if(CalculateSignVector(m_goalX - xAvatar, m_goalY - yAvatar) != m_goalSignVector)
-			{
-				SetAvatarVelocity(pAvatar, 0, 0);
-				m_pGameClient->MoveGoalFlag(xAvatar, yAvatar, false);
-				m_goalSignVector = CalculateSignVector(m_goalX - xAvatar, m_goalY - yAvatar);
-			}
-		}
-	}
-
 	switch(m_mode)
 	{
 		case NOTHING:
@@ -419,6 +611,23 @@ inline int IsNegative(int n)
 
 void Controller::ControlThirdPerson(double dTimeDelta)
 {
+	// Stop the avatar if he/she has reached the goal spot
+	if(m_pGameClient)
+	{
+		float xAvatar, yAvatar;
+		MObject* pAvatar = m_pGameClient->GetAvatar();
+		if(pAvatar)
+		{
+			pAvatar->GetPos(&xAvatar, &yAvatar);
+			if(CalculateSignVector(m_goalX - xAvatar, m_goalY - yAvatar) != m_goalSignVector)
+			{
+				SetAvatarVelocity(pAvatar, 0, 0);
+				m_pGameClient->MoveGoalFlag(xAvatar, yAvatar, false);
+				m_goalSignVector = CalculateSignVector(m_goalX - xAvatar, m_goalY - yAvatar);
+			}
+		}
+	}
+
 	GBillboardCamera* pCamera = m_pGameView->GetCamera();
 
 	// Mouse Click
@@ -440,11 +649,11 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 		if(!bSky)
 			SetGoalSpot(mapX, mapY);
 	}
-	if(m_keyboard[SDLK_LALT] | m_keyboard[SDLK_RALT])
+	if(m_keyboard[m_keyAction1] | m_keyboard[m_keyAction2])
 	{
 		// Find the nearest object and tell it to do its action
-		m_keyboard[SDLK_LALT] = 0;
-		m_keyboard[SDLK_RALT] = 0;
+		m_keyboard[m_keyAction1] = 0;
+		m_keyboard[m_keyAction2] = 0;
 		m_mouse[3] = 0;
 		MRealm* pRealm = m_pGameClient->GetCurrentRealm();
 		MObject* pNearestOb = pRealm->GetClosestObject();
@@ -463,7 +672,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	}
 
 	// Camera Yaw
-	float dx = (float)(m_keyboard[SDLK_LEFT] - m_keyboard[SDLK_RIGHT]);
+	float dx = (float)(m_keyboard[m_ktpYawLeft] - m_keyboard[m_ktpYawRight]);
 	if(dx != 0)
 	{
 		dx *= (float)dTimeDelta * 3;
@@ -473,7 +682,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	}
 
 	// Zoom
-	float dy = (float)(m_keyboard[SDLK_DOWN] - m_keyboard[SDLK_UP]);
+	float dy = (float)(m_keyboard[m_ktpZoomOut] - m_keyboard[m_ktpZoomIn]);
 	if(dy != 0)
 	{
 		dy *= (float)dTimeDelta;
@@ -482,7 +691,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	}
 
 	// Camera Pitch (sort of)
-	float dPitch = (float)(m_keyboard[SDLK_KP8] - m_keyboard[SDLK_KP5]);
+	float dPitch = (float)(m_keyboard[m_ktpPitchUp] - m_keyboard[m_ktpPitchDown]);
 	if(dPitch != 0)
 	{
 		dPitch *= (float)dTimeDelta;
@@ -491,7 +700,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	}
 
 	// Menu Key
-	if(m_keyboard[SDLK_RCTRL] | m_keyboard[SDLK_LCTRL])
+	if(m_keyboard[m_keyMenu1] | m_keyboard[m_keyMenu2])
 		BringUpMainMenu();
 }
 
@@ -533,12 +742,12 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 			m_pGameClient->SelectObjects(m_goalX, m_goalY, mapX, mapY);
 		}
 	}
-	if(m_mouse[3] | m_keyboard[SDLK_LALT] | m_keyboard[SDLK_RALT])
+	if(m_mouse[3] | m_keyboard[m_keyAction1] | m_keyboard[m_keyAction2])
 	{
 		// Tell selected objects to do their action
 		m_mouse[3] = 0;
-		m_keyboard[SDLK_LALT] = 0;
-		m_keyboard[SDLK_RALT] = 0;
+		m_keyboard[m_keyAction1] = 0;
+		m_keyboard[m_keyAction2] = 0;
 		bool bSky;
 		float mapX, mapY;
 		m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseX, m_mouseY);
@@ -547,7 +756,7 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 	}
 
 	// Camera Yaw
-	float dx = (float)(m_keyboard[SDLK_KP4] - m_keyboard[SDLK_KP6]);
+	float dx = (float)(m_keyboard[m_kfpYawLeft] - m_keyboard[m_kfpYawRight]);
 	if(dx != 0)
 	{
 		dx *= (float)dTimeDelta * 3;
@@ -557,7 +766,7 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 	}
 
 	// Zoom
-	float dy = (float)(m_keyboard[SDLK_KP1] - m_keyboard[SDLK_KP7]);
+	float dy = (float)(m_keyboard[m_kfpZoomOut] - m_keyboard[m_kfpZoomIn]);
 	if(dy != 0)
 	{
 		dy *= (float)dTimeDelta;
@@ -566,7 +775,7 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 	}
 
 	// Camera Pitch (sort of)
-	float dPitch = (float)(m_keyboard[SDLK_KP8] - m_keyboard[SDLK_KP5]);
+	float dPitch = (float)(m_keyboard[m_kfpPitchUp] - m_keyboard[m_kfpPitchDown]);
 	if(dPitch != 0)
 	{
 		dPitch *= (float)dTimeDelta;
@@ -575,20 +784,20 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 	}
 
 	// Arrow Keys
-	dx = (float)(m_keyboard[SDLK_RIGHT] - m_keyboard[SDLK_LEFT]) * 1500 * (float)dTimeDelta;
-	dy = (float)(m_keyboard[SDLK_UP] - m_keyboard[SDLK_DOWN]) * 1500 * (float)dTimeDelta;
+	dx = (float)(m_keyboard[m_kfpTrackRight] - m_keyboard[m_kfpTrackLeft]) * 1500 * (float)dTimeDelta;
+	dy = (float)(m_keyboard[m_kfpTrackUp] - m_keyboard[m_kfpTrackDown]) * 1500 * (float)dTimeDelta;
 	pCamera->Move(dx, dy);
 
 	// Menu Key
-	if(m_keyboard[SDLK_RCTRL] | m_keyboard[SDLK_LCTRL])
+	if(m_keyboard[m_keyMenu1] | m_keyboard[m_keyMenu2])
 		BringUpMainMenu();
 }
 
 void Controller::BringUpMainMenu()
 {
 	// Don't let the key stroke repeat
-	m_keyboard[SDLK_RCTRL] = 0;
-	m_keyboard[SDLK_LCTRL] = 0;
+	m_keyboard[m_keyMenu1] = 0;
+	m_keyboard[m_keyMenu2] = 0;
 
 	// Create the main menu
 	GAssert(!m_pMainMenu, "Main menu already exists");
@@ -598,7 +807,7 @@ void Controller::BringUpMainMenu()
 	r.y = pScreenRect->y + pScreenRect->h;
 	r.w = 50;
 	r.h = 50;
-	m_pMainMenu = new VMainMenu(&r, pScreenRect, m_pGameClient->GetAccountTag());
+	m_pMainMenu = new VMainMenu(&r, pScreenRect, m_pGameClient->GetAccountTag(), this);
 	m_pView->PushViewPort(m_pMainMenu);
 	SetMode(MAINMENU);
 	m_dMenuSlideInAnimTime = 0;
@@ -658,11 +867,11 @@ void Controller::ControlMainMenu(double dTimeDelta)
 	}
 
 	// Control key
-	if(m_keyboard[SDLK_RCTRL] | m_keyboard[SDLK_LCTRL])
+	if(m_keyboard[m_keyMenu1] | m_keyboard[m_keyMenu2])
 	{
 		// Don't let the key stroke repeat
-		m_keyboard[SDLK_RCTRL] = 0;
-		m_keyboard[SDLK_LCTRL] = 0;
+		m_keyboard[m_keyMenu1] = 0;
+		m_keyboard[m_keyMenu2] = 0;
 		if(m_dMenuSlideOutAnimTime <= 0)
 			m_dMenuSlideOutAnimTime = MENU_SLIDE_ANIMATION_TIME;
 		else
@@ -677,7 +886,7 @@ void Controller::ControlMainMenu(double dTimeDelta)
 	{
 		if(!m_bMouseDown)
 		{
-			m_pMainMenu->OnMouseDown(this, m_mouseX, m_mouseY);
+			m_pMainMenu->OnMouseDown(m_mouseX, m_mouseY);
 			m_bMouseDown = true;
 		}
 	}
@@ -685,10 +894,13 @@ void Controller::ControlMainMenu(double dTimeDelta)
 	{
 		if(m_bMouseDown)
 		{
-			m_pMainMenu->OnMouseUp(this, m_mouseX, m_mouseY);
+			m_pMainMenu->OnMouseUp(m_mouseX, m_mouseY);
 			m_bMouseDown = false;
 		}
 	}
+
+	// Give the view mouse tracking information so it can do the scroll bars properly
+	m_pMainMenu->OnMousePos(m_mouseX, m_mouseY);
 }
 
 void Controller::ControlCharSelect(double dTimeDelta)
@@ -794,29 +1006,132 @@ void Controller::MakeServerView(MGameServer* pServer)
 	SetMode(NOTHING);
 }
 
-void Controller::GoToRealm(const char* szURL)
+void Controller::GoToRealm(const char* szUrl)
 {
 	// Show the "loading" page
 	SetMode(Controller::NOTHING);
 	PopAllViewPorts();
-	ViewPort* pLoadingView = new VLoading(m_pView->GetScreenRect());
-	m_pView->PushViewPort(pLoadingView);
+	m_pLoadingView = new VLoading(m_pView->GetScreenRect(), szUrl);
+	m_pView->PushViewPort(m_pLoadingView);
 	m_pView->Refresh(); // Redraw the loading page
+	m_downloadProgressMode = DPM_LOADINGPAGE;
 
-	// Load the new realm
-	m_pGameClient->LoadRealm(this, szURL, GameEngine::GetTime(), m_pView->GetScreenRect()->h / 2 - 75);
+	// Download the realm file and parse into an XML doc
+	if(strnicmp(szUrl, "http://", 7) != 0)
+		GameEngine::ThrowError("the URL should begin with \"http://\"");
+	int nLine, nCol;
+	const char* szError;
+	int nBufSize;
+	Holder<char*> hMap(LoadFileFromUrl("", szUrl, &nBufSize));
+	GXMLTag* pMap = GXMLTag::FromString(hMap.Get(), nBufSize, &szError, NULL, &nLine, &nCol);
+	if(!pMap)
+		GameEngine::ThrowError("Failed to parse XML file \"%s\" at line %d. %s", szUrl, nLine, szError);
+
+	// Load realm phase 1
+	m_pGameClient->UnloadRealm();
+	m_pGameClient->LoadRealmPhase1(pMap, szUrl);
+
+	// Load the script
+	GXMLAttribute* pAttrScript = pMap->GetAttribute("Script");
+	if(!pAttrScript)
+		GameEngine::ThrowError("Expected a \"Script\" attribute in file: %s", szUrl);
+	int nScriptSize;
+	char* szScript = LoadFileFromUrl(m_pGameClient->GetRemoteFolder(), pAttrScript->GetValue(), &nScriptSize);
+	MScriptEngine* pScriptEngine = new MScriptEngine(pAttrScript->GetValue(), szScript, nScriptSize, m_pErrorHandler, pMap, m_pGameClient, this, m_pGameClient->GetCurrentRealm());
+
+	// Load the image store
+	GXMLTag* pImages = pMap->GetChildTag("Images");
+	if(!pImages)
+		GameEngine::ThrowError("Expected an 'Images' tag");
+	Holder<MImageStore*> hImageStore(new MImageStore());
+	hImageStore.Get()->FromXml(m_pGameClient->GetRemoteFolder(), pImages, pScriptEngine);
+
+	// Load the animation store
+	GXMLTag* pAnimations = pMap->GetChildTag("Animations");
+	if(!pAnimations)
+		GameEngine::ThrowError("Expected an 'Animations' tag");
+	Holder<MAnimationStore*> hAnimationStore(new MAnimationStore(pScriptEngine));
+	hAnimationStore.Get()->FromXml(pAnimations, hImageStore.Get());
+
+	// Load the sound store
+	GXMLTag* pSounds = pMap->GetChildTag("Sounds");
+	if(!pSounds)
+		GameEngine::ThrowError("Expected a 'Sounds' tag");
+	Holder<MSoundStore*> hSoundStore(new MSoundStore());
+	hSoundStore.Get()->FromXml(this, m_pGameClient->GetRemoteFolder(), pSounds);
+
+	// Load the spot store
+	GXMLTag* pSpots = pMap->GetChildTag("Spots");
+	if(!pSpots)
+		GameEngine::ThrowError("Expected a 'Spots' tag");
+	Holder<MSpotStore*> hSpotStore(new MSpotStore());
+	hSpotStore.Get()->FromXml(pSpots);
+
+	// Load realm phase 2
+	m_pGameClient->LoadRealmPhase2(szUrl, szScript, pScriptEngine, GameEngine::GetTime(), m_pView->GetScreenRect()->h / 2 - 75, hImageStore.Drop(), hAnimationStore.Drop(), hSoundStore.Drop(), hSpotStore.Drop());
 	if(m_pGameClient->IsFirstPerson())
 		SetMode(Controller::FIRSTPERSON);
 	else
 		SetMode(Controller::THIRDPERSON);
+	m_downloadProgressMode = DPM_IGNORE;
+
+	// Record URL in the account
+	GXMLTag* pAccountTag = m_pGameClient->GetAccountTag();
+	GXMLTag* pStartTag = pAccountTag->GetChildTag("Start");
+	if(!pStartTag)
+	{
+		pStartTag = new GXMLTag("Start");
+		pAccountTag->AddChildTag(pStartTag);
+	}
+	GXMLAttribute* pAttrUrl = pStartTag->GetAttribute("url");
+	if(pAttrUrl)
+		pAttrUrl->SetValue(szUrl);
+	else
+		pStartTag->AddAttribute(new GXMLAttribute("url", szUrl));
+
+	// Get the ground and sky images
+	MImageStore* pImageStore = m_pGameClient->GetImages();
+	VarHolder* pVH = pImageStore->GetVarHolder("sky");
+	if(!pVH)
+		GameEngine::ThrowError("Expected an image with the ID \"sky\"");
+	MGameImage* pSkyImage = (MGameImage*)pVH->GetGObject();
+	pVH = pImageStore->GetVarHolder("ground");
+	if(!pVH)
+		GameEngine::ThrowError("Expected an image with the ID \"ground\"");
+	MGameImage* pGroundImage = (MGameImage*)pVH->GetGObject();
 
 	// Show the game view
 	ViewPort* pViewPort = m_pView->PopViewPort();
-	GAssert(pViewPort == pLoadingView, "Unexpected view port");
+	GAssert(pViewPort == m_pLoadingView, "Unexpected view port");
 	delete(pViewPort);
+	m_pLoadingView = NULL;
 	GAssert(!m_pGameView, "The game view already exists");
-	m_pGameView = new VGame(m_pView->GetScreenRect(), m_pGameClient);
+	m_pGameView = new VGame(m_pView->GetScreenRect(), m_pGameClient, &pSkyImage->m_value, &pGroundImage->m_value);
 	m_pView->PushViewPort(m_pGameView);
+}
+
+void Controller::SetSkyImage(GString* pID)
+{
+	MImageStore* pImageStore = m_pGameClient->GetImages();
+	char* szID = (char*)alloca(pID->GetLength() + 1);
+	pID->GetAnsi(szID);
+	VarHolder* pVH = pImageStore->GetVarHolder(szID);
+	if(!pVH)
+		GameEngine::ThrowError("There is no image with the ID \"%s\"", szID);
+	MGameImage* pImage = (MGameImage*)pVH->GetGObject();
+	m_pGameView->SetSkyImage(&pImage->m_value);
+}
+
+void Controller::SetGroundImage(GString* pID)
+{
+	MImageStore* pImageStore = m_pGameClient->GetImages();
+	char* szID = (char*)alloca(pID->GetLength() + 1);
+	pID->GetAnsi(szID);
+	VarHolder* pVH = pImageStore->GetVarHolder(szID);
+	if(!pVH)
+		GameEngine::ThrowError("There is no image with the ID \"%s\"", szID);
+	MGameImage* pImage = (MGameImage*)pVH->GetGObject();
+	m_pGameView->SetGroundImage(&pImage->m_value);
 }
 
 void Controller::MakeEntropyCollectorView()
@@ -828,14 +1143,14 @@ void Controller::MakeEntropyCollectorView()
 
 void Controller::MakeCharSelectView()
 {
-	m_pCharSelect = new VCharSelect(m_pView->GetScreenRect(), m_szTypeBuffer);
+	m_pCharSelect = new VCharSelect(m_pView->GetScreenRect(), m_szTypeBuffer, this);
 	m_pView->PushViewPort(m_pCharSelect);
 	SetMode(SELECTCHAR);
 }
 
 void Controller::MakeNewCharView()
 {
-	m_pMakeNewChar = new VCharMake(m_pView->GetScreenRect(), m_szTypeBuffer);
+	m_pMakeNewChar = new VCharMake(m_pView->GetScreenRect(), m_szTypeBuffer, this);
 	m_pView->PushViewPort(m_pMakeNewChar);
 	SetMode(MAKENEWCHAR);
 	ClearTypeBuffer();
@@ -908,7 +1223,7 @@ void Controller::LogIn(GXMLTag* pAccountRefTag, const char* szPassword)
 	int nErrorLine;
 	GXMLTag* pAccountTag = GXMLTag::FromFile(szFilename, &szErrorMessage, NULL, &nErrorLine, NULL);
 	if(!pAccountTag)
-		GameEngine::ThrowError("Error loading account %s, %s", szFilename, szErrorMessage);
+		GameEngine::ThrowError("Error loading account %s at line %d, %s", szFilename, nErrorLine, szErrorMessage);
 
 	// Find the start URL
 	const char* szStartUrl = NULL;
@@ -964,3 +1279,215 @@ void Controller::SendToServer(GObject* pObj)
 	GAssert(m_pModel->GetType() == Model::Client, "Only the client should send to the server");
 	m_pModel->SendObject(pObj, 0);
 }
+
+// todo: this method probably doesn't handle all URL's properly.  For example, if the host is
+// specified but the protocol is not, I think it chokes.  Also if the URL begins with a '/', I
+// don't think it really looks in the host's root folder as expected
+char* Controller::LoadFileFromUrl(const char* szRemotePath, const char* szUrl, int* pnSize)
+{
+	OnBeginDownloadingFile(szUrl);
+
+	// Cut off the protocol specification
+	const char* pUrlWithoutProtocol = szUrl;
+	bool bProtocolSpecified = false;
+	if(strnicmp(szUrl, "http://", 7) == 0)
+	{
+		bProtocolSpecified = true;
+		pUrlWithoutProtocol = szUrl + 7;
+	}
+
+	// Try loading from the cache
+	const char* szCachePath = GameEngine::GetCachePath();
+	GTEMPBUF(szBuf, strlen(szCachePath) + strlen(szRemotePath) + strlen(pUrlWithoutProtocol) + 10);
+	strcpy(szBuf, szCachePath);
+	if(!bProtocolSpecified)
+	{
+		if(strnicmp(szRemotePath, "http://", 7) != 0)
+			GameEngine::ThrowError("remote path should start with protocol specifier");
+		strcat(szBuf, szRemotePath + 7);
+	}
+	strcat(szBuf, pUrlWithoutProtocol);
+	int n;
+	for(n = 0; szBuf[n] != '\0' && szBuf[n] != '?'; n++)
+	{
+	}
+	if(szBuf[n] == '?')
+		szBuf[n] = '\0';
+	if(GFile::DoesFileExist(szBuf))
+	{
+		if(pnSize)
+		{
+			char* pFile = GFile::LoadFileToBuffer(szBuf, pnSize);
+			if(!pFile)
+				GameEngine::ThrowError("Failed to load existing file from cache: %s", szBuf);
+			return pFile;
+		}
+		else
+		{
+			char* szFilename = new char[strlen(szBuf) + 1];
+			strcpy(szFilename, szBuf);
+			return szFilename;
+		}
+	}
+
+	// Download and cache the file
+	if(bProtocolSpecified)
+		return DownloadAndCacheFile(szUrl, pnSize, szBuf);
+	else
+	{
+		GTEMPBUF(szFullUrl, strlen(szRemotePath) + strlen(szUrl) + 1);
+		strcpy(szFullUrl, szRemotePath);
+		strcat(szFullUrl, szUrl);
+		return DownloadAndCacheFile(szFullUrl, pnSize, szBuf);
+	}
+}
+
+
+/*static*/ char* Controller::DownloadFile(GHttpClient* pSocket, const char* szUrl, int* pnSize, bool bThrow, double dTimeout, DownloadFileProgressCallback pProgressCallback, void* pThis)
+{
+	// Download from URL
+#ifdef _DEBUG
+	int nAttempts = 1;
+#else // _DEBUG
+	int nAttempts = 2;
+#endif // !_DEBUG
+	for( ; nAttempts > 0; nAttempts--)
+	{
+		if(!pSocket->Get(szUrl, 80))
+			GameEngine::ThrowError("Failed to connect to url: %s", szUrl);
+		float fProgress = 0;
+		float fPrevProgress = 0;
+		double dTime;
+		double dLastReportProgressTime = GameEngine::GetTime();
+		double dLastMakeProgressTime = dLastReportProgressTime;
+		while(pSocket->CheckStatus(&fProgress) == GHttpClient::Downloading)
+		{
+#ifdef WIN32
+			GWindows::YieldToWindows();
+			Sleep(0);
+#else // WIN32
+			usleep(0);
+#endif // else WIN32
+			dTime = GameEngine::GetTime();
+			if(dTime - dLastReportProgressTime > .15)
+			{
+				if(fProgress > fPrevProgress)
+				{
+					fPrevProgress = fProgress;
+					dLastMakeProgressTime = dTime;
+				}
+				else if(dTime - dLastMakeProgressTime > dTimeout)
+					break;
+				if(pProgressCallback)
+					pProgressCallback(pThis, fProgress);
+				dLastReportProgressTime = dTime;
+			}
+		}
+		int nSize;
+		char* pFile = (char*)pSocket->DropData(&nSize);
+		if(!pFile)
+		{
+			if(nAttempts > 1)
+				continue;
+			if(bThrow)
+			{
+				char* szSocketStatus;
+				switch(pSocket->CheckStatus(NULL))
+				{
+					case GHttpClient::Downloading: szSocketStatus = "Timed out"; break;
+					case GHttpClient::Error: szSocketStatus = "An error occurred while downloading"; break;
+					case GHttpClient::NotFound: szSocketStatus = "404- Not Found"; break;
+					case GHttpClient::Done: szSocketStatus = "Successful"; break;
+					default: szSocketStatus = "Unexpected status enumeration"; break;
+				}
+				GameEngine::ThrowError("Failed to download URL \"%s\".  Status=%s", szUrl, szSocketStatus);
+			}
+		}
+		if(pnSize)
+			*pnSize = nSize;
+		return pFile;
+	}
+	GAssert(false, "shouldn't get here");
+	GameEngine::ThrowError("Failed to download URL \"%s\".", szUrl);
+	return NULL;
+}
+
+void Controller::OnBeginDownloadingFile(const char* szUrl)
+{
+	GAssert(!m_szNewUrl, "this will be problematic");
+	Update(0);
+	if(m_bQuit)
+		GameEngine::ThrowError("User aborted download");
+	if(m_downloadProgressMode == DPM_LOADINGPAGE)
+	{
+		m_pLoadingView->SetUrl(szUrl);
+		m_pLoadingView->SetProgress(0);
+		m_pView->Refresh();
+	}
+}
+
+void Controller::OnDownloadFileProgress(float fProgress)
+{
+	GAssert(!m_szNewUrl, "this will be problematic");
+	Update(0);
+	if(m_bQuit)
+		GameEngine::ThrowError("User aborted download");
+	if(m_downloadProgressMode == DPM_LOADINGPAGE)
+	{
+		m_pLoadingView->SetProgress(fProgress);
+		m_pView->Refresh();
+	}
+}
+
+void ControllerDownloadFileProgressCallback(void* pThis, float fProgress)
+{
+	((Controller*)pThis)->OnDownloadFileProgress(fProgress);
+}
+
+char* Controller::DownloadAndCacheFile(const char* szUrl, int* pnSize, char* szCacheName)
+{
+	// Download it
+	int nSize;
+	Holder<char*> hFile(DownloadFile(m_pHttpClient, szUrl, &nSize, true, 30, ControllerDownloadFileProgressCallback, this));
+	char* pFile = hFile.Get();
+
+	// Cache the file
+	int n;
+	for(n = strlen(szCacheName) - 1; n > 0; n--)
+	{
+		if(szCacheName[n] == '/' || szCacheName[n] == '\\')
+		{
+			char cTmp = szCacheName[n];
+			szCacheName[n] = '\0';
+			GFile::MakeDir(szCacheName);
+			szCacheName[n] = cTmp;
+			break;
+		}
+	}
+	{
+		FileHolder fh(fopen(szCacheName, "wb"));
+		FILE* pFH = fh.Get();
+		if(pFH)
+			fwrite(pFile, nSize, 1, pFH);
+		else
+		{
+			GAssert(false, "Failed to save file in cache");
+			if(!pnSize)
+				GameEngine::ThrowError("Failed to save file in cache: %s", szCacheName);
+		}
+	}
+
+	// Return the requested data (either the file loaded in memory, or the filename in the cache)
+	if(pnSize)
+	{
+		*pnSize = nSize;
+		return hFile.Drop();
+	}
+	else
+	{
+		char* szFilename = new char[strlen(szCacheName) + 1];
+		strcpy(szFilename, szCacheName);
+		return szFilename;
+	}
+}
+

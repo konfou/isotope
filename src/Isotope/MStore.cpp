@@ -20,6 +20,7 @@
 #include "MGameImage.h"
 #include "MScriptEngine.h"
 #include "MSpot.h"
+#include "Controller.h"
 
 
 MImageStore::MImageStore()
@@ -179,7 +180,7 @@ MSound* MSoundStore::GetSound(int n)
 	return (MSound*)m_pArray->GetPointer(n);
 }
 
-void MSoundStore::FromXml(const char* szRemotePath, GXMLTag* pTag)
+void MSoundStore::FromXml(Controller* pController, const char* szRemotePath, GXMLTag* pTag)
 {
 	GXMLTag* pChild;
 	for(pChild = pTag->GetFirstChildTag(); pChild; pChild = pTag->GetNextChildTag(pChild))
@@ -190,7 +191,7 @@ void MSoundStore::FromXml(const char* szRemotePath, GXMLTag* pTag)
 		GXMLAttribute* pAttrFile = pChild->GetAttribute("File");
 		if(!pAttrFile)
 			GameEngine::ThrowError("Expected a \"file\" attribute.");
-		Holder<char*> hFilename(GameEngine::LoadFileFromUrl(szRemotePath, pAttrFile->GetValue(), NULL));
+		Holder<char*> hFilename(pController->LoadFileFromUrl(szRemotePath, pAttrFile->GetValue(), NULL));
 		char* szFilename = hFilename.Get();
 		MSound* pSound = new MSound(szFilename);
 		char* szIDString = m_pStringHeap->Add(pAttrId->GetValue());

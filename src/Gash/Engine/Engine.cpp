@@ -356,7 +356,7 @@ EType* Engine::FindTypeFromStreamedName(int len, GQueue* pQ)
 	if(!pType)
 	{
 		ConvertAnsiToUnicode(szTypeName, wszTypeName);
-		ThrowError("DeserializationException", L"Couldn't find type: %s", wszTypeName);
+		ThrowError("DeserializationException", L"Couldn't find type: %ls", wszTypeName);
 	}
 	return pType;
 }
@@ -538,11 +538,7 @@ void Engine::ThrowError(const char* szTypeName, const wchar_t* wszMessage, const
 {
 	GTEMPBUF(pBuf, sizeof(wchar_t) * (wcslen(wszMessage) + wcslen(wszVar1) + wcslen(wszVar2) + 20));
 	wchar_t* wszBuf = (wchar_t*)pBuf;
-#ifdef WIN32	
-	swprintf(wszBuf, wszMessage, wszVar1, wszVar2);
-#else
 	swprintf(wszBuf, 1024, wszMessage, wszVar1, wszVar2);
-#endif // WIN32
 	ThrowError(szTypeName, wszBuf);
 }
 
@@ -555,7 +551,7 @@ void Engine::ThrowCastError(EType* pSourceType, EType* pDestType)
 {
 	ConvertAnsiToUnicode(pSourceType->GetName(), wszSourceType);
 	ConvertAnsiToUnicode(pDestType->GetName(), wszDestType);
-	ThrowError("CastException", L"Can't cast a \"%s\" to a \"%s\".", wszSourceType, wszDestType);
+	ThrowError("CastException", L"Can't cast a \"%ls\" to a \"%ls\".", wszSourceType, wszDestType);
 }
 
 void Engine::ThrowNullReferenceGetError()
@@ -573,7 +569,7 @@ void Engine::ThrowFileNotFoundError(const wchar_t* wszFilename)
 	char szCurDir[512];
 	getcwd(szCurDir, 512);
 	ConvertAnsiToUnicode(szCurDir, wszCurDir);
-	ThrowError("IOException", L"The file \"%s\" was not found.  (The current directory is \"%s\".)", wszFilename, wszCurDir);
+	ThrowError("IOException", L"The file \"%ls\" was not found.  (The current directory is \"%ls\".)", wszFilename, wszCurDir);
 }
 
 void Engine::ThrowIOError(const wchar_t* wszMessage, const wchar_t* wszVar1)
@@ -804,7 +800,7 @@ void Engine::OpenFile(FileHolder* pHolder, const char* szFilename, const char* s
 		ConvertAnsiToUnicode(szFilename, wszFilename);
 		if(!GFile::DoesFileExist(szFilename))
 			ThrowFileNotFoundError(wszFilename);
-		ThrowIOError(L"Access is denied while trying to open the file \"%s\".", wszFilename);
+		ThrowIOError(L"Access is denied while trying to open the file \"%ls\".", wszFilename);
 	}
 	pHolder->Set(pFile);
 }
@@ -824,7 +820,7 @@ char* Engine::LoadFile(const char* szFilename, int* pnFileSize)
 	if(err != 0 || nBytesRead != nFileSize)
 	{
 		ConvertAnsiToUnicode(szFilename, wszFilename);
-		ThrowIOError(L"There was an error reading from the file \"%s\".", wszFilename);
+		ThrowIOError(L"There was an error reading from the file \"%ls\".", wszFilename);
 	}
 	hBuffer.Get()[nFileSize] = '\0';
 	return hBuffer.Drop();

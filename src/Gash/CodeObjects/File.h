@@ -52,20 +52,23 @@ public:
 	virtual const char* GetFilename() { return m_szFilename; }
 	void GetFilenameNoPath(char* pBuffer);
 	void SetFilename(const char* szName) { GAssert(szName, "Must have a valid name"); delete(m_szFilename); m_szFilename = new char[strlen(szName) + 1]; strcpy(m_szFilename, szName); }
+	void AddType(COType* pNewType, COProject* pCOProject, GXMLTag* pFileTag);
 
+	// todo: remove these three methods.  Use AddType instead
 	void AddClass(COClass* pClass);
+	void AddInterface(COInterface* pInterface);
+	void AddMachineClass(COMachineClass* pMachine);
+
 	int GetClassCount();
 	COClass* GetClass(int n);
 
-	void AddInterface(COInterface* pInterface);
 	int GetInterfaceCount();
 	COInterface* GetInterface(int n);
 
-	void AddMachineClass(COMachineClass* pMachine);
 	int GetMachineClassCount();
 	COMachineClass* GetMachineClass(int n);
 
-	void LoadClassNames(GXMLTag* pFileTag, COProject* pCOProject); // todo: rename to LoadTypeNames
+	void LoadTypeNames(GXMLTag* pFileTag, COProject* pCOProject, bool bXLib);
 	void LoadMembers(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	void LoadMethodDeclarations(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
 	void LoadInstructions(GXMLTag* pTag, COProject* pCOProject, bool bPartial);
@@ -86,6 +89,8 @@ public:
 
 	int CountTypes();
 	COType* GetType(int index);
+	void ReplaceType(COType* pOld, COType* pNew);
+	bool RemoveUnlinkedType(COType* pOldType);
 
 protected:
 	static COFile* LoadPartialForSymbolCreation(const char* szFilename, ErrorHandler* pErrorHandler, COProject* pProject);

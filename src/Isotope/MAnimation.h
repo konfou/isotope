@@ -63,6 +63,9 @@ public:
 	// This method is called from within Gash scripts.  It's just a wrapper around AdvanceTime
 	void advanceTime(Engine* pEngine, EVar* pOutLooped, EVar* pTime);
 
+	// This method is called from within Gash scripts.  It's sets the animation to the specified time
+	void setTime(Engine* pEngine, EVar* pTime);
+
 	// This method is called from within Gash scripts.  It makes a copy of the animation
 	void newCopy(Engine* pEngine, EVar* pThat);
 

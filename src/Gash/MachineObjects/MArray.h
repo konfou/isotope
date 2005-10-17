@@ -19,7 +19,7 @@
 
 class MArray : public WrapperObject
 {
-protected:
+public:
 	GPointerArray* m_pArray; // todo: pull the whole array class into this one
 	Engine* m_pEngine;
 

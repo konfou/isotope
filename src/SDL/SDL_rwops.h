@@ -1,6 +1,6 @@
 /*
     SDL - Simple DirectMedia Layer
-    Copyright (C) 1997, 1998, 1999  Sam Lantinga
+    Copyright (C) 1997-2004 Sam Lantinga
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
     Sam Lantinga
-    slouken@devolution.com
+    slouken@libsdl.org
 */
 
 #ifdef SAVE_RCSID
@@ -49,22 +49,22 @@ typedef struct SDL_RWops {
 		SEEK_SET, SEEK_CUR, SEEK_END
 	   Returns the final offset in the data source.
 	 */
-	int (*seek)(struct SDL_RWops *context, int offset, int whence);
+	int (SDLCALL *seek)(struct SDL_RWops *context, int offset, int whence);
 
 	/* Read up to 'num' objects each of size 'objsize' from the data
 	   source to the area pointed at by 'ptr'.
 	   Returns the number of objects read, or -1 if the read failed.
 	 */
-	int (*read)(struct SDL_RWops *context, void *ptr, int size, int maxnum);
+	int (SDLCALL *read)(struct SDL_RWops *context, void *ptr, int size, int maxnum);
 
 	/* Write exactly 'num' objects each of size 'objsize' from the area
 	   pointed at by 'ptr' to data source.
 	   Returns 'num', or -1 if the write failed.
 	 */
-	int (*write)(struct SDL_RWops *context, const void *ptr, int size, int num);
+	int (SDLCALL *write)(struct SDL_RWops *context, const void *ptr, int size, int num);
 
 	/* Close and free an allocated SDL_FSops structure */
-	int (*close)(struct SDL_RWops *context);
+	int (SDLCALL *close)(struct SDL_RWops *context);
 
 	Uint32 type;
 	union {
@@ -87,13 +87,15 @@ typedef struct SDL_RWops {
 
 /* Functions to create SDL_RWops structures from various data sources */
 
-extern DECLSPEC SDL_RWops * SDL_RWFromFile(const char *file, const char *mode);
+extern DECLSPEC SDL_RWops * SDLCALL SDL_RWFromFile(const char *file, const char *mode);
 
-extern DECLSPEC SDL_RWops * SDL_RWFromFP(FILE *fp, int autoclose);
+extern DECLSPEC SDL_RWops * SDLCALL SDL_RWFromFP(FILE *fp, int autoclose);
 
-extern DECLSPEC SDL_RWops * SDL_RWFromMem(void *mem, int size);
+extern DECLSPEC SDL_RWops * SDLCALL SDL_RWFromMem(void *mem, int size);
+extern DECLSPEC SDL_RWops * SDLCALL SDL_RWFromConstMem(const void *mem, int size);
 
-extern DECLSPEC SDL_RWops * SDL_AllocRW(void);
+extern DECLSPEC SDL_RWops * SDLCALL SDL_AllocRW(void);
+extern DECLSPEC void SDLCALL SDL_FreeRW(SDL_RWops *area);
 
 /* Macros to easily read and write from an SDL_RWops structure */
 #define SDL_RWseek(ctx, offset, whence)	(ctx)->seek(ctx, offset, whence)
@@ -105,7 +107,7 @@ extern DECLSPEC SDL_RWops * SDL_AllocRW(void);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
-};
+}
 #endif
 #include "close_code.h"
 

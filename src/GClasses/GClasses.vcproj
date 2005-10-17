@@ -3,7 +3,6 @@
 	ProjectType="Visual C++"
 	Version="7.10"
 	Name="GClasses"
-	ProjectGUID="{9A630B62-97DB-4664-831B-375F22BA22E3}"
 	SccProjectName=""
 	SccLocalPath="">
 	<Platforms>
@@ -13,8 +12,8 @@
 	<Configurations>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\..\..\Obj\GClasses\Release"
-			IntermediateDirectory=".\..\..\Obj\GClasses\Release"
+			OutputDirectory="..\..\Obj\GClasses\Release"
+			IntermediateDirectory="..\..\Obj\GClasses\Release"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -25,9 +24,8 @@
 				InlineFunctionExpansion="1"
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;_MT"
 				StringPooling="TRUE"
-				RuntimeLibrary="4"
+				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
-				UsePrecompiledHeader="2"
 				PrecompiledHeaderFile=".\..\..\Obj\GClasses\Release/GClasses.pch"
 				AssemblerListingLocation=".\..\..\Obj\GClasses\Release/"
 				ObjectFile=".\..\..\Obj\GClasses\Release/"
@@ -63,8 +61,8 @@
 		</Configuration>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory=".\..\..\Obj\GClasses\Debug"
-			IntermediateDirectory=".\..\..\Obj\GClasses\Debug"
+			OutputDirectory="..\..\Obj\GClasses\Debug"
+			IntermediateDirectory="..\..\Obj\GClasses\Debug"
 			ConfigurationType="4"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="FALSE"
@@ -74,8 +72,7 @@
 				Optimization="0"
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;_MT"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="5"
-				UsePrecompiledHeader="2"
+				RuntimeLibrary="0"
 				PrecompiledHeaderFile=".\..\..\Obj\GClasses\Debug/GClasses.pch"
 				AssemblerListingLocation=".\..\..\Obj\GClasses\Debug/"
 				ObjectFile=".\..\..\Obj\GClasses\Debug/"
@@ -118,10 +115,25 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
-				RelativePath=".\GArff.cpp">
+				RelativePath="GArff.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GArff.h">
+				RelativePath="GArff.h">
 			</File>
 			<File
 				RelativePath="GArray.cpp">
@@ -208,10 +220,25 @@
 				RelativePath="GBigNumber.h">
 			</File>
 			<File
-				RelativePath=".\GBillboardCamera.cpp">
+				RelativePath="GBillboardCamera.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GBillboardCamera.h">
+				RelativePath="GBillboardCamera.h">
 			</File>
 			<File
 				RelativePath="GBitTable.cpp">
@@ -233,6 +260,24 @@
 			</File>
 			<File
 				RelativePath="GBitTable.h">
+			</File>
+			<File
+				RelativePath="GBlock.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="GBuffer.h">
@@ -301,10 +346,25 @@
 				RelativePath="GCrypto.h">
 			</File>
 			<File
-				RelativePath=".\GDaftLearner.cpp">
+				RelativePath="GDaftLearner.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GDaftLearner.h">
+				RelativePath="GDaftLearner.h">
 			</File>
 			<File
 				RelativePath="GDataBase.cpp">
@@ -346,13 +406,28 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GDate.h">
+				RelativePath="GDate.h">
 			</File>
 			<File
-				RelativePath=".\GDecisionTree.cpp">
+				RelativePath="GDecisionTree.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GDecisionTree.h">
+				RelativePath="GDecisionTree.h">
 			</File>
 			<File
 				RelativePath="GDiff.cpp">
@@ -376,6 +451,9 @@
 				RelativePath="GDiff.h">
 			</File>
 			<File
+				RelativePath="GDirectSound.h">
+			</File>
+			<File
 				RelativePath="GDirList.cpp">
 				<FileConfiguration
 					Name="Release|Win32">
@@ -395,6 +473,27 @@
 			</File>
 			<File
 				RelativePath="GDirList.h">
+			</File>
+			<File
+				RelativePath="GDispRect.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="GDSound.h">
 			</File>
 			<File
 				RelativePath="GEZSocket.cpp">
@@ -443,6 +542,24 @@
 			</File>
 			<File
 				RelativePath="GFlipTable.h">
+			</File>
+			<File
+				RelativePath="GFont.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="GFourier.cpp">
@@ -550,10 +667,25 @@
 				RelativePath="GHeap.h">
 			</File>
 			<File
-				RelativePath=".\GHttp.cpp">
+				RelativePath="GHttp.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GHttp.h">
+				RelativePath="GHttp.h">
 			</File>
 			<File
 				RelativePath="GImage.cpp">
@@ -598,6 +730,24 @@
 				RelativePath="GKeyPair.h">
 			</File>
 			<File
+				RelativePath="GLevel.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="GLList.cpp">
 				<FileConfiguration
 					Name="Release|Win32">
@@ -622,10 +772,25 @@
 				RelativePath="GMacros.h">
 			</File>
 			<File
-				RelativePath=".\GMath.cpp">
+				RelativePath="GMath.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GMath.h">
+				RelativePath="GMath.h">
 			</File>
 			<File
 				RelativePath="GMatrix.cpp">
@@ -670,13 +835,52 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GMipsEmulator.h">
+				RelativePath="GMipsEmulator.h">
 			</File>
 			<File
-				RelativePath=".\GNeuralNet.cpp">
+				RelativePath="GNaiveBayes.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GNeuralNet.h">
+				RelativePath="GNaiveBayes.h">
+			</File>
+			<File
+				RelativePath="GNeuralNet.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="GNeuralNet.h">
+			</File>
+			<File
+				RelativePath="GnuSDK.h">
 			</File>
 			<File
 				RelativePath="GParseTree.cpp">
@@ -721,10 +925,25 @@
 				RelativePath="GPipe.h">
 			</File>
 			<File
-				RelativePath=".\GPNG.cpp">
+				RelativePath="GPNG.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GPNG.h">
+				RelativePath="GPNG.h">
 			</File>
 			<File
 				RelativePath="GPointerQueue.cpp">
@@ -748,10 +967,25 @@
 				RelativePath="GPointerQueue.h">
 			</File>
 			<File
-				RelativePath=".\GPolynomial.cpp">
+				RelativePath="GPolynomial.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GPolynomial.h">
+				RelativePath="GPolynomial.h">
 			</File>
 			<File
 				RelativePath="GQueue.cpp">
@@ -958,7 +1192,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GStream.h">
+				RelativePath="GStream.h">
 			</File>
 			<File
 				RelativePath="GString.cpp">
@@ -1060,7 +1294,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\GTimer.h">
+				RelativePath="GTimer.h">
 			</File>
 			<File
 				RelativePath="GTrie.cpp">
@@ -1145,6 +1379,24 @@
 			</File>
 			<File
 				RelativePath="GWidgets.h">
+			</File>
+			<File
+				RelativePath="GWindow.cpp">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="2"
+						PreprocessorDefinitions=""/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32">
+					<Tool
+						Name="VCCLCompilerTool"
+						Optimization="0"
+						PreprocessorDefinitions=""
+						BasicRuntimeChecks="3"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="GWindows.cpp">

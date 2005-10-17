@@ -140,13 +140,22 @@ GXMLTag* GXMLParser::ParseTag()
 	}
 	if(nNameLength >= 3 && strncmp(&m_pFile[nNameStart], "!--", 3) == 0)
 	{
+		m_nPos -= nNameLength;
+
 		// Skip to the end of the comment
+		int nNests = 1;
 		while(true)
 		{
 			if(m_nPos + 3 >= m_nLength)
 				break;
+			if(strncmp(&m_pFile[m_nPos], "<!--", 4) == 0)
+				nNests++;
 			if(strncmp(&m_pFile[m_nPos], "-->", 3) == 0)
-				break;
+			{
+				nNests--;
+				if(nNests <= 0)
+					break;
+			}
 			else if(m_pFile[m_nPos] == '\n')
 			{
 				m_nLine++;

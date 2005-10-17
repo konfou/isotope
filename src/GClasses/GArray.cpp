@@ -119,9 +119,8 @@ void GSmallArray::SetSize(int n)
 
 // -------------------------------------------------------------------------
 
-// This uses merge sort.  todo: rewrite it so that we don't copy the
-// entire buffer each iteration.  Just swap buffers instead.
-void GPointerArray::Sort(PointerComparer pCompareFunc)
+// This uses merge sort.
+void GPointerArray::Sort(PointerComparer pCompareFunc, void* pThis)
 {
 	int nCount = GetSize();
 	void** pBuf = new void*[m_nAllocCount];
@@ -146,7 +145,7 @@ void GPointerArray::Sort(PointerComparer pCompareFunc)
 				else if(!j)
 					cmp = 1;
 				else
-					cmp = pCompareFunc(GetPointer(n + i - 1), GetPointer(n + nStep + j - 1));
+					cmp = pCompareFunc(pThis, GetPointer(n + i - 1), GetPointer(n + nStep + j - 1));
 				if(cmp <= 0)
 				{
 					pBuf[n + k] = GetPointer(n + nStep + j - 1);

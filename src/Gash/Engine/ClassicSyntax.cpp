@@ -887,6 +887,7 @@ void ClassicSyntax::ParseCall(GXMLTag* pParentTag)
 	GXMLTag* pCallTag = new GXMLTag(TAG_NAME_CALL);
 	pCallTag->SetLineNumber(m_nLineNumber);
 	int nStartCol = m_nPos - m_nLineStartPos + 1;
+	pCallTag->SetColumnAndWidth(nStartCol, 5);
 	pParentTag->AddChildTag(pCallTag);
 	bool b;
 
@@ -966,7 +967,7 @@ void ClassicSyntax::ParseCall(GXMLTag* pParentTag)
 		SetError(&Error::EXPECTED_CLOSE_PAREN);
 		return;
 	}
-	int nEndCol = m_nPos - m_nLineStartPos + 1;
+	int nEndCol = MAX(nStartCol, m_nPos - m_nLineStartPos + 1);
 	pCallTag->SetColumnAndWidth(nStartCol, nEndCol - nStartCol);
 }
 

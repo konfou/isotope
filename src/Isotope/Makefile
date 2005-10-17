@@ -18,8 +18,8 @@ OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /System/Library/Framewo
 else
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --libs) /usr/X11R6/lib/libGL.so.1 /usr/lib/libpng.so
-OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /usr/X11R6/lib/libGL.so.1 /usr/lib/libpng.so
+DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
+OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
 endif
 
 ################
@@ -30,6 +30,7 @@ ISOTOPE_SOURCES =   $(ISOTOPE_PATH)/AutoUpdate.cpp\
                     $(ISOTOPE_PATH)/Controller.cpp\
                     $(ISOTOPE_PATH)/GameEngine.cpp\
                     $(ISOTOPE_PATH)/MAnimation.cpp\
+                    $(ISOTOPE_PATH)/MCollisionMap.cpp\
                     $(ISOTOPE_PATH)/MGameClient.cpp\
                     $(ISOTOPE_PATH)/MGameImage.cpp\
                     $(ISOTOPE_PATH)/MKeyPair.cpp\
@@ -39,6 +40,7 @@ ISOTOPE_SOURCES =   $(ISOTOPE_PATH)/AutoUpdate.cpp\
                     $(ISOTOPE_PATH)/MRealmServer.cpp\
                     $(ISOTOPE_PATH)/MScriptEngine.cpp\
                     $(ISOTOPE_PATH)/MSpot.cpp\
+                    $(ISOTOPE_PATH)/MStatCollector.cpp\
                     $(ISOTOPE_PATH)/MStore.cpp\
                     $(ISOTOPE_PATH)/NRealmProtocol.cpp\
                     $(ISOTOPE_PATH)/VCharMake.cpp\
@@ -56,6 +58,7 @@ ISOTOPE_HEADER =    $(ISOTOPE_PATH)/AutoUpdate.h\
                     $(ISOTOPE_PATH)/Controller.h\
                     $(ISOTOPE_PATH)/GameEngine.h\
                     $(ISOTOPE_PATH)/MAnimation.h\
+                    $(ISOTOPE_PATH)/MCollisionMap.h\
                     $(ISOTOPE_PATH)/MGameClient.h\
                     $(ISOTOPE_PATH)/MGameImage.h\
                     $(ISOTOPE_PATH)/MKeyPair.h\
@@ -65,6 +68,7 @@ ISOTOPE_HEADER =    $(ISOTOPE_PATH)/AutoUpdate.h\
                     $(ISOTOPE_PATH)/MRealmServer.h\
                     $(ISOTOPE_PATH)/MScriptEngine.h\
                     $(ISOTOPE_PATH)/MSpot.h\
+                    $(ISOTOPE_PATH)/MStatCollector.h\
                     $(ISOTOPE_PATH)/MStore.h\
                     $(ISOTOPE_PATH)/NRealmProtocol.h\
                     $(ISOTOPE_PATH)/VCharMake.h\
