@@ -12,8 +12,8 @@
 #ifndef __MGAMEIMAGE_H__
 #define __MGAMEIMAGE_H__
 
-#include "../Gash/BuiltIns/GashString.h"
-#include "../Gash/Include/GashEngine.h"
+#include "../Gasp/BuiltIns/GaspString.h"
+#include "../Gasp/Include/GaspEngine.h"
 #include "../GClasses/GImage.h"
 #include "../GClasses/GMacros.h"
 #ifdef DARWIN

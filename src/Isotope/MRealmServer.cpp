@@ -23,7 +23,7 @@
 #else // WIN32
 #include <unistd.h>
 #endif // WIN32
-#include "../Gash/Include/GashEngine.h"
+#include "../Gasp/Include/GaspEngine.h"
 #include "MScriptEngine.h"
 #include "MObject.h"
 #include "Controller.h"

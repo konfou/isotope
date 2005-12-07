@@ -12,7 +12,7 @@
 #ifndef __MANIMATION_H__
 #define __MANIMATION_H__
 
-#include "../Gash/Include/GashSdl.h"
+#include "../Gasp/Include/GaspSdl.h"
 #include <wchar.h>
 
 class MAnimationFrame;
@@ -49,6 +49,8 @@ public:
 
 	static MAnimation* FromXml(GXMLTag* pTag, MScriptEngine* pScriptEngine, const char* szID, MImageStore* pImageStore);
 
+	void Scale(float fac);
+
 	// Advance the animation
 	bool AdvanceTime(double dt);
 
@@ -60,27 +62,27 @@ public:
 	// camera angle.  This is used for objects that can be viewed from any angle.
 	void getColumnFrame(Engine* pEngine, EVar* pOutImage, EVar* pOutRect, EVar* pCameraDirection);
 
-	// This method is called from within Gash scripts.  It's just a wrapper around AdvanceTime
+	// This method is called from within Gasp scripts.  It's just a wrapper around AdvanceTime
 	void advanceTime(Engine* pEngine, EVar* pOutLooped, EVar* pTime);
 
-	// This method is called from within Gash scripts.  It's sets the animation to the specified time
+	// This method is called from within Gasp scripts.  It's sets the animation to the specified time
 	void setTime(Engine* pEngine, EVar* pTime);
 
-	// This method is called from within Gash scripts.  It makes a copy of the animation
+	// This method is called from within Gasp scripts.  It makes a copy of the animation
 	void newCopy(Engine* pEngine, EVar* pThat);
 
-	// This method is called from Gash when the object needs to be serialized
+	// This method is called from Gasp when the object needs to be serialized
 	void toStream(Engine* pEngine, EVar* pOutBlob, EVar* pOutRefs);
 
-	// This method is called from Gash as part of the deserialization process
+	// This method is called from Gasp as part of the deserialization process
 	void fromStream(Engine* pEngine, EVar* pStream);
 
-	// This method is called from Gash as part of the deserialization process
+	// This method is called from Gasp as part of the deserialization process
 	void setRefs(Engine* pEngine, EVar* pRefs)
 	{
 	}
 
-	// This method is called from Gash when debugging
+	// This method is called from Gasp when debugging
 	virtual void GetDisplayValue(wchar_t* pBuf, int nSize)
 	{
 		GAssert(nSize > 32, "Buffer too small");

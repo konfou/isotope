@@ -9,6 +9,7 @@
 	see http://www.gnu.org/copyleft/gpl.html
 */
 
+#include <stdlib.h>
 #include "Controller.h"
 #include "GameEngine.h"
 #include "../GClasses/GArray.h"
@@ -19,6 +20,7 @@
 #include "../GClasses/GHttp.h"
 #include "../GClasses/GWindows.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GSDL.h"
 #include "../GClasses/sha2.h"
 #include <math.h>
 #include "VGame.h"
@@ -36,6 +38,7 @@
 #include "VCharMake.h"
 #include "VLoading.h"
 #include "MGameImage.h"
+#include "MAnimation.h"
 #include "MStore.h"
 #ifdef WIN32
 #include <direct.h>
@@ -89,6 +92,7 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 #endif // !SERVER_HAS_VIEW
 	else
 		m_pView = new View();
+	m_pModel = NULL;
 	switch(eRunMode)
 	{
 		case SERVER:
@@ -371,7 +375,7 @@ void Controller::Update(double dTimeDelta)
 	}
 
 	// Check for events
-	int mouseButtonClearers[4];
+	int mouseButtonClearers[8];
 	mouseButtonClearers[1] = 1;
 	mouseButtonClearers[3] = 1;
 	int nCount = 0;
@@ -452,19 +456,6 @@ void Controller::FollowLink(const char* szUrl)
 	}
 }
 
-char g_shiftTable[] =
-{
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-	33, 34, 35, 36, 37, 38, '"', 40, 41, 42, 43,
-	'<', '_', '>', '?',
-	')', '!', '@', '#', '$', '%', '^', '&', '*', '(',
-	58, ':', 60, 61, 62, 63, 64,
-	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-	'{', '|', '}', 94, 95, '~', 
-	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-	123, 124, 125, 126, 127
-};
-
 void Controller::OnKeyDown(SDLKey key, SDLMod mod)
 {
 	if(key > SDLK_z)
@@ -504,7 +495,7 @@ void Controller::OnKeyDown(SDLKey key, SDLMod mod)
 
 	// Capitalize if shift is down
 	if(mod & KMOD_SHIFT)
-		c = g_shiftTable[c];
+		c = GSDL::ShiftKey(c);
 
 	// Record the key
 	m_szTypeBuffer[m_nTypeBufferPos++] = c;
@@ -969,7 +960,7 @@ void Controller::ViewScript()
 #ifdef WIN32
 	ShellExecute(NULL, NULL, "script.txt", NULL, NULL, SW_SHOW);
 #else
-	GAssert(false, "todo: view script not implemented for Linux yet");
+	system("kate script.txt");
 #endif // !WIN32
 }
 
@@ -983,7 +974,7 @@ void Controller::ViewMap()
 #ifdef WIN32
 	ShellExecute(NULL, NULL, "map.txt", NULL, NULL, SW_SHOW);
 #else
-	GAssert(false, "todo: view map not implemented for Linux yet");
+	system("kate map.txt");
 #endif // !WIN32
 }
 
@@ -1004,6 +995,69 @@ void Controller::MakeServerView(MGameServer* pServer)
 	ViewPort* pServerPort = new VServer(m_pView->GetScreenRect(), pServer);
 	m_pView->PushViewPort(pServerPort);
 	SetMode(NOTHING);
+}
+
+void Controller::ReduceImageFootprint(MImageStore* pImages, MAnimationStore* pAnimations, int nAcceptableFootprint)
+{
+	int nPrevBiggestIndex = -1;
+	while(true)
+	{
+		// Find the biggest image
+		int nFootprint = 0;
+		int nGroundID = pImages->GetIndex("ground");
+		int nSkyID = pImages->GetIndex("sky");
+		int nBiggest = 0;
+		int nBiggestIndex = -1;
+		int n, nImageFootprint;
+		int nCount = pImages->GetImageCount();
+		VarHolder* pVH;
+		MGameImage* pGameImage;
+		GImage* pImage;
+		for(n = 0; n < nCount; n++)
+		{
+			if(n == nGroundID || n == nSkyID)
+				continue;
+			if(n == nPrevBiggestIndex)
+				continue; // Don't squish the same image twice in a row
+			pVH = pImages->GetVarHolder(n);
+			pGameImage = (MGameImage*)pVH->GetGObject();
+			pImage = &pGameImage->m_value;
+			nImageFootprint = (int)pImage->GetWidth() * (int)pImage->GetHeight() * sizeof(unsigned int);
+			nFootprint += nImageFootprint;
+			if(nImageFootprint > nBiggest)
+			{
+				nBiggest = nImageFootprint;
+				nBiggestIndex = n;
+			}
+		}
+printf("Total image footprint: %d\n", nFootprint);
+		if(nBiggestIndex < 0)
+			break;
+		if(nFootprint < nAcceptableFootprint)
+			break;
+		if(nBiggest < 10000)
+			break; // Don't try to squish images that are already rather small
+		nPrevBiggestIndex = nBiggestIndex;
+
+		// Scale the image
+printf("Squishing the biggest image...\n");
+		pVH = pImages->GetVarHolder(nBiggestIndex);
+		pGameImage = (MGameImage*)pVH->GetGObject();
+		pImage = &pGameImage->m_value;
+		pImage->Scale(pImage->GetWidth() / 2, pImage->GetHeight() / 2);
+
+		// Scale the frames of any animations that use this image
+		nCount = pAnimations->GetAnimationCount();
+		VarHolder* pVHAnim;
+		MAnimation* pAnim;
+		for(n = 0; n < nCount; n++)
+		{
+			pVHAnim = pAnimations->GetVarHolder(n);
+			pAnim = (MAnimation*)pVHAnim->GetGObject();
+			if(pAnim->GetImage() == pVH)
+				pAnim->Scale(.5);
+		}
+	}
 }
 
 void Controller::GoToRealm(const char* szUrl)
@@ -1053,6 +1107,9 @@ void Controller::GoToRealm(const char* szUrl)
 	Holder<MAnimationStore*> hAnimationStore(new MAnimationStore(pScriptEngine));
 	hAnimationStore.Get()->FromXml(pAnimations, hImageStore.Get());
 
+	// Squish big images until we have an acceptable footprint
+	ReduceImageFootprint(hImageStore.Get(), hAnimationStore.Get(), 50331648 /*48 MB*/);
+
 	// Load the sound store
 	GXMLTag* pSounds = pMap->GetChildTag("Sounds");
 	if(!pSounds)
@@ -1091,11 +1148,13 @@ void Controller::GoToRealm(const char* szUrl)
 
 	// Get the ground and sky images
 	MImageStore* pImageStore = m_pGameClient->GetImages();
-	VarHolder* pVH = pImageStore->GetVarHolder("sky");
+	int nImageIndex = pImageStore->GetIndex("sky");
+	VarHolder* pVH = pImageStore->GetVarHolder(nImageIndex);
 	if(!pVH)
 		GameEngine::ThrowError("Expected an image with the ID \"sky\"");
 	MGameImage* pSkyImage = (MGameImage*)pVH->GetGObject();
-	pVH = pImageStore->GetVarHolder("ground");
+	nImageIndex = pImageStore->GetIndex("ground");
+	pVH = pImageStore->GetVarHolder(nImageIndex);
 	if(!pVH)
 		GameEngine::ThrowError("Expected an image with the ID \"ground\"");
 	MGameImage* pGroundImage = (MGameImage*)pVH->GetGObject();
@@ -1115,7 +1174,8 @@ void Controller::SetSkyImage(GString* pID)
 	MImageStore* pImageStore = m_pGameClient->GetImages();
 	char* szID = (char*)alloca(pID->GetLength() + 1);
 	pID->GetAnsi(szID);
-	VarHolder* pVH = pImageStore->GetVarHolder(szID);
+	int nImageIndex = pImageStore->GetIndex(szID);
+	VarHolder* pVH = pImageStore->GetVarHolder(nImageIndex);
 	if(!pVH)
 		GameEngine::ThrowError("There is no image with the ID \"%s\"", szID);
 	MGameImage* pImage = (MGameImage*)pVH->GetGObject();
@@ -1127,7 +1187,8 @@ void Controller::SetGroundImage(GString* pID)
 	MImageStore* pImageStore = m_pGameClient->GetImages();
 	char* szID = (char*)alloca(pID->GetLength() + 1);
 	pID->GetAnsi(szID);
-	VarHolder* pVH = pImageStore->GetVarHolder(szID);
+	int nImageIndex = pImageStore->GetIndex(szID);
+	VarHolder* pVH = pImageStore->GetVarHolder(nImageIndex);
 	if(!pVH)
 		GameEngine::ThrowError("There is no image with the ID \"%s\"", szID);
 	MGameImage* pImage = (MGameImage*)pVH->GetGObject();
@@ -1190,7 +1251,10 @@ void Controller::CreateNewCharacter(const char* szAvatarID, const char* szPasswo
 	GXMLTag* pConfigTag = GameEngine::GetConfig();
 	GXMLTag* pAccountsTag = pConfigTag->GetChildTag("Accounts");
 	if(!pAccountsTag)
-		GameEngine::ThrowError("Expected an Accounts tag in config.xml");
+	{
+		pAccountsTag = new GXMLTag("Accounts");
+		pConfigTag->AddChildTag(pAccountsTag);
+	}
 	GXMLTag* pNewAccountTag = new GXMLTag("Account");
 	pAccountsTag->AddChildTag(pNewAccountTag);
 	pNewAccountTag->AddAttribute(new GXMLAttribute("Anim", szAvatarID));

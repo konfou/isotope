@@ -15,7 +15,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "Gash"=..\Gash\Command\Gash.dsp - Package Owner=<4>
+Project: "GashSDL"=..\Gasp\GaspSDL\GaspSDL.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -23,23 +23,11 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name GashEngine
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name GashLib
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name GashSDL
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name GClasses
-    End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "GashEngine"=..\Gash\GashEngine.dsp - Package Owner=<4>
+Project: "Gasp"=..\Gasp\Command\Gasp.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -47,14 +35,11 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name GClasses
-    End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "GashLib"=..\Gash\GashLib.dsp - Package Owner=<4>
+Project: "GaspEngine"=..\Gasp\GaspEngine.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -62,14 +47,11 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name GashEngine
-    End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "GashSDL"=..\Gash\GashSDL\GashSDL.dsp - Package Owner=<4>
+Project: "GaspLib"=..\Gasp\GaspLib.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -77,14 +59,11 @@ Package=<5>
 
 Package=<4>
 {{{
-    Begin Project Dependency
-    Project_Dep_Name GashLib
-    End Project Dependency
 }}}
 
 ###############################################################################
 
-Project: "test"=.\test.dsp - Package Owner=<4>
+Project: "Isotope"=.\Isotope.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -96,13 +75,13 @@ Package=<4>
     Project_Dep_Name GashSDL
     End Project Dependency
     Begin Project Dependency
+    Project_Dep_Name GaspEngine
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name GaspLib
+    End Project Dependency
+    Begin Project Dependency
     Project_Dep_Name GClasses
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name GashEngine
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name GashLib
     End Project Dependency
 }}}
 

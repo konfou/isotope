@@ -12,7 +12,7 @@
 #ifndef __MOBJECT_H__
 #define __MOBJECT_H__
 
-#include "../Gash/Include/GashEngine.h"
+#include "../Gasp/Include/GaspEngine.h"
 #include "../GClasses/GBillboardCamera.h"
 
 // An object's "ghost" is the sprite that is actually drawn to the screen.
@@ -61,11 +61,11 @@ inline float absfloat(float f)
 
 
 // The MObject class represents an object in the game.  It is basically a wrapper around a
-// RealmObject.  RealmObject is a class in the Gash language.  All scripted objects inherrit
-// from RealmObject.  How can you wrap a Gash object with a C++ object?  Well, all
-// instantiations of classes defined in the Gash language are actually objects of the
+// RealmObject.  RealmObject is a class in the Gasp language.  All scripted objects inherrit
+// from RealmObject.  How can you wrap a Gasp object with a C++ object?  Well, all
+// instantiations of classes defined in the Gasp language are actually objects of the
 // ObjectObject class, which inherits from the GObject class.  GObject is the base class for
-// all objects in the Gash language.  To be more specific, MObject wraps VarHolder which
+// all objects in the Gasp language.  To be more specific, MObject wraps VarHolder which
 // wraps EVar which wraps GObject.  In this case the GObject will be an ObjectObject because
 // it is an instantiation of some class defined in the script.  Why are there so many layers
 // of wrapping?  Well, each layer has a specific purpose.  Here's a brief summary:
@@ -73,13 +73,13 @@ inline float absfloat(float f)
 //   MObject - (C++ class) Contains next/prev pointers so you can link the objects together
 //             in a list
 //   VarHolder - (C++ class) Ensures that the GObject is pinned and unpinned properly so that
-//               the Gash garbage collector will know when to clean up the object
-//   EVar - (C++ class) Represents a variable in the Gash language, which references a GObject
-//   RealmObject - (Gash class) The base class of all objects in the game
-//   ObjectObject - (C++ class) All Gash objects are really instantiations of this C++ class,
+//               the Gasp garbage collector will know when to clean up the object
+//   EVar - (C++ class) Represents a variable in the Gasp language, which references a GObject
+//   RealmObject - (Gasp class) The base class of all objects in the game
+//   ObjectObject - (C++ class) All Gasp objects are really instantiations of this C++ class,
 //                  which inherrits from GObject.
-//   GObject - (C++ class) The base class of all types in the Gash language.  If you're
-//             careful you can manipulate Gash objects from within C++.
+//   GObject - (C++ class) The base class of all types in the Gasp language.  If you're
+//             careful you can manipulate Gasp objects from within C++.
 class MObject
 #ifdef _DEBUG
 	: public AllocCounter
@@ -90,7 +90,7 @@ protected:
 	MScriptEngine* m_pScriptEngine;
 	VarHolder m_vh;
 	GPosSize m_drawPos;
-	unsigned int m_flags; // todo: should these flags be moved into Gash code so scripts can modify them?
+	unsigned int m_flags; // todo: should these flags be moved into Gasp code so scripts can modify them?
 
 public:
 	MObject(MScriptEngine* pScriptEngine);
@@ -116,13 +116,13 @@ public:
 	// Sets the objects size
 	void SetSize(float sx, float sy, float sz);
 
-	// Returns the Gash object that this MObject wraps
+	// Returns the Gasp object that this MObject wraps
 	ObjectObject* GetGObject() { return (ObjectObject*)m_vh.GetGObject(); }
 
-	// Sets the Gash object to wrap
+	// Sets the Gasp object to wrap
 	void SetGObject(GObject* pOb) { m_vh.SetGObject(pOb); }
 
-	// Tells the object to update itself.  (Calls into Gash code to do the update)
+	// Tells the object to update itself.  (Calls into Gasp code to do the update)
 	void Update(double time);
 
 	// Returns the last time this object was updated

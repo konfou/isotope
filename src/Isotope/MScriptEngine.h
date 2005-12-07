@@ -14,13 +14,13 @@
 
 // --------------------------------
 //
-//  The classes in this file constitue the glue between C++ and the Gash scripting language
+//  The classes in this file constitue the glue between C++ and the Gasp scripting language
 //
 // --------------------------------
 
 
 #include "../GClasses/GImage.h"
-#include "../Gash/Include/GashSdl.h"
+#include "../Gasp/Include/GaspSdl.h"
 
 class GVM;
 class Library;
@@ -54,14 +54,14 @@ extern GConstStringHashTable* g_pIsotopeMachineObjects;
 void RegisterIsotopeMachineClasses();
 
 
-// The purpose of this class is to link calls from a Gash script to a C++ method.
-class IsotopeCallBackGetter : public GashSdlCallBackGetter
+// The purpose of this class is to link calls from a Gasp script to a C++ method.
+class IsotopeCallBackGetter : public GaspSdlCallBackGetter
 {
 public:
-	IsotopeCallBackGetter() : GashSdlCallBackGetter() {}
+	IsotopeCallBackGetter() : GaspSdlCallBackGetter() {}
 	virtual ~IsotopeCallBackGetter() {}
 
-	// When the Gash linker wants to link to a C++ method, it will pass the
+	// When the Gasp linker wants to link to a C++ method, it will pass the
 	// class name and method signature as parameters to GetCallBack, which should
 	// return a pointer to the C++ method with that class name and method signature.
 	virtual EMethodPointerHolder* GetCallBack(const char* szClassName, EMethodSignature* pMethodSignature)
@@ -71,14 +71,14 @@ public:
 		EMethodPointerHolder* pMeth = WrapperObject::FindMachineMethod(g_pIsotopeMachineObjects, szClassName, pMethodSignature);
 		if(pMeth)
 			return pMeth;
-		return GashSdlCallBackGetter::GetCallBack(szClassName, pMethodSignature);
+		return GaspSdlCallBackGetter::GetCallBack(szClassName, pMethodSignature);
 	}
 };
 
 
 
-// This class wraps a Gash Virtual Machine.  The only purpose of this class is to contain a
-// pointer to the MGameClient, so that when you call from a Gash script into a C++ method,
+// This class wraps a Gasp Virtual Machine.  The only purpose of this class is to contain a
+// pointer to the MGameClient, so that when you call from a Gasp script into a C++ method,
 // you can get a pointer to the MGameClient.
 class MVM : public GVM
 {
@@ -104,8 +104,8 @@ public:
 
 #define MAX_PARAMS 12
 
-// This class wraps the virtual machine that runs Gash scripts, and contains methods that
-// let you call from C++ into Gash functions.
+// This class wraps the virtual machine that runs Gasp scripts, and contains methods that
+// let you call from C++ into Gasp functions.
 class MScriptEngine
 {
 protected:
@@ -139,13 +139,13 @@ public:
 	MScriptEngine(const char* szScriptUrl, const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm);
 	virtual ~MScriptEngine();
 
-	// Copies the values from a GRect structure into a Gash Rect object
+	// Copies the values from a GRect structure into a Gasp Rect object
 	static void GRectToMRect(GRect* pGRect, ObjectObject* pMRect);
 
-	// Copies the values from a Gash Rect object into a GRect structure
+	// Copies the values from a Gasp Rect object into a GRect structure
 	static void MRectToGRect(ObjectObject* pMRect, GRect* pGRect);
 
-	// Call Gash code to set the avatar's velocity
+	// Call Gasp code to set the avatar's velocity
 	static void SetAvatarVelocity(float dx, float dy, ObjectObject* pAvatar);
 
 	// Returns how far the avatar can reach
@@ -180,13 +180,13 @@ public:
 	// Deserializes a blob into an MObject
 	GObject* DeserializeObject(const unsigned char* pBuf, int nBufSize);
 
-	// Allocates a new MObject (including the Gash object that it wraps)
+	// Allocates a new MObject (including the Gasp object that it wraps)
 	MObject* NewObject(const char* szClass, float x, float y, float z, float sx, float sy, float sz, const char** szParams, int nParamCount);
 
 	// Allocates the remote object
 	void MakeRemoteObject(VarHolder* pVH, const char* szClassName);
 
-	// loads a bitmap image into a Gash Image object
+	// loads a bitmap image into a Gasp Image object
 	VarHolder* LoadPNGImage(const char* szRemotePath, const char* szUrl, const char* szID);
 
 	// Copies an image from the global image store and returns a VarHolder
@@ -207,7 +207,7 @@ protected:
 };
 
 
-// This class contains C++ methods that you can call from within Gash scripts
+// This class contains C++ methods that you can call from within Gasp scripts
 class MGameMachine : public WrapperObject
 {
 public:

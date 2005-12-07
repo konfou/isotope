@@ -41,12 +41,9 @@ MImageStore::~MImageStore()
 	delete(m_pVarHolders);
 }
 
-VarHolder* MImageStore::GetVarHolder(const char* szID)
+VarHolder* MImageStore::GetVarHolder(int nIndex)
 {
-	int index = GetIndex(szID);
-	if(index < 0)
-		return NULL;
-	return (VarHolder*)m_pVarHolders->GetPointer(index);
+	return (VarHolder*)m_pVarHolders->GetPointer(nIndex);
 }
 
 int MImageStore::GetIndex(const char* szID)
@@ -88,6 +85,11 @@ void MImageStore::AddImage(MScriptEngine* pScriptEngine, const char* szGlobalID)
 	m_pVarHolders->AddPointer(pVarHolder);
 }
 
+int MImageStore::GetImageCount()
+{
+	return m_pVarHolders->GetSize();
+}
+
 // -------------------------------------------------------------------------------
 
 MAnimationStore::MAnimationStore(MScriptEngine* pScriptEngine)
@@ -117,9 +119,9 @@ int MAnimationStore::GetIndex(const char* szID)
 	return index;
 }
 
-VarHolder* MAnimationStore::GetVarHolder(int n)
+VarHolder* MAnimationStore::GetVarHolder(int nIndex)
 {
-	return (VarHolder*)m_pVarHolders->GetPointer(n);
+	return (VarHolder*)m_pVarHolders->GetPointer(nIndex);
 }
 
 void MAnimationStore::FromXml(GXMLTag* pTag, MImageStore* pImageStore)
@@ -145,6 +147,11 @@ void MAnimationStore::AddAnimation(MScriptEngine* pScriptEngine, MImageStore* pI
 	m_pHashTable->Add(szIDString, (void*)(m_pVarHolders->GetSize()));
 	VarHolder* pVarHolder = pScriptEngine->CopyGlobalAnimation(pImageStore, szGlobalID);
 	m_pVarHolders->AddPointer(pVarHolder);
+}
+
+int MAnimationStore::GetAnimationCount()
+{
+	return m_pVarHolders->GetSize();
 }
 
 // -------------------------------------------------------------------------------
@@ -182,6 +189,7 @@ MSound* MSoundStore::GetSound(int n)
 
 void MSoundStore::FromXml(Controller* pController, const char* szRemotePath, GXMLTag* pTag)
 {
+int nFootprint = 0;
 	GXMLTag* pChild;
 	for(pChild = pTag->GetFirstChildTag(); pChild; pChild = pTag->GetNextChildTag(pChild))
 	{
@@ -194,10 +202,12 @@ void MSoundStore::FromXml(Controller* pController, const char* szRemotePath, GXM
 		Holder<char*> hFilename(pController->LoadFileFromUrl(szRemotePath, pAttrFile->GetValue(), NULL));
 		char* szFilename = hFilename.Get();
 		MSound* pSound = new MSound(szFilename);
+nFootprint += pSound->GetSize();
 		char* szIDString = m_pStringHeap->Add(pAttrId->GetValue());
 		m_pHashTable->Add(szIDString, (void*)m_pArray->GetSize());
 		m_pArray->AddPointer(pSound);
 	}
+printf("Total SFX footprint: %d\n", nFootprint);
 }
 
 // -------------------------------------------------------------------------------

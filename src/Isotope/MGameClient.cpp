@@ -336,7 +336,8 @@ void MGameClient::SaveState()
 MObject* MGameClient::MakeIntangibleGlobalObject(const char* szID, float x, float y, float z)
 {
 	m_pImageStore->AddImage(m_pScriptEngine, szID);
-	VarHolder* pVH = m_pImageStore->GetVarHolder(szID);
+	int nImageIndex = m_pImageStore->GetIndex(szID);
+	VarHolder* pVH = m_pImageStore->GetVarHolder(nImageIndex);
 	MGameImage* pImage = (MGameImage*)pVH->GetGObject();
 	MObject* pNewObject = m_pScriptEngine->NewObject("Scenery", x, y, z, (float)pImage->m_value.GetWidth(), (float)pImage->m_value.GetWidth(), (float)pImage->m_value.GetHeight(), &szID, 1);
 	pNewObject->SetTangible(false);
@@ -705,7 +706,8 @@ void MGameClient::AddObject(const char* szFilename)
 		m_pImageStore->AddImage(m_szRemoteFolder, m_pScriptEngine, szID, szFilename);
 		bAddID = true;
 	}
-	VarHolder* pVH = m_pImageStore->GetVarHolder(szID);
+	int nImageIndex = m_pImageStore->GetIndex(szID);
+	VarHolder* pVH = m_pImageStore->GetVarHolder(nImageIndex);
 
 	// Create the new object
 	MObject* pAvatar = GetAvatar();

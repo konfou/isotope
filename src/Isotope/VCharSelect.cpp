@@ -17,7 +17,7 @@
 #include "../GClasses/GFile.h"
 #include "Controller.h"
 #include "GameEngine.h"
-#include "../Gash/Include/GashEngine.h"
+#include "../Gasp/Include/GaspEngine.h"
 #include "MAnimation.h"
 #include "MStore.h"
 #include "../GClasses/sha2.h"
@@ -150,7 +150,10 @@ void VCharSelect::ReloadAccounts()
 	GXMLTag* pConfigTag = GameEngine::GetConfig();
 	GXMLTag* pAccountsTag = pConfigTag->GetChildTag("Accounts");
 	if(!pAccountsTag)
-		GameEngine::ThrowError("Expected an \"Accounts\" tag in the config.xml file");
+	{
+		pAccountsTag = new GXMLTag("Accounts");
+		pConfigTag->AddChildTag(pAccountsTag);
+	}
 	GXMLTag* pTag;
 	for(pTag = pAccountsTag->GetFirstChildTag(); pTag; pTag = pAccountsTag->GetNextChildTag(pTag))
 	{
@@ -274,6 +277,7 @@ void VCharSelect::DrawAvatars()
 void VCharSelect::RefreshEntireImage()
 {
 	GRect r;
+	m_pDialog->Update();
 	GImage* pCanvas = m_pDialog->GetImage(&r);
 
 	r.x = 10;

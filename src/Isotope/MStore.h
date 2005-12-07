@@ -49,10 +49,12 @@ public:
 	void FromXml(const char* szRemotePath, GXMLTag* pTag, MScriptEngine* pScriptEngine);
 
 	// Gets the image with the specified ID
-	VarHolder* GetVarHolder(const char* szID);
+	VarHolder* GetVarHolder(int nIndex);
 
 	void AddImage(const char* szRemotePath, MScriptEngine* pScriptEngine, const char* szID, const char* szFilename);
 	void AddImage(MScriptEngine* pScriptEngine, const char* szGlobalID);
+
+	int GetImageCount();
 };
 
 
@@ -74,11 +76,13 @@ public:
 	int GetIndex(const char* szID);
 
 	// Gets the animation with the specified index
-	VarHolder* GetVarHolder(int n);
+	VarHolder* GetVarHolder(int nIndex);
 
 	void FromXml(GXMLTag* pTag, MImageStore* pImageStore);
 
 	void AddAnimation(MScriptEngine* pScriptEngine, MImageStore* pImageStore, const char* szGlobalID);
+
+	int GetAnimationCount();
 };
 
 

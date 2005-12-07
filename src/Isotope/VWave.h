@@ -36,6 +36,8 @@ public:
 	{
 		delete(m_pData);
 	}
+
+	int GetSize() { return m_nSize; }
 };
 
 

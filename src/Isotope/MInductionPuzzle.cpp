@@ -10,7 +10,7 @@
 */
 
 #include "MInductionPuzzle.h"
-#include "../Gash/BuiltIns/GashString.h"
+#include "../Gasp/BuiltIns/GaspString.h"
 #include "../GClasses/GXML.h"
 #include <wchar.h>
 #include "GameEngine.h"

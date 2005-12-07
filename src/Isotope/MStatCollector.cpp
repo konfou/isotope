@@ -1,7 +1,7 @@
 #include "MStatCollector.h"
 #include "../GClasses/GQueue.h"
 #include "../GClasses/GArray.h"
-#include "../Gash/BuiltIns/GashString.h"
+#include "../Gasp/BuiltIns/GaspString.h"
 #include "GameEngine.h"
 #include <time.h>
 
@@ -27,9 +27,9 @@ void MStatCollector::ReportStats(GPointerArray* pNameValuePairs)
 	nCount /= 2;
 	for(n = 0; n < nCount; n++)
 	{
-		GashString* pNameString = (GashString*)pNameValuePairs->GetPointer(2 * n);
+		GaspString* pNameString = (GaspString*)pNameValuePairs->GetPointer(2 * n);
 		GString* pName = &pNameString->m_value;
-		GashString* pValueString = (GashString*)pNameValuePairs->GetPointer(2 * n + 1);
+		GaspString* pValueString = (GaspString*)pNameValuePairs->GetPointer(2 * n + 1);
 		GString* pValue = &pValueString->m_value;
 		m_pQ->Push('|');
 		int nLen = pName->GetLength();
@@ -62,4 +62,5 @@ void MStatCollector::ReportValues(const char* szLine)
 		szTime[n] = '\0';
 	fputs(szTime, m_pFile);
 	fputs(szLine, m_pFile);
+	fputs("\n", m_pFile);
 }

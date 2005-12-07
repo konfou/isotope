@@ -17,9 +17,9 @@
 #include "MGameClient.h"
 #include "MStore.h"
 #include "MScriptEngine.h"
-#include "../Gash/Include/GashEngine.h"
-#include "../Gash/BuiltIns/GashFloat.h"
-#include "../Gash/BuiltIns/GashStream.h"
+#include "../Gasp/Include/GaspEngine.h"
+#include "../Gasp/BuiltIns/GaspFloat.h"
+#include "../Gasp/BuiltIns/GaspStream.h"
 #include "MGameImage.h"
 
 class MAnimationFrame
@@ -33,6 +33,7 @@ public:
 
 	void CopyData(MAnimationFrame* pThat);
 	void FromXml(GXMLTag* pTag, int width, int height);
+	void Scale(float fac);
 };
 
 MAnimationFrame::MAnimationFrame()
@@ -41,6 +42,14 @@ MAnimationFrame::MAnimationFrame()
 
 MAnimationFrame::~MAnimationFrame()
 {
+}
+
+void MAnimationFrame::Scale(float fac)
+{
+	m_rect.x = (int)(m_rect.x * fac);
+	m_rect.y = (int)(m_rect.y * fac);
+	m_rect.w = (int)(m_rect.w * fac);
+	m_rect.h = (int)(m_rect.h * fac);
 }
 
 void MAnimationFrame::CopyData(MAnimationFrame* pThat)
@@ -105,6 +114,13 @@ MAnimation::~MAnimation()
 	s_pAllAnimations->Remove(m_nUID);
 	delete [] m_pFrames;
 	delete(m_szID);
+}
+
+void MAnimation::Scale(float fac)
+{
+	int n;
+	for(n = 0; n < m_nFrames; n++)
+		m_pFrames[n].Scale(fac);
 }
 
 void MAnimation::CopyGuts(MAnimation* pThat)
@@ -225,7 +241,8 @@ void MAnimation::fromStream(Engine* pEngine, EVar* pStream)
 	if(!pAttr)
 		GameEngine::ThrowError("Animation missing expected \"image\" attribute");
 
-	pAnim->m_pImage = pImageStore->GetVarHolder(pAttr->GetValue());
+	int nImageIndex = pImageStore->GetIndex(pAttr->GetValue());
+	pAnim->m_pImage = pImageStore->GetVarHolder(nImageIndex);
 	if(!pAnim->m_pImage)
 		GameEngine::ThrowError("There is no image with the ID: %s", pAttr->GetValue());
 

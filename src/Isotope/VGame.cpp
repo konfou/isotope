@@ -328,10 +328,10 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 
 	// Calculate stepping values and make sure the bounds of the source image won't be exceeded by the blitting loops
 	float dSrcDeltaX = (float)pSrcRect->w / ((float)destRect.w + 1);
-	while((destRect.w - 1) * dSrcDeltaX >= pSrcRect->w)
+	while((nDestXFinish - nDestXStart - 1) * dSrcDeltaX >= pSrcRect->w)
 		nDestXFinish--;
 	float dSrcDeltaY = (float)pSrcRect->h / ((float)destRect.h + 1);
-	while((destRect.h - 1) * dSrcDeltaY >= pSrcRect->h)
+	while((nDestYFinish - nDestYStart - 1) * dSrcDeltaY >= pSrcRect->h)
 		nDestYFinish--;
 
 	// stretch-blt the image

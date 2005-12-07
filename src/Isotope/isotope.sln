@@ -11,19 +11,19 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GClasses", "..\GClasses\GCl
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GashEngine", "..\Gash\GashEngine.vcproj", "{A3DDF447-B675-47CA-B749-AFA54A27574A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GaspEngine", "..\Gasp\GaspEngine.vcproj", "{A3DDF447-B675-47CA-B749-AFA54A27574A}"
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GashLib", "..\Gash\GashLib.vcproj", "{EDB1F168-A282-43FB-956D-5112976C83BB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GaspLib", "..\Gasp\GaspLib.vcproj", "{EDB1F168-A282-43FB-956D-5112976C83BB}"
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GashSDL", "..\Gash\GashSDL\GashSDL.vcproj", "{02491278-4EFB-41AE-B2EF-B7A124C646BC}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GaspSDL", "..\Gasp\GaspSDL\GaspSDL.vcproj", "{02491278-4EFB-41AE-B2EF-B7A124C646BC}"
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Gash", "..\Gash\Command\Gash.vcproj", "{A3BCFA1F-7A2F-4147-9357-C26C4D01DCE1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Gasp", "..\Gasp\Command\Gasp.vcproj", "{A3BCFA1F-7A2F-4147-9357-C26C4D01DCE1}"
 	ProjectSection(ProjectDependencies) = postProject
 		{A3DDF447-B675-47CA-B749-AFA54A27574A} = {A3DDF447-B675-47CA-B749-AFA54A27574A}
 		{9A630B62-97DB-4664-831B-375F22BA22E3} = {9A630B62-97DB-4664-831B-375F22BA22E3}

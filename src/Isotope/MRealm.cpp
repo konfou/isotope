@@ -371,7 +371,8 @@ void MRealm::FromXml(GXMLTag* pTag, MImageStore* pStore)
 	pAttr = pTag->GetAttribute("terrain");
 	if(pAttr && pStore)
 	{
-		VarHolder* pVH = pStore->GetVarHolder(pAttr->GetValue());
+		int nImageIndex = pStore->GetIndex(pAttr->GetValue());
+		VarHolder* pVH = pStore->GetVarHolder(nImageIndex);
 		if(!pVH)
 			GameEngine::ThrowError("The terrain is specified as \"%s\" but there is no image with that ID", pAttr->GetValue());
 		SetTerrainMap(&((MGameImage*)pVH->GetGObject())->m_value);

@@ -24,9 +24,11 @@
 #include "../GClasses/GXML.h"
 #include "../GClasses/GBillboardCamera.h"
 #include "../GClasses/GThread.h"
+#include "../GClasses/GMatrix.h"
 #include "../GClasses/sha2.h"
 #include "MGameClient.h"
 #include "MScriptEngine.h"
+#include <wchar.h>
 #ifdef WIN32
 #include <io.h>
 #include <direct.h>
@@ -117,38 +119,6 @@ void GameEngine::ThrowError(const char* szFormat, ...)
 	throw (const char*)szBuf;
 }
 
-
-/*
-
-void GameEngine::ThrowError(const char* szMessage)
-{
-#ifdef WIN32
-	GAssert(false, szMessage);
-#endif // WIN32
-	throw szMessage;
-}
-
-void GameEngine::ThrowError(const char* szMessage, const char* szParam1)
-{
-	char* szBuf = GetErrorMessageBuffer(strlen(szMessage) + strlen(szParam1) + 32);
-	sprintf(szBuf, szMessage, szParam1);
-    ThrowError(szBuf);	
-}
-
-void GameEngine::ThrowError(const char* szMessage, const char* szParam1, const char* szParam2)
-{
-	char* szBuf = GetErrorMessageBuffer(strlen(szMessage) + strlen(szParam1) + strlen(szParam2) + 32);
-	sprintf(szBuf, szMessage, szParam1, szParam2);
-    ThrowError(szBuf);	
-}
-
-void GameEngine::ThrowError(const char* szMessage, const char* szParam1, const char* szParam2, const char* szParam3)
-{
-	char* szBuf = GetErrorMessageBuffer(strlen(szMessage) + strlen(szParam1) + strlen(szParam2)  + strlen(szParam3)+ 32);
-	sprintf(szBuf, szMessage, szParam1, szParam2, szParam3);
-    ThrowError(szBuf);	
-}
-*/
 /*static*/ double GameEngine::GetTime()
 {
 	return GTime::GetTime();
@@ -344,6 +314,44 @@ char* GetApplicationPath(const char* szArg0)
 	return szApplicationPath;
 }
 
+void DaemonMain(void* pArg)
+{
+	Controller c(Controller::SERVER, (const char*)pArg);
+	c.Run();
+}
+
+typedef void (*DaemonMainFunc)(void* pArg);
+
+void LaunchDaemon(DaemonMainFunc pDaemonMain, void* pArg)
+{
+#ifdef WIN32
+	// Windows isn't POSIX compliant and it has its own process system that
+	// isn't really friendly to launching daemons.  You're supposed to create
+	// a "service", but I don't know how to do that (and I'm too lazy to learn
+	// something that can't generalize off a proprietary platform) so let's
+	// just launch it like a normal app and be happy with that.
+	pDaemonMain(pArg);
+#else // WIN32
+	// Fork the process
+	int pid = fork();
+	if(pid < 0)
+		GameEngine::ThrowError("Error forking the daemon process\n");
+	if(pid == 0)
+	{
+		// Drop my process group leader and become my own process group leader
+		// (so the process isn't terminated when the group leader is killed)
+		setsid();
+
+		// Get off any mounted drives so that they can be unmounted without
+		// killing the daemon
+		chdir("/");
+
+		// Launch the daemon
+		pDaemonMain(pArg);
+	}
+#endif // !WIN32
+}
+
 void LaunchProgram(int argc, char *argv[])
 {
 	// Parse the runmode
@@ -410,9 +418,14 @@ void LaunchProgram(int argc, char *argv[])
 	//if(!DoAutoUpdate())
 	//	return;
 
-	// Run the main loop
-	Controller c(eRunMode, szArg);
-	c.Run();
+	if(eRunMode == Controller::SERVER)
+		LaunchDaemon(DaemonMain, (void*)szArg);
+	else
+	{
+		// Run the main loop
+		Controller c(eRunMode, szArg);
+		c.Run();
+	}
 }
 
 int FooComparer(void* pA, void* pB)
@@ -424,6 +437,25 @@ int FooComparer(void* pA, void* pB)
 	else
 		return 0;
 }
+
+
+class TestHttpDaemon : public GHttpServer
+{
+public:
+	TestHttpDaemon() : GHttpServer(8989) {}
+	~TestHttpDaemon() {}
+
+protected:
+	virtual void DoGet(const char* szUrl, const char* szParams, GQueue* pResponse)
+	{
+	}
+
+	virtual void OnProcessLine(int nConnection, const char* szLine)
+	{
+		fprintf(stderr, szLine);
+	}
+};
+
 
 void test()
 {
@@ -493,6 +525,47 @@ void test()
 		wprintf(wszMessage);
 	}
 */
+/*
+	TestHttpDaemon daemon;
+	GHttpClient socket;
+	socket.Get("http://proton.i.edumetrics.org/foo.realm", 8989);
+	while(true)
+	{
+		daemon.Process();
+		Sleep(0);
+	}
+*/
+/*
+	GHttpClient socket;
+//	if(!socket.Get("http://muon.i.edumetrics.org/~jdpf/media/trunk/puzzles/addition/addition.realm", 80))
+	if(!socket.Get("http://ion.i.edumetrics.org/~jdpf/media_final/media/trunk/puzzles/addition/addition.realm", 80))
+		GameEngine::ThrowError("Failed to connect");
+	while(socket.CheckStatus(NULL) == GHttpClient::Downloading)
+	{
+		Sleep(0);
+	}
+	int nSize;
+	unsigned char* pData = socket.GetData(&nSize);
+	GAssert(false, "break");
+*/
+
+	// redirect output
+	//freopen("stdout.txt", "w", stdout);
+	//freopen("stderr.txt", "w", stderr);
+/*
+	// test matrix
+	GMatrix m(2, 2);
+	m.Set(0, 0, 2);
+	m.Set(0, 1, 3);
+	m.Set(1, 0, 5);
+	m.Set(1, 1, 1);
+	double vec[2];
+	vec[0] = 1;
+	vec[1] = 1;
+	m.Solve(vec);
+	printf("[%f, %f]\n", vec[0], vec[1]);
+*/
+
 }
 
 #ifndef WIN32
@@ -503,7 +576,7 @@ void onSigSegV(int n)
 
 void onSigInt(int n)
 {
-	throw "The program was interrupted with SIGINT";
+	throw "The program was interrupted when the user pressed Ctrl-C";
 }
 
 void onSigQuit(int n)
@@ -516,6 +589,11 @@ void onSigTstp(int n)
 	throw "The program was interrupted with SIGTSTP";
 }
 
+void onSigAbrt(int n)
+{
+	throw "An unhandled exception was thrown";
+}
+
 #endif // !WIN32
 
 int main(int argc, char *argv[])
@@ -525,6 +603,7 @@ int main(int argc, char *argv[])
 	signal(SIGINT, onSigInt);
 	signal(SIGQUIT, onSigQuit);
 	signal(SIGTSTP, onSigTstp);
+	signal(SIGABRT, onSigAbrt);
 #endif // !WIN32
 
 	// Seed the random number generator
@@ -557,6 +636,15 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, szErrorMessage);
 		fprintf(stderr, "\n");
+#ifdef WIN32
+		printf("\nPress enter to quit\n");
+		getchar();
+#endif // WIN32
+	}
+	catch(wchar_t* wszErrorMessage)
+	{
+		fwprintf(stderr, wszErrorMessage);
+		fwprintf(stderr, L"\n");
 #ifdef WIN32
 		printf("\nPress enter to quit\n");
 		getchar();

@@ -120,7 +120,8 @@ void VLoading::RefreshEntireImage()
 
 	// Draw the background image
 	MImageStore* pGlobalImageStore = GameEngine::GetGlobalImageStore();
-	VarHolder* pVH = pGlobalImageStore->GetVarHolder("loading");
+	int nIndex = pGlobalImageStore->GetIndex("loading");
+	VarHolder* pVH = pGlobalImageStore->GetVarHolder(nIndex);
 	if(pVH)
 	{
 		MGameImage* pGameImage = (MGameImage*)pVH->GetGObject();

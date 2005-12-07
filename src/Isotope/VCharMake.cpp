@@ -15,7 +15,7 @@
 #include "../GClasses/GArray.h"
 #include "../GClasses/GString.h"
 #include "../GClasses/GWidgets.h"
-#include "../Gash/Include/GashEngine.h"
+#include "../Gasp/Include/GaspEngine.h"
 #include "Controller.h"
 #include "MAnimation.h"
 
@@ -53,7 +53,11 @@ public:
 		if(pButton == m_pCancelButton)
 			m_pController->CancelMakeNewChar();
 		else if(pButton == m_pOKButton)
-			m_pController->CreateNewCharacter(m_pView->GetAvatarID(), m_szTypeBuffer);
+		{
+			const char* szID = m_pView->GetAvatarID();
+			if(szID)
+				m_pController->CreateNewCharacter(szID, m_szTypeBuffer);
+		}
 		else
 			GAssert(false, "Unrecognized button");
 	}
@@ -122,6 +126,7 @@ void VCharMake::MakeAvatarList()
 void VCharMake::RefreshEntireImage()
 {
 	GRect r;
+	m_pDialog->Update();
 	GImage* pCanvas = m_pDialog->GetImage(&r);
 	r.x = 10;
 	r.y = 10;

@@ -8,8 +8,8 @@ OBJ_PATH = ../../obj/obj
 ISOTOPE_PATH = .
 UNAME = $(shell uname -s)
 CFLAGS = $(shell sdl-config --cflags)
-DBG_LIBRARIES = ../../lib/GashEngineDbg.a ../../lib/GashLibDbg.a ../../lib/GashSdlDbg.a ../../lib/GClassesDbg.a
-OPT_LIBRARIES = ../../lib/GashEngine.a ../../lib/GashLib.a ../../lib/GashSdl.a ../../lib/GClasses.a
+DBG_LIBRARIES = ../../lib/GaspEngineDbg.a ../../lib/GaspLibDbg.a ../../lib/GaspSdlDbg.a ../../lib/GClassesDbg.a
+OPT_LIBRARIES = ../../lib/GaspEngine.a ../../lib/GaspLib.a ../../lib/GaspSdl.a ../../lib/GClasses.a
 ifeq ($(UNAME),Darwin)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -no-cpp-precomp
 OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -no-cpp-precomp
@@ -132,6 +132,8 @@ $(ISOTOPE_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(ISOTOPE_PATH)/%.cpp $(ALL_HEADE
 	g++  $(DBG_CFLAGS) -c $< -o $@
 
 clean :
+	rm -f $(TARGET_PATH)/$(TARGET_NAME_OPT)
+	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
 	rm -f $(ALL_OBJECTS_OPT)
 	rm -f $(ALL_OBJECTS_DBG)
-	$(MAKE) -C ../Gash clean
+	$(MAKE) -C ../Gasp clean

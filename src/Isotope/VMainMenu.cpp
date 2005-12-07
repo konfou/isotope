@@ -24,6 +24,10 @@ const wchar_t* g_wszColumnLabels[] =
 	L"About",
 };
 
+#define CHECK_BOX_WIDTH 25
+#define ITEM_NAME_WIDTH 150
+#define ABOUT_BUTTON_WIDTH 80
+
 #define BACKGROUND_COLOR 0x445566
 
 class MMainMenuDialog : public GWidgetDialog
@@ -61,8 +65,9 @@ public:
 
 		m_pInventoryItems = new GPointerArray(32);
 		m_pInventoryWidget = new GWidgetGrid(this, m_pInventoryItems, 3, 200, 50, 300, 300);
-		m_pInventoryWidget->SetColumnWidth(0, 25);
-		m_pInventoryWidget->SetColumnWidth(1, 150);
+		m_pInventoryWidget->SetColumnWidth(0, CHECK_BOX_WIDTH);
+		m_pInventoryWidget->SetColumnWidth(1, ITEM_NAME_WIDTH);
+		m_pInventoryWidget->SetColumnWidth(2, ABOUT_BUTTON_WIDTH);
 		InitInventoryWidget();
 	}
 
@@ -109,13 +114,13 @@ public:
 				GString s;
 				GXMLAttribute* pAttrName = pItem->GetAttribute("Name");
 				s.Add(pAttrName ? pAttrName->GetValue() : "Mysterious Object");
-				GWidgetTextLabel* pNewLabel = new GWidgetTextLabel(m_pInventoryWidget, 0, 0, 80, 20, &s, false);
+				GWidgetTextLabel* pNewLabel = new GWidgetTextLabel(m_pInventoryWidget, 0, 0, ITEM_NAME_WIDTH, 20, &s, false);
 				m_pInventoryWidget->SetWidget(1, y, pNewLabel);
 
 				// Add a button
 				s.Clear();
 				s.Add(L"Details");
-				GWidgetTextButton* pNewButton = new GWidgetTextButton(m_pInventoryWidget, 0, 0, 80, 20, &s);
+				GWidgetTextButton* pNewButton = new GWidgetTextButton(m_pInventoryWidget, 0, 0, ABOUT_BUTTON_WIDTH, 20, &s);
 				m_pInventoryWidget->SetWidget(2, y, pNewButton);
 				y++;
 			}

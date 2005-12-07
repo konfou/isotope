@@ -15,7 +15,7 @@
 #include "MStore.h"
 #include "MAnimation.h"
 #include "../GClasses/GString.h"
-#include "../Gash/BuiltIns/GashFloat.h"
+#include "../Gasp/BuiltIns/GaspFloat.h"
 #include "../GClasses/GBillboardCamera.h"
 #include "MGameClient.h"
 #include "MRealm.h"
@@ -64,8 +64,8 @@ GImage* MObject::GetFrame(GRect* pRect, GBillboardCamera* pCamera)
 void MObject::GetPos(float* px, float* py)
 {
 	ObjectObject* pOb = (ObjectObject*)m_vh.GetGObject();
-	*px = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_X])->m_value;
-	*py = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_Y])->m_value;
+	*px = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_X])->m_value;
+	*py = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_Y])->m_value;
 }
 
 void MObject::SetGhostPos(float x, float y)
@@ -77,38 +77,38 @@ void MObject::SetGhostPos(float x, float y)
 void MObject::SetPos(float x, float y, float z)
 {
 	ObjectObject* pOb = (ObjectObject*)m_vh.GetGObject();
-	((GashFloat*)pOb->arrFields[MOB_FIELD_X])->m_value = x;
-	((GashFloat*)pOb->arrFields[MOB_FIELD_Y])->m_value = y;
-	((GashFloat*)pOb->arrFields[MOB_FIELD_Z])->m_value = z;
+	((GaspFloat*)pOb->arrFields[MOB_FIELD_X])->m_value = x;
+	((GaspFloat*)pOb->arrFields[MOB_FIELD_Y])->m_value = y;
+	((GaspFloat*)pOb->arrFields[MOB_FIELD_Z])->m_value = z;
 }
 
 GPosSize* MObject::GetGhostPos()
 {
 	ObjectObject* pOb = (ObjectObject*)m_vh.GetGObject();
 	float tmp;
-	tmp = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_X])->m_value;
+	tmp = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_X])->m_value;
 	if(absfloat(tmp - m_drawPos.x) < (float)INTERPOLATE_DISTANCE)
 		m_drawPos.x = tmp;
 	else
 		m_drawPos.x = ((float)INTERPOLATE_RATE * m_drawPos.x) + (((float)1 - (float)INTERPOLATE_RATE) * tmp);
-	tmp = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_Y])->m_value;
+	tmp = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_Y])->m_value;
 	if(absfloat(tmp - m_drawPos.y) < (float)INTERPOLATE_DISTANCE)
 		m_drawPos.y = tmp;
 	else
 		m_drawPos.y = ((float)INTERPOLATE_RATE * m_drawPos.y) + (((float)1 - (float)INTERPOLATE_RATE) * tmp);
-	m_drawPos.z = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_Z])->m_value;
-	m_drawPos.sx = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_SX])->m_value;
-	m_drawPos.sy = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_SY])->m_value;
-	m_drawPos.sz = (float)((GashFloat*)pOb->arrFields[MOB_FIELD_SZ])->m_value;
+	m_drawPos.z = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_Z])->m_value;
+	m_drawPos.sx = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_SX])->m_value;
+	m_drawPos.sy = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_SY])->m_value;
+	m_drawPos.sz = (float)((GaspFloat*)pOb->arrFields[MOB_FIELD_SZ])->m_value;
 	return &m_drawPos;
 }
 
 void MObject::SetSize(float sx, float sy, float sz)
 {
 	ObjectObject* pOb = (ObjectObject*)m_vh.GetGObject();
-	((GashFloat*)pOb->arrFields[MOB_FIELD_SX])->m_value = sx;
-	((GashFloat*)pOb->arrFields[MOB_FIELD_SY])->m_value = sy;
-	((GashFloat*)pOb->arrFields[MOB_FIELD_SZ])->m_value = sz;
+	((GaspFloat*)pOb->arrFields[MOB_FIELD_SX])->m_value = sx;
+	((GaspFloat*)pOb->arrFields[MOB_FIELD_SY])->m_value = sy;
+	((GaspFloat*)pOb->arrFields[MOB_FIELD_SZ])->m_value = sz;
 }
 
 void MObject::Update(double time)
@@ -119,13 +119,13 @@ void MObject::Update(double time)
 double MObject::GetTime()
 {
 	ObjectObject* pOb = (ObjectObject*)m_vh.GetGObject();
-	return ((GashFloat*)pOb->arrFields[MOB_FIELD_TIME])->m_value;
+	return ((GaspFloat*)pOb->arrFields[MOB_FIELD_TIME])->m_value;
 }
 
 void MObject::SetTime(double time)
 {
 	ObjectObject* pOb = (ObjectObject*)m_vh.GetGObject();
-	((GashFloat*)pOb->arrFields[MOB_FIELD_TIME])->m_value = time;
+	((GaspFloat*)pOb->arrFields[MOB_FIELD_TIME])->m_value = time;
 }
 
 int MObject::GetUid()

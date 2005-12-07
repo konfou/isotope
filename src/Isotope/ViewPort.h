@@ -35,7 +35,7 @@ public:
 		m_rect = *pRect;
 	}
 
-	~ViewPort()
+	virtual ~ViewPort()
 	{
 	}
 

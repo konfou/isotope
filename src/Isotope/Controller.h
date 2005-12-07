@@ -35,6 +35,8 @@ class GObject;
 class IsotopeErrorHandler;
 class GHttpClient;
 class GString;
+class MImageStore;
+class MAnimationStore;
 
 #define TYPE_BUFFER_SIZE 128
 
@@ -75,7 +77,7 @@ protected:
 	int m_keyboard[SDLK_LAST];
 	char m_szTypeBuffer[TYPE_BUFFER_SIZE];
 	int m_nTypeBufferPos;
-	int m_mouse[4];
+	int m_mouse[8];
 	int m_mouseX;
 	int m_mouseY;
 	int m_prevMouseX;
@@ -186,6 +188,9 @@ protected:
 	// Helper for ControlMainMenu
 	void SlideMenu(float fac);
 
+	// Helper used by LoadFileFromUrl
+	char* DownloadAndCacheFile(const char* szUrl, int* pnSize, char* szCacheName);
+
 	void OnKeyDown(SDLKey key, SDLMod mod);
 
 	void MakeEntropyCollectorView();
@@ -193,9 +198,7 @@ protected:
 	void BringUpMainMenu();
 	void RemoveMainMenu();
 	void ShutDown();
-
-	// Helper used by LoadFileFromUrl
-	char* DownloadAndCacheFile(const char* szUrl, int* pnSize, char* szCacheName);
+	void ReduceImageFootprint(MImageStore* pImages, MAnimationStore* pAnimations, int nAcceptableFootprint);
 };
 
 #endif // __CONTROLLER_H__

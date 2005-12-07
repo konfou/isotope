@@ -15,16 +15,16 @@
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GXML.h"
 #include "../GClasses/GFile.h"
-#include "../Gash/BuiltIns/GashStream.h"
-#include "../Gash/BuiltIns/GashFloat.h"
-#include "../Gash/MachineObjects/MArray.h"
-#include "../Gash/Engine/Error.h"
-#include "../Gash/Engine/EType.h"
-#include "../Gash/CodeObjects/Project.h"
-#include "../Gash/CodeObjects/Class.h"
-#include "../Gash/CodeObjects/Interface.h"
-#include "../Gash/Engine/GCompiler.h"
-#include "../Gash/Engine/Disassembler.h"
+#include "../Gasp/BuiltIns/GaspStream.h"
+#include "../Gasp/BuiltIns/GaspFloat.h"
+#include "../Gasp/MachineObjects/MArray.h"
+#include "../Gasp/Engine/Error.h"
+#include "../Gasp/Engine/EType.h"
+#include "../Gasp/CodeObjects/Project.h"
+#include "../Gasp/CodeObjects/Class.h"
+#include "../Gasp/CodeObjects/Interface.h"
+#include "../Gasp/Engine/GCompiler.h"
+#include "../Gasp/Engine/Disassembler.h"
 #include "GameEngine.h"
 #include "MObject.h"
 #include "MAnimation.h"
@@ -105,13 +105,13 @@ void RegisterIsotopeMachineClasses()
 MScriptEngine::MScriptEngine(const char* szScriptUrl, const char* szScript, int nScriptSize, ErrorHandler* pErrorHandler, GXMLTag* pMapTag, MGameClient* pGameClient, Controller* pController, MRealm* pRealm)
 {
 	m_pRealm = pRealm;
-	
+
 	// Parse the script into a project
 	Holder<COProject*> hProj(new COProject("*bogus*"));
 	if(!hProj.Get()->LoadLibraries(GameEngine::GetAppPath(), pErrorHandler))
 	{
 		GAssert(false, "The error handler should have thrown");
-		GameEngine::ThrowError("Failed to load Gash libraries from: %s", GameEngine::GetAppPath());
+		GameEngine::ThrowError("Failed to load Gasp libraries from: %s", GameEngine::GetAppPath());
 	}
 	if(!hProj.Get()->LoadSources(&szScript, &szScriptUrl, 1, pErrorHandler))
 	{
@@ -188,14 +188,14 @@ GFile::SaveBufferToFile((unsigned char*)hDisassembly.Get(), nSize, "c:\\tmp.txt"
 	struct MethodRef mr;
 	FindMethod(&mr, "Rect", "method !new()");
 	if(!m_pVM->Call(&mr, &m_pRectVar, 1))
-		GameEngine::ThrowError("Failed to allocate a Gash object");
+		GameEngine::ThrowError("Failed to allocate a Gasp object");
 
 	// Preallocate some machine objects
-	m_pFloatVar->SetGObject(new GashFloat(m_pVM));
-	m_pFloatVar2->SetGObject(new GashFloat(m_pVM));
-	m_pStreamVar->SetGObject(new GashStream(m_pVM));
+	m_pFloatVar->SetGObject(new GaspFloat(m_pVM));
+	m_pFloatVar2->SetGObject(new GaspFloat(m_pVM));
+	m_pStreamVar->SetGObject(new GaspStream(m_pVM));
 	for(n = 0; n < MAX_PARAMS; n++)
-		m_pStringVars[n]->SetGObject(new GashString(m_pVM));
+		m_pStringVars[n]->SetGObject(new GaspString(m_pVM));
 }
 
 /*virtual*/ MScriptEngine::~MScriptEngine()
@@ -268,7 +268,7 @@ void MScriptEngine::ImportRealmObject(const char* szTypeName, GCompiler* pCompil
 	ImportMethodDependency(pCompiler, pClass, "method verify(&Bool, Integer, RealmObject)");
 }
 
-// The Gash compiler optimizes by not including any uncalled methods in the library it builds.  But since
+// The Gasp compiler optimizes by not including any uncalled methods in the library it builds.  But since
 // we're calling several methods from C++ code, we have to tell the compiler to explicitly import the methods
 // that we're expecting.
 void MScriptEngine::ImportObjectDependencies(GCompiler* pCompiler, COProject* pProject, GXMLTag* pMapTag)
@@ -367,7 +367,7 @@ void MScriptEngine::FindMethod(struct MethodRef* pMethodRef, const char* szType,
 
 int MScriptEngine::SerializeObject(GObject* pObject, unsigned char* pBuf, int nBufSize)
 {
-	GashStream* pStream = (GashStream*)m_pStreamVar->GetGObject();
+	GaspStream* pStream = (GaspStream*)m_pStreamVar->GetGObject();
 	GQueue* pQ = &pStream->m_value;
 	pQ->Flush();
 	m_pVM->SerializeObject(pObject, m_pStreamVar->GetVariable());
@@ -380,7 +380,7 @@ int MScriptEngine::SerializeObject(GObject* pObject, unsigned char* pBuf, int nB
 
 GObject* MScriptEngine::DeserializeObject(const unsigned char* pBuf, int nBufSize)
 {
-	GashStream* pStream = (GashStream*)m_pStreamVar->GetGObject();
+	GaspStream* pStream = (GaspStream*)m_pStreamVar->GetGObject();
 	GQueue* pQ = &pStream->m_value;
 	pQ->Flush();
 	pQ->Push(pBuf, nBufSize);
@@ -398,7 +398,7 @@ GImage* MScriptEngine::CallGetFrame(ObjectObject* pObject, GRect* pRect, float f
 	m_pFloatVar->GetVariable()->pFloatObject->m_value = fCameraDirection;
 	m_pParams[3] = m_pFloatVar;
 	if(!m_pVM->Call(&m_mrGetFrame, m_pParams, 4))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 	ObjectObject* pOb = (ObjectObject*)m_pRectVar->GetGObject();
 	pRect->x = ((IntObject*)pOb->arrFields[0])->m_value;
 	pRect->y = ((IntObject*)pOb->arrFields[1])->m_value;
@@ -412,11 +412,11 @@ GImage* MScriptEngine::CallGetFrame(ObjectObject* pObject, GRect* pRect, float f
 void MScriptEngine::CallUpdate(ObjectObject* pObject, double time)
 {
 	m_pTempVar->SetGObject(pObject);
-	((GashFloat*)m_pFloatVar->GetGObject())->m_value = time;
+	((GaspFloat*)m_pFloatVar->GetGObject())->m_value = time;
 	m_pParams[0] = m_pTempVar;
 	m_pParams[1] = m_pFloatVar;
 	if(!m_pVM->Call(&m_mrUpdate, m_pParams, 2))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 }
 
 bool MScriptEngine::CallVerify(int nConnection, MObject* pOldObj, MObject* pNewObj)
@@ -430,7 +430,7 @@ bool MScriptEngine::CallVerify(int nConnection, MObject* pOldObj, MObject* pNewO
 	m_pParams[2] = m_pIntVar2;
 	m_pParams[3] = m_pTempVar2;
 	if(!m_pVM->Call(&m_mrVerify, m_pParams, 4))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 	return m_pIntVar->GetVariable()->pIntObject->m_value ? true : false;
 }
 
@@ -443,7 +443,7 @@ void MScriptEngine::CallDoAction(MObject* pObject, float x, float y)
 	m_pParams[1] = m_pFloatVar;
 	m_pParams[2] = m_pFloatVar2;
 	if(!m_pVM->Call(&m_mrDoAction, m_pParams, 3))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 }
 
 void MScriptEngine::CallOnGetFocus(MObject* pObject)
@@ -451,7 +451,7 @@ void MScriptEngine::CallOnGetFocus(MObject* pObject)
 	m_pTempVar->SetGObject(pObject->GetGObject());
 	m_pParams[0] = m_pTempVar;
 	if(!m_pVM->Call(&m_mrOnGetFocus, m_pParams, 1))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 }
 
 void MScriptEngine::CallOnLoseFocus(MObject* pObject)
@@ -459,7 +459,7 @@ void MScriptEngine::CallOnLoseFocus(MObject* pObject)
 	m_pTempVar->SetGObject(pObject->GetGObject());
 	m_pParams[0] = m_pTempVar;
 	if(!m_pVM->Call(&m_mrOnLoseFocus, m_pParams, 1))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 }
 
 void MScriptEngine::CallReceiveFromServer(GObject* pRemoteObj, GObject* pObj)
@@ -469,7 +469,7 @@ void MScriptEngine::CallReceiveFromServer(GObject* pRemoteObj, GObject* pObj)
 	m_pParams[0] = m_pTempVar;
 	m_pParams[1] = m_pTempVar2;
 	if(!m_pVM->Call(&m_mrReceiveFromServer, m_pParams, 2))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 }
 
 void MScriptEngine::CallReceiveFromClient(GObject* pRemoteObj, GObject* pObj, int nConnection)
@@ -481,7 +481,7 @@ void MScriptEngine::CallReceiveFromClient(GObject* pRemoteObj, GObject* pObj, in
 	m_pParams[1] = m_pTempVar2;
 	m_pParams[2] = m_pIntVar;
 	if(!m_pVM->Call(&m_mrReceiveFromClient, m_pParams, 3))
-		GameEngine::ThrowError("Failed to call a Gash method");
+		GameEngine::ThrowError("Failed to call a Gasp method");
 }
 
 MObject* MScriptEngine::NewObject(const char* szClass, float x, float y, float z, float sx, float sy, float sz, const char** szParams, int nParamCount)
@@ -512,7 +512,7 @@ MObject* MScriptEngine::NewObject(const char* szClass, float x, float y, float z
 	}
 	for(n = 0; n < nParamCount; n++)
 	{
-		((GashString*)m_pStringVars[n]->GetGObject())->m_value.Copy(szParams[n]);
+		((GaspString*)m_pStringVars[n]->GetGObject())->m_value.Copy(szParams[n]);
 		m_pParams[1 + n] = m_pStringVars[n];
 	}
 
@@ -554,7 +554,8 @@ VarHolder* MScriptEngine::CopyGlobalImage(const char* szGlobalID)
 	MGameImage* pMImage = new MGameImage(m_pVM, MGameImage::GlobalId, szGlobalID);
 	pVHLocal->SetGObject(pMImage);
 	MImageStore* pGlobalImageStore = GameEngine::GetGlobalImageStore();
-	VarHolder* pVHGlobal = pGlobalImageStore->GetVarHolder(szGlobalID);
+	int nImageIndex = pGlobalImageStore->GetIndex(szGlobalID);
+	VarHolder* pVHGlobal = pGlobalImageStore->GetVarHolder(nImageIndex);
 	if(!pVHGlobal)
 		GameEngine::ThrowError("There is no global image with the ID: %s", szGlobalID);
 	MGameImage* pImageGlobal = (MGameImage*)pVHGlobal->GetGObject();
@@ -577,7 +578,8 @@ VarHolder* MScriptEngine::CopyGlobalAnimation(MImageStore* pLocalImageStore, con
 	// Copy the image into the local store
 	const char* szImageGlobalID = pImageGlobal->GetID();
 	pLocalImageStore->AddImage(this, szImageGlobalID);
-	VarHolder* pVHImageLocal = pLocalImageStore->GetVarHolder(szImageGlobalID);
+	int nImageIndex = pLocalImageStore->GetIndex(szImageGlobalID);
+	VarHolder* pVHImageLocal = pLocalImageStore->GetVarHolder(nImageIndex);
 	GAssert(pVHImageLocal, "Failed to copy image to local store");
 
 	// Copy the global animation
@@ -647,17 +649,17 @@ void MScriptEngine::GRectToMRect(GRect* pGRect, ObjectObject* pMRect)
 /*static*/ void MScriptEngine::DoAvatarActionAnimation(MObject* pAvatar)
 {
 	ObjectObject* pOb = pAvatar->GetGObject();
-	((GashFloat*)pOb->arrFields[MAV_FIELD_ACTIONTIME])->m_value = .3;
+	((GaspFloat*)pOb->arrFields[MAV_FIELD_ACTIONTIME])->m_value = .3;
 }
 
 /*static*/ void MScriptEngine::SetAvatarVelocity(float dx, float dy, ObjectObject* pAvatar)
 {
 	// Set the velocity
-	float speed = (float)((GashFloat*)pAvatar->arrFields[MAV_FIELD_SPEED])->m_value;
+	float speed = (float)((GaspFloat*)pAvatar->arrFields[MAV_FIELD_SPEED])->m_value;
 	dx *= speed;
 	dy *= speed;
-	((GashFloat*)pAvatar->arrFields[MAV_FIELD_DX])->m_value = dx;
-	((GashFloat*)pAvatar->arrFields[MAV_FIELD_DY])->m_value = dy;
+	((GaspFloat*)pAvatar->arrFields[MAV_FIELD_DX])->m_value = dx;
+	((GaspFloat*)pAvatar->arrFields[MAV_FIELD_DY])->m_value = dy;
 
 	// Calculate the direction
 	if(dx != 0 || dy != 0)
@@ -676,7 +678,7 @@ void MScriptEngine::GRectToMRect(GRect* pGRect, ObjectObject* pMRect)
 /*static*/ float MScriptEngine::GetAvatarReach(MObject* pAvatar)
 {
 	ObjectObject* pOb = pAvatar->GetGObject();
-	return (float)((GashFloat*)pOb->arrFields[MAV_FIELD_REACH])->m_value;
+	return (float)((GaspFloat*)pOb->arrFields[MAV_FIELD_REACH])->m_value;
 }
 
 // -------------------------------------------------------------------------
@@ -715,7 +717,8 @@ void MGameMachine::getImage(Engine* pEngine, EVar* pOutImage, EVar* pID)
 	GString* pIDString = &pID->pStringObject->m_value;
 	char* szID = (char*)alloca(pIDString->GetLength() + 1);
 	pIDString->GetAnsi(szID);
-	VarHolder* pVH = pStore->GetVarHolder(szID);
+	int nImageIndex = pStore->GetIndex(szID);
+	VarHolder* pVH = pStore->GetVarHolder(nImageIndex);
 	if(!pVH)
 		pEngine->ThrowEngineError(L"No such image"); // todo: throw custom error
 	pEngine->SetVar(pOutImage, pVH ? pVH->GetGObject() : NULL);

@@ -11,8 +11,8 @@
 
 #include "MGameImage.h"
 #include "../GClasses/GHashTable.h"
-#include "../Gash/Include/GashLib.h"
-#include "../Gash/BuiltIns/GashStream.h"
+#include "../Gasp/Include/GaspLib.h"
+#include "../Gasp/BuiltIns/GaspStream.h"
 #include "GameEngine.h"
 #include "MScriptEngine.h"
 #include "MStore.h"
@@ -117,7 +117,8 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 		if(cMode == Store)
 		{
 			// Find the image in the store
-			VarHolder* pVH = pStore->GetVarHolder(szID);
+			int nImageIndex = pStore->GetIndex(szID);
+			VarHolder* pVH = pStore->GetVarHolder(nImageIndex);
 			if(!pVH)
 				GameEngine::ThrowError("There is no image with the ID: %s", szID);
 			pEngine->SetThis((MGameImage*)pVH->GetGObject());
@@ -135,7 +136,8 @@ void MGameImage::fromStream(Engine* pEngine, EVar* pStream)
 		else if(cMode == GlobalId)
 		{
 			MImageStore* pGlobalStore = GameEngine::GetGlobalImageStore();
-			VarHolder* pVH = pGlobalStore->GetVarHolder(szID);
+			int nImageIndex = pGlobalStore->GetIndex(szID);
+			VarHolder* pVH = pGlobalStore->GetVarHolder(nImageIndex);
 			MGameImage* pGameImage = (MGameImage*)pVH->GetGObject();
 			MGameImage* pNewImage = new MGameImage(pEngine, GlobalId, szID);
 			pNewImage->m_value.CopyImage(&pGameImage->m_value);
