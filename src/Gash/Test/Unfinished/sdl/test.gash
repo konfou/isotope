@@ -1,9 +1,0 @@
-class test(Object)
-{
-	method foo()
-	{
-		!Popups:p.messageBox("yo dude", "hello world")
-		!SdlWindow:w.new()
-		&w.drawStars()
-	}
-}

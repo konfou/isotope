@@ -1,7 +1,0 @@
-class hi(Object)
-{
-	proc main()
-	{
-		Console:out.print("Hello World")
-	}
-}

@@ -1,6 +1,0 @@
-machine Console
-{
-	method print(String:s)
-	method print(Integer:i)
-	method print(Float:f)
-}

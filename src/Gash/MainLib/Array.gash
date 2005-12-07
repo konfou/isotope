@@ -1,8 +1,0 @@
-machine Array
-{
-	method !new(Integer:initialSize)
-	method getSize(&Integer:size)
-	method &add(Object:obj)
-	method get(!Object:obj, Integer:index)
-	method &set(Integer:index, Object:obj)
-}
