@@ -1,10 +1,10 @@
 <Library Source="Untitled.proj">
-	<Class Name="Object" ID="1" Gen="0" />
-	<Class Name="Integer" ID="2" ParID="0" Parent="Object" Gen="0" />
-	<Class Name="StackLayer" ID="3" ParID="0" Parent="Object" Gen="0">
+	<Class Name="Object" ID="1" Gen="1" />
+	<Class Name="Integer" ID="2" ParID="0" Parent="Object" Gen="1" />
+	<Class Name="StackLayer" ID="3" ParID="0" Parent="Object" Gen="1">
 		<Var Exp="!Object:catcher" />
 	</Class>
-	<Machine ID="4" Name="Array" Gen="0">
+	<Machine ID="4" Name="Array" Gen="1">
 		<Method Name="!new">
 			<Var Exp="Integer:initialSize" />
 		</Method>
@@ -23,7 +23,7 @@
 			<Var Exp="Object:obj" />
 		</Method>
 	</Machine>
-	<Machine ID="5" Name="BigInt" Gen="0">
+	<Machine ID="5" Name="BigInt" Gen="1">
 		<Method Name="!new" />
 		<Method Name="getSign">
 			<Var Exp="&amp;Bool:sign" />
@@ -125,11 +125,11 @@
 			<Var Exp="BigInt:seed" />
 		</Method>
 	</Machine>
-	<Class Name="Bool" ID="6" ParID="2" Parent="Integer" Gen="0" Source="Bool.gash">
+	<Class Name="Bool" ID="6" ParID="2" Parent="Integer" Gen="1" Source="Bool.gasp">
 		<Const Name="true" Val="1" />
 		<Const Name="false" Val="0" />
 	</Class>
-	<Machine ID="7" Name="Console" Gen="0">
+	<Machine ID="7" Name="Console" Gen="1">
 		<Method Name="print">
 			<Var Exp="String:s" />
 		</Method>
@@ -140,7 +140,7 @@
 			<Var Exp="Float:f" />
 		</Method>
 	</Machine>
-	<Machine ID="8" Name="Engine" Gen="0">
+	<Machine ID="8" Name="Engine" Gen="1">
 		<Method Name="collectTheGarbage" />
 		<Method Name="getObjectCount">
 			<Var Exp="&amp;Integer:count" />
@@ -171,7 +171,7 @@
 			<Var Exp="Project:proj" />
 		</Method>
 	</Machine>
-	<Class Name="Exception" ID="9" ParID="0" Parent="Object" Gen="0" Source="Exception.gash">
+	<Class Name="Exception" ID="9" ParID="0" Parent="Object" Gen="1" Source="Exception.gasp">
 		<Var Exp="!String:message" />
 		<Method Name="!new" ID="0">
 			<Var Exp="String:message" />
@@ -184,15 +184,15 @@
 			<Bin Data="02d000000000bfffffff0000000080e100000000000000a0cfffffff0000000032" />
 		</Method>
 	</Class>
-	<Class Name="NullReferenceException" ID="10" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Class Name="EngineException" ID="11" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Class Name="CastException" ID="12" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Class Name="DeserializationException" ID="13" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Class Name="IOException" ID="14" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Class Name="SdlException" ID="15" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Class Name="XmlException" ID="16" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Class Name="CompileException" ID="17" ParID="9" Parent="Exception" Gen="0" Source="Exception.gash" />
-	<Machine ID="18" Name="Float" Gen="0">
+	<Class Name="NullReferenceException" ID="10" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Class Name="EngineException" ID="11" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Class Name="CastException" ID="12" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Class Name="DeserializationException" ID="13" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Class Name="IOException" ID="14" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Class Name="SdlException" ID="15" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Class Name="XmlException" ID="16" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Class Name="CompileException" ID="17" ParID="9" Parent="Exception" Gen="1" Source="Exception.gasp" />
+	<Machine ID="18" Name="Float" Gen="1">
 		<Method Name="&amp;add">
 			<Var Exp="Float:that" />
 		</Method>
@@ -305,7 +305,7 @@
 		</Method>
 		<Method Name="&amp;abs" />
 	</Machine>
-	<Machine ID="19" Name="Image" Gen="0">
+	<Machine ID="19" Name="Image" Gen="1">
 		<Method Name="!new" />
 		<Method Name="&amp;setSize">
 			<Var Exp="Integer:width" />
@@ -335,8 +335,8 @@
 			<Var Exp="String:filename" />
 		</Method>
 	</Machine>
-	<Class Name="Color" ID="20" ParID="2" Parent="Integer" Gen="0" Source="Image.gash" />
-	<Class Name="Rect" ID="21" ParID="0" Parent="Object" Gen="0" Source="Image.gash">
+	<Class Name="Color" ID="20" ParID="2" Parent="Integer" Gen="1" Source="Image.gasp" />
+	<Class Name="Rect" ID="21" ParID="0" Parent="Object" Gen="1" Source="Image.gasp">
 		<Var Exp="!Integer:x" />
 		<Var Exp="!Integer:y" />
 		<Var Exp="!Integer:w" />
@@ -367,7 +367,7 @@
 			<Bin Data="02d000000000bfffffff0000000002d010000000cfffffff0000000090000000001000000002d020000000bfffffff1000000002d030000000cfffffff1000000090200000003000000002d040000000bfffffff2000000002d050000000cfffffff2000000090400000005000000002d060000000bfffffff3000000002d070000000cfffffff3000000090600000007000000032" />
 		</Method>
 	</Class>
-	<Machine ID="22" Name="Library" Gen="0">
+	<Machine ID="22" Name="Library" Gen="1">
 		<Method Name="!load">
 			<Var Exp="String:filename" />
 		</Method>
@@ -375,7 +375,7 @@
 			<Var Exp="String:filename" />
 		</Method>
 	</Machine>
-	<Machine ID="23" Name="PopUps" Gen="0">
+	<Machine ID="23" Name="PopUps" Gen="1">
 		<Method Name="messageBox">
 			<Var Exp="String:title" />
 			<Var Exp="String:message" />
@@ -385,7 +385,7 @@
 			<Var Exp="String:title" />
 		</Method>
 	</Machine>
-	<Class Name="Project" ID="24" ParID="0" Parent="Object" Gen="0" Source="Project.gash">
+	<Class Name="Project" ID="24" ParID="0" Parent="Object" Gen="1" Source="Project.gasp">
 		<Var Exp="!Array:files" />
 		<Method Name="&amp;addFilename" ID="6">
 			<Var Exp="String:filename" />
@@ -403,13 +403,13 @@
 			<Bin Data="f1cfffffff81000000000202e1200000005220000000010000002210000000222000000091300000004000000000000000804000000030000000a0100000003000000080400000001000000042cfffffff00000000100000001032" />
 		</Procedure>
 	</Class>
-	<Machine ID="25" Name="SdlWindow" Gen="0">
+	<Machine ID="25" Name="SdlWindow" Gen="1">
 		<Method Name="!new" />
 		<Method Name="getNextFrame">
 			<Var Exp="!SdlFrame:frame" />
 		</Method>
 	</Machine>
-	<Machine ID="26" Name="SdlFrame" Gen="0">
+	<Machine ID="26" Name="SdlFrame" Gen="1">
 		<Method Name="&amp;drawStars" />
 		<Method Name="&amp;stretchBlit">
 			<Var Exp="Rect:dest" />
@@ -417,7 +417,7 @@
 			<Var Exp="Rect:source" />
 		</Method>
 	</Machine>
-	<Machine ID="27" Name="SdlScene" Gen="0">
+	<Machine ID="27" Name="SdlScene" Gen="1">
 		<Method Name="!render">
 			<Var Exp="String:filename" />
 		</Method>
@@ -427,7 +427,7 @@
 			<Var Exp="Integer:frameNumber" />
 		</Method>
 	</Machine>
-	<Class Name="Point3D" ID="28" ParID="0" Parent="Object" Gen="0" Source="Sdl.gash">
+	<Class Name="Point3D" ID="28" ParID="0" Parent="Object" Gen="1" Source="Sdl.gasp">
 		<Var Exp="!Integer:x" />
 		<Var Exp="!Integer:y" />
 		<Var Exp="!Integer:z" />
@@ -443,7 +443,7 @@
 			<Bin Data="00229fffffff6090000000a09fffffff100000001002d0000000009fffffff000000009000000000afffffff02d0100000009fffffff100000009010000000bfffffff02d0200000009fffffff200000009020000000cfffffff32" />
 		</Method>
 	</Class>
-	<Machine ID="29" Name="Stream" Gen="0">
+	<Machine ID="29" Name="Stream" Gen="1">
 		<Method Name="!new" />
 		<Method Name="getSize">
 			<Var Exp="&amp;Integer:size" />
@@ -455,7 +455,7 @@
 			<Var Exp="!Object:obj" />
 		</Method>
 	</Machine>
-	<Machine ID="30" Name="String" Gen="0">
+	<Machine ID="30" Name="String" Gen="1">
 		<Method Name="!new" />
 		<Method Name="toInteger">
 			<Var Exp="&amp;Integer:int" />
@@ -508,7 +508,7 @@
 			<Var Exp="Integer:char" />
 		</Method>
 	</Machine>
-	<Class Name="StringSegment" ID="31" ParID="0" Parent="Object" Gen="0" Source="String.gash">
+	<Class Name="StringSegment" ID="31" ParID="0" Parent="Object" Gen="1" Source="String.gasp">
 		<Var Exp="!String:s" />
 		<Var Exp="!Integer:start" />
 		<Var Exp="!Integer:length" />
