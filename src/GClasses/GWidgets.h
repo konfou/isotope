@@ -30,6 +30,7 @@ class GWidgetFileSystemBrowser;
 class GWidgetSliderTab;
 
 
+
 class GWidgetStyle
 {
 protected:
@@ -64,7 +65,7 @@ public:
 
 
 
-
+// The base class of all GUI widgets
 class GWidget
 {
 friend class GWidgetGroup;
@@ -115,7 +116,7 @@ public:
 
 
 
-
+// The base class of all atomic widgets (widgets that are not composed of other widgets).
 class GWidgetAtomic : public GWidget
 {
 friend class GWidgetDialog;
@@ -138,7 +139,7 @@ protected:
 
 
 
-
+// The base class of all widgets that are composed of other widgets
 class GWidgetGroup : public GWidget
 {
 friend class GWidget;
@@ -249,7 +250,7 @@ protected:
 
 
 
-
+// A form or dialog
 class GWidgetDialog : public GWidgetGroupWithCanvas
 {
 protected:
@@ -271,15 +272,13 @@ public:
 	virtual void OnDestroyWidget(GWidget* pWidget);
 	void HandleChar(char c);
 	bool HandleMousePos(int x, int y);
-
-protected:
 	virtual void Update();
 };
 
 
 
 
-
+// A button with text on it
 class GWidgetTextButton : public GWidgetAtomic
 {
 protected:
@@ -309,7 +308,7 @@ protected:
 
 
 
-
+// A text label
 class GWidgetTextLabel : public GWidgetAtomic
 {
 protected:
@@ -340,7 +339,7 @@ protected:
 
 
 
-
+// A button with a common icon on it
 class GWidgetVCRButton : public GWidgetAtomic
 {
 public:

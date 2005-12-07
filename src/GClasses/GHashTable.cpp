@@ -274,15 +274,20 @@ void GHashTableBase::_Remove(const char* pKey)
 
 // ------------------------------------------------------------------------------
 
-const char* GHashTableEnumerator::GetNextKey()
+const char* GHashTableEnumerator::GetNext(void** ppValue)
 {
 	GAssert(m_pHashTable->GetModCount() == m_nModCount, "The HashTable was modified since this enumerator was constructed!");
+	const void* pValue;
 	while(m_nPos < m_pHashTable->m_nBucketCount)
 	{
 		const char* pKey = m_pHashTable->m_pBuckets[m_nPos].pKey;
+		pValue = m_pHashTable->m_pBuckets[m_nPos].pValue;
 		m_nPos++;
 		if(pKey)
+		{
+			*ppValue = (void*)pValue;
 			return pKey;
+		}
 	}
 	return NULL;
 }

@@ -12,6 +12,7 @@
 #ifndef __GBITTABLE_H__
 #define __GBITTABLE_H__
 
+// Represents a collection of bits
 class GBitTable
 {
 protected:

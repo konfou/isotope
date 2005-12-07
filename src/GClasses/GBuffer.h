@@ -12,6 +12,7 @@
 #ifndef __GBUFFER_H__
 #define __GBUFFER_H__
 
+// Represents a buffer of integers
 class GBuffer
 {
 protected:

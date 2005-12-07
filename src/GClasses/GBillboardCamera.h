@@ -31,7 +31,7 @@ public:
 	float x, y, w, h, dy, dh;
 };
 
-// This class represents the view point from which the game view is rendered
+// This class represents the view point from which a game view is rendered
 class GBillboardCamera
 {
 protected:
@@ -100,7 +100,10 @@ public:
 	// Ajust the horizon height by the factor fac
 	void AjustHorizonHeight(float factor, int nScreenVerticalCenter);
 
+	// Return the position of the camera
 	void GetPosition(float* px, float* py, float* pz) { *px = m_x; *py = m_y; *pz = m_z; }
+
+	// Move the camera in the x and y planes
 	void Move(float dx, float dy);
 protected:
 	// Move the camera in the opposite direction that it is facing

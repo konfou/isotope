@@ -78,7 +78,7 @@ struct GRect
 	}
 };
 
-
+// Represents an image
 class GImage
 {
 protected:
@@ -154,7 +154,7 @@ public:
 	GColor SafeGetPixel(int nX, int nY);
 
 	// Returns an interpolated pixel
-	GColor InterpolatePixel(double dX, double dY);
+	GColor InterpolatePixel(float dX, float dY);
 
 	// Draw a line
 	void DrawLine(int nX1, int nY1, int nX2, int nY2, GColor color);
@@ -234,8 +234,10 @@ public:
 	// Sharpen the image
 	void Sharpen(double dFactor);
 
+	// Inverts the pixels in the image
 	void Invert();
 
+	// Finds edges and makes them glow
 	void MakeEdgesGlow(float fThresh, int nThickness, int nOpacity, GColor color);
 
 	void Convolve(GImage* pKernel);
@@ -245,7 +247,6 @@ public:
 	void HorizDifferenceize();
 	void HorizSummize();
 
-	// Data Manipulation
 	void SwapData(GImage* pSwapImage);
 	GColor* GetRGBQuads() { return m_pPixels; }
 	void CopyImage(GImage* pSourceImage);

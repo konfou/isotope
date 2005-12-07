@@ -15,6 +15,8 @@
 #include "../GClasses/GMath.h"
 #include <malloc.h>
 #include <math.h>
+#include "GBits.h"
+#include "GMatrix.h"
 
 GArffRelation::GArffRelation()
 {
@@ -283,7 +285,7 @@ void GArffRelation::CountInputs()
 			m_nOutputCount++;
 	}
 	GAssert(m_nInputCount > 0, "no inputs");
-	GAssert(m_nOutputCount > 0, "no outputs");
+	//GAssert(m_nOutputCount > 0, "no outputs");
 	delete(m_pInputIndexes);
 	delete(m_pOutputIndexes);
 	m_pInputIndexes = new int[m_nInputCount];
@@ -338,6 +340,50 @@ double GArffRelation::TotalEntropyOfAllOutputs(GArffData* pData)
 	for(n = 0; n < nOutputs; n++)
 		dEntropy += pData->MeasureEntropy(this, GetOutputIndex(n));
 	return dEntropy;
+}
+
+double GArffRelation::ComputeInputDistanceSquared(double* pRow1, double* pRow2)
+{
+	double dSum = 0;
+	double d;
+	int n, nIndex;
+	for(n = 0; n < m_nInputCount; n++)
+	{
+		nIndex = GetInputIndex(n);
+		if(GetAttribute(nIndex)->IsContinuous())
+		{
+			d = pRow2[nIndex] - pRow1[nIndex];
+			dSum += (d * d);
+		}
+		else
+		{
+			if(pRow2[nIndex] != pRow1[nIndex])
+				dSum += 1;
+		}
+	}
+	return dSum;
+}
+
+double GArffRelation::ComputeScaledInputDistanceSquared(double* pRow1, double* pRow2, double* pInputScales)
+{
+	double dSum = 0;
+	double d;
+	int n, nIndex;
+	for(n = 0; n < m_nInputCount; n++)
+	{
+		nIndex = GetInputIndex(n);
+		if(GetAttribute(nIndex)->IsContinuous())
+		{
+			d = pRow2[nIndex] * pInputScales[n] - pRow1[nIndex] * pInputScales[n];
+			dSum += (d * d);
+		}
+		else
+		{
+			if(pRow2[nIndex] != pRow1[nIndex])
+				dSum += pInputScales[n];
+		}
+	}
+	return dSum;
 }
 
 // ------------------------------------------------------------------
@@ -409,9 +455,14 @@ GArffAttribute* GArffAttribute::NewCopy()
 	// Parse the name
 	Holder<GArffAttribute*> hAttr(new GArffAttribute());
 	GArffAttribute* pAttr = hAttr.Get();
-	int nPos;
-	for(nPos = 1; nPos < nLen && szFile[nPos] > ' '; nPos++)
+	int nQuotes = 0;
+	if(szFile[0] == '\'' || szFile[0] == '"')
+		nQuotes = 1;
+	int nPos = 1;
+	for( ; nPos < nLen && (szFile[nPos] > ' ' || nQuotes > 0); nPos++)
 	{
+		if(szFile[nPos] == '\'' || szFile[nPos] == '"')
+			nQuotes--;
 	}
 	pAttr->m_szName = new char[nPos + 1];
 	memcpy(pAttr->m_szName, szFile, nPos);
@@ -429,6 +480,10 @@ GArffAttribute* GArffAttribute::NewCopy()
 
 	// Check for CONTINUOUS
 	if(nLen - nPos >= 10 && strnicmp(&szFile[nPos], "CONTINUOUS", 10) == 0)
+		return hAttr.Drop();
+	if(nLen - nPos >= 7 && strnicmp(&szFile[nPos], "NUMERIC", 7) == 0)
+		return hAttr.Drop();
+	if(nLen - nPos >= 4 && strnicmp(&szFile[nPos], "REAL", 4) == 0)
 		return hAttr.Drop();
 
 	// Parse the values
@@ -481,6 +536,19 @@ GArffAttribute* GArffAttribute::NewCopy()
 	return hAttr.Drop();
 }
 
+void GArffAttribute::SetContinuous()
+{
+	if(m_szValues)
+	{
+		int n;
+		for(n = 0; n < m_nValues; n++)
+			delete(m_szValues[n]);
+		delete(m_szValues);
+	}
+	m_szValues = NULL;
+	m_nValues = 0;
+}
+
 int GArffAttribute::GetValueCount()
 {
 	return m_nValues;
@@ -511,6 +579,11 @@ int GArffAttribute::FindEnumeratedValue(const char* szValue)
 
 // ------------------------------------------------------------------
 
+GArffData::GArffData(GPointerArray* pRows)
+{
+	m_pRows = pRows;
+}
+
 GArffData::GArffData(int nGrowSize)
 {
 	m_pRows = new GPointerArray(nGrowSize);
@@ -518,11 +591,14 @@ GArffData::GArffData(int nGrowSize)
 
 GArffData::~GArffData()
 {
-	int nCount = m_pRows->GetSize();
-	int n;
-	for(n = 0; n < nCount; n++)
-		delete((double*)m_pRows->GetPointer(n));
-	delete(m_pRows);
+	if(m_pRows)
+	{
+		int nCount = m_pRows->GetSize();
+		int n;
+		for(n = 0; n < nCount; n++)
+			delete((double*)m_pRows->GetPointer(n));
+		delete(m_pRows);
+	}
 }
 
 int GArffData::GetRowCount()
@@ -718,6 +794,70 @@ void GArffData::DiscretizeNonContinuousOutputs(GArffRelation* pRelation)
 	}
 }
 
+void GArffData::GetMeans(double* pOutMeans, int nAttributes)
+{
+	int n;
+	for(n = 0; n < nAttributes; n++)
+		pOutMeans[n] = 0;
+	int nRowCount = GetRowCount();
+	double* pRow;
+	int i;
+	for(i = 0; i < nRowCount; i++)
+	{
+		pRow = GetRow(i);
+		for(n = 0; n < nAttributes; n++)
+			pOutMeans[n] += pRow[n];
+	}
+	for(n = 0; n < nAttributes; n++)
+		pOutMeans[n] /= nRowCount;
+}
+
+void GArffData::GetVariance(double* pOutVariance, double* pMeans, int nAttributes)
+{
+	int n;
+	for(n = 0; n < nAttributes; n++)
+		pOutVariance[n] = 0;
+	int nRowCount = GetRowCount();
+	double* pRow;
+	int i;
+	for(i = 0; i < nRowCount; i++)
+	{
+		pRow = GetRow(i);
+		for(n = 0; n < nAttributes; n++)
+			pOutVariance[n] += ((pRow[n] - pMeans[n]) * (pRow[n] - pMeans[n]));
+	}
+	for(n = 0; n < nAttributes; n++)
+		pOutVariance[n] /= nRowCount;
+}
+
+int GArffData::RemoveOutlyers(double dStandardDeviations, int nAttributes)
+{
+	int nOutlyers = 0;
+	double* pMeans = (double*)alloca(sizeof(double) * nAttributes);
+	double* pVariance = (double*)alloca(sizeof(double) * nAttributes);
+	GetMeans(pMeans, nAttributes);
+	GetVariance(pVariance, pMeans, nAttributes);
+	int n, i;
+	for(n = 0; n < nAttributes; n++)
+		pVariance[n] = sqrt(pVariance[n]);
+	double* pRow;
+	int nRowCount = GetRowCount();
+	for(i = nRowCount - 1; i >= 0; i--)
+	{
+		pRow = GetRow(i);
+		for(n = 0; n < nAttributes; n++)
+		{
+			if(ABS(pRow[n] - pMeans[n]) > dStandardDeviations * pVariance[n])
+			{
+				delete(DropRow(i));
+				nOutlyers++;
+				break;
+			}
+		}
+	}
+	return nOutlyers;
+}
+
 void GArffData::GetMinAndRange(int nAttribute, double* pMin, double* pRange)
 {
 	int nCount = GetRowCount();
@@ -906,7 +1046,7 @@ void GArffData::RandomlyReplaceMissingData(GArffRelation* pRelation)
 			nMaxValues = pAttr->GetValueCount() + 3;
 			pCounts = new int[nMaxValues];
 		}
-		
+
 		// Count the number of each value
 		memset(pCounts, '\0', sizeof(int) * nValues);
 		for(n = 0; n < nRowCount; n++)
@@ -935,7 +1075,7 @@ void GArffData::RandomlyReplaceMissingData(GArffRelation* pRelation)
 			nVal = (int)pRow[i];
 			if(nVal < 0)
 			{
-				nRand = (int)(GetRandUInt() % nSum);
+				nRand = (int)(GBits::GetRandomUint() % nSum);
 				for(j = 0; ; j++)
 				{
 					GAssert(j < nValues, "internal inconsistency");
@@ -986,35 +1126,51 @@ void GArffData::ReplaceMissingAttributeWithMostCommonValue(GArffRelation* pRelat
 	}
 }
 
-double** GArffData::ComputeCovarianceMatrix(GArffRelation* pRelation)
+void GArffData::Print(int nAttributes)
 {
-	// Allocate the matrix
-	int nAttributes = pRelation->GetAttributeCount();
-	double** pMatrix = new double*[nAttributes];
-	int n, i, j;
-	for(n = 0; n < nAttributes; n++)
-		pMatrix[n] = new double[nAttributes];
-	
+	int nRows = GetRowCount();
+	double* pRow;
+	int n, i;
+	for(n = 0; n < nRows; n++)
+	{
+		pRow = GetRow(n);
+		printf("%f", pRow[0]);
+		for(i = 1; i < nAttributes; i++)
+			printf("\t%f", pRow[i]);
+		printf("\n");
+	}
+}
+
+void GArffData::ComputeCovarianceMatrix(GMatrix* pOutMatrix, GArffRelation* pRelation)
+{
+	// Resize the matrix
+	int nInputs = pRelation->GetInputCount();
+	pOutMatrix->Resize(nInputs, nInputs);
+
 	// Compute the deviations
-	double* pMeans = (double*)alloca(sizeof(double) * nAttributes);
+	Holder<double*> hMeans(new double[nInputs]);
+	double* pMeans = hMeans.Get();
 	int nRowCount = GetRowCount();
 	double* pRow;
-	for(i = 0; i < nAttributes; i++)
+	int n, i, j, nIndex;
+	for(i = 0; i < nInputs; i++)
 	{
+		nIndex = pRelation->GetInputIndex(i);
+
 		// Compute the mean
 		double dSum = 0;
 		for(n = 0; n < nRowCount; n++)
 		{
 			pRow = GetRow(n);
-			dSum += pRow[i];
+			dSum += pRow[nIndex];
 		}
-		pMeans[i] = dSum /= nRowCount;
+		pMeans[i] = dSum / nRowCount;
 	}
 
 	// Compute the covariances for half the matrix
-	for(i = 0; i < nAttributes; i++)
+	for(i = 0; i < nInputs; i++)
 	{
-		for(n = i; n < nAttributes; n++)
+		for(n = i; n < nInputs; n++)
 		{
 			double dSum = 0;
 			for(j = 0; j < nRowCount; j++)
@@ -1022,15 +1178,64 @@ double** GArffData::ComputeCovarianceMatrix(GArffRelation* pRelation)
 				pRow = GetRow(j);
 				dSum += ((pRow[i] - pMeans[i]) * (pRow[n] - pMeans[n]));
 			}
-			pMatrix[i][n] = dSum / (nRowCount - 1);
+			pOutMatrix->Set(i, n, dSum / (nRowCount - 1));
 		}
 	}
 
 	// Fill out the other half of the matrix
-	for(i = 1; i < nAttributes; i++)
+	for(i = 1; i < nInputs; i++)
 	{
 		for(n = 0; n < i; n++)
-			pMatrix[i][n] = pMatrix[n][i];
+			pOutMatrix->Set(i, n, pOutMatrix->Get(n, i));
 	}
-	return pMatrix;
+}
+
+void GArffData::ComputeCoprobabilityMatrix(GMatrix* pOutMatrix, GArffRelation* pRelation, int nAttr, double noDataValue)
+{
+	// Resize the matrix
+	GArffAttribute* pAttr = pRelation->GetAttribute(nAttr);
+	int nRows = pAttr->GetValueCount();
+	int nAttributes = pRelation->GetAttributeCount();
+	int nCols = 0;
+	int i;
+	for(i = 0; i < nAttributes; i++)
+	{
+		GArffAttribute* pAttrCol = pRelation->GetAttribute(i);
+		nCols += pAttrCol->GetValueCount();
+	}
+	pOutMatrix->Resize(nRows, nCols);
+
+	// Compute the coprobabilities
+	int nRowCount = GetRowCount();
+	int row, col, nMatch, nTotal, nAttrCol, nVal;
+	double* pRow;
+	for(row = 0; row < nRows; row++)
+	{
+		col = 0;
+		for(nAttrCol = 0; nAttrCol < nAttributes; nAttrCol++)
+		{
+			GArffAttribute* pAttrCol = pRelation->GetAttribute(nAttrCol);
+			for(nVal = 0; nVal < pAttrCol->GetValueCount(); nVal++)
+			{
+				nMatch = 0;
+				nTotal = 0;
+				for(i = 0; i < nRowCount; i++)
+				{
+					pRow = GetRow(i);
+					if((int)pRow[nAttrCol] == nVal)
+					{
+						nTotal++;
+						if((int)pRow[nAttr] == row)
+							nMatch++;
+					}
+				}
+				if(nTotal == 0)
+					pOutMatrix->Set(row, col, noDataValue);
+				else
+					pOutMatrix->Set(row, col, (double)nMatch / nTotal);
+				col++;
+			}
+		}
+		GAssert(col == nCols, "problem with columns");
+	}
 }

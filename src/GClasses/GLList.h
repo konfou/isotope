@@ -63,9 +63,13 @@ public:
 	// In case you want it to take a long time to sort
 	void SlowSort();
 
+	// Returns the first bucket in the list
 	inline GBucket* GetFirst()	{	return(m_pFirstBucket);	}
+
+	// Returns the last bucket in the list
 	inline GBucket* GetLast()	{	return(m_pLastBucket);	}
 
+	// Returns the bucket that follows pCurrentBucket
 	inline GBucket* GetNext(GBucket* pCurrentBucket)
 	{
 		return pCurrentBucket ? pCurrentBucket->GetNext() : m_pFirstBucket;

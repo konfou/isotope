@@ -16,6 +16,14 @@ class GAVLTree;
 class GAVLNode;
 class GAVLEnumerator;
 
+// The base class for a node in an AVL tree. You will need to inherit from this
+// class in order to put your data in an AVL tree. A good implementation is to
+// make a class, perhaps named "KeyNode", that inherits from GAVLNode and
+// contains only the info necessary to implement the compare function, and
+// another class, perhaps named "DataNode", that inherits from KeyNode and also
+// includes a payload area for useful data. In this system, pLikeMe would be an
+// instance of KeyNode, but the value this method returns would be an instance
+// of DataNode because you only insert instances of DataNode into the tree.
 class GAVLNode
 {
 friend inline int _GetHeight(GAVLNode* pNode);
@@ -39,13 +47,9 @@ public:
 		delete(m_pRightChild);
 	}
 
-	// A good implementation is to make a class, perhaps named "KeyNode", that
-	// inherits from GAVLNode and contains only the info necessary to implement
-	// the compare function, and another class, perhaps named "DataNode", that
-	// inherits from KeyNode and also includes a payload area for useful data.
-	// In this system, pLikeMe would be an instance of KeyNode, but the value
-	// this method returns would be an instance of DataNode because you only
-	// insert instances of DataNode into the tree.
+	// Returns -1 if this compares less than pThat
+	// Returns 0 if this is the same as pThat
+	// Returns 1 if this compares greater than pThat
 	virtual int Compare(GAVLNode* pThat) = 0;
 
 	// Returns the maximum tree depth from this node to the deepest child.  A
@@ -87,6 +91,7 @@ protected:
 	}
 };
 
+// A balanced binary tree. Good for priority queues.
 class GAVLTree
 {
 friend class GAVLEnumerator;
@@ -106,14 +111,7 @@ public:
 	// Inserts a node into the tree
 	void Insert(GAVLNode* pNode);
 
-	// Gets a node that compares equal to pLikeMe.  (A good implementation
-	// is to make a class, perhaps named "KeyNode", that inherits from GAVLNode
-	// and contains only the info necessary to implement the compare function,
-	// and another class, perhaps named "DataNode", that inherits from KeyNode
-	// and also includes a payload area for useful data.  In this system,
-	// pLikeMe would be an instance of KeyNode, but the value this method
-	// returns would be an instance of DataNode because you only insert
-	// instances of DataNode into the tree.
+	// Gets a node that compares equal to pLikeMe.
 	GAVLNode* GetNode(GAVLNode* pLikeMe, int* pnOutIndex);
 
 	// Removes a node from the tree and returns it to you so you can delete it

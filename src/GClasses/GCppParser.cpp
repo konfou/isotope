@@ -12,8 +12,12 @@
 #include "GCppParser.h"
 #include <string.h>
 #include <stdio.h>
+#ifdef WIN32
 #include <direct.h>
 #include <io.h>
+#else // WIN32
+#include <unistd.h>
+#endif // !WIN32
 #include "GArray.h"
 #include "GMacros.h"
 #include "GFile.h"
@@ -52,11 +56,9 @@ GCppScope::GCppScope()
 	GHashTableEnumerator e(pht);\
 	while(true)\
 	{\
-		const char* pKey = e.GetNextKey();\
+		const char* pKey = e.GetNext(&pValue);\
 		if(!pKey)\
 			break;\
-		if(!pht->Get(pKey, &pValue))\
-			continue;\
 		if(!htUnique.Get(pValue, &pTemp))\
 		{\
 			htUnique.Add(pValue, NULL);\
@@ -120,8 +122,8 @@ const char* g_pPrimitiveTypes[] =
 
 // -------------------------------------------------------------------
 
-GCppMethod::GCppMethod(GCppType* pReturnType, GCppScope* pScope, const char* szName, GCppMethodModifier eModifiers)
-	: GCppDeclaration(pReturnType, szName)
+GCppMethod::GCppMethod(GCppType* pReturnType, GCppScope* pScope, const char* szName, GCppAccess eAccess, GCppMethodModifier eModifiers)
+	: GCppDeclaration(pReturnType, szName, eAccess)
 {
 	m_eModifiers = eModifiers;
 	m_pParameters = new GPointerArray(4);
@@ -249,7 +251,7 @@ GCppParser::GCppParser()
 
 	// Add primitive types to the global scope
 	int n;
-	for(n = 0; n < PRIMITIVE_TYPE_COUNT; n++)
+	for(n = 0; n < (int)PRIMITIVE_TYPE_COUNT; n++)
 	{
 		GCppClass* pPrimitive = new GCppClass(g_pPrimitiveTypes[n]);
 		pPrimitive->m_bPrimitive = true;
@@ -765,7 +767,7 @@ bool GCppParser::ParseScopeItem()
 
 bool GCppParser::GetMacro(const char* pTok, int nLength, const char** pszValue)
 {
-	char* szTok = (char*)_alloca(nLength + 1);
+	char* szTok = (char*)alloca(nLength + 1);
 	memcpy(szTok, pTok, nLength);
 	szTok[nLength] = '\0';
 	return m_pDefines->Get(szTok, (void**)pszValue);
@@ -924,7 +926,7 @@ bool GCppParser::ParseIfDef(const char* pFile, int nEnd, bool bPositive)
 		return OnError(NULL, "Missing statement");
 
 	// See if it's defined
-	char* szDefine = (char*)_alloca(nLength + 1);
+	char* szDefine = (char*)alloca(nLength + 1);
 	memcpy(szDefine, &pFile[nStart], nLength);
 	szDefine[nLength] = '\0';
 	char* szValue;
@@ -973,7 +975,7 @@ bool GCppParser::ParseUnDef(const char* pFile, int nEnd)
 		return OnError(NULL, "Expected a statement after #undef");
 
 	// Remove it from the defines
-	char* pDefine = (char*)_alloca(nLength + 1);
+	char* pDefine = (char*)alloca(nLength + 1);
 	memcpy(pDefine, &pFile[nPos], nLength);
 	pDefine[nLength] = '\0';
 	m_pDefines->Remove(pDefine);
@@ -983,7 +985,7 @@ bool GCppParser::ParseUnDef(const char* pFile, int nEnd)
 
 GCppType* GCppParser::FindType(const char* pName, int nLength)
 {
-	char* szName = (char*)_alloca(nLength + 1);
+	char* szName = (char*)alloca(nLength + 1);
 	memcpy(szName, pName, nLength);
 	szName[nLength] = '\0';
 	int n;
@@ -1013,7 +1015,7 @@ GCppVariable* GCppParser::FindVariable(const char* szName, GCppScope* pScope)
 
 GCppVariable* GCppParser::FindVariable(const char* pName, int nLength, GCppScope* pScope)
 {
-	char* szName = (char*)_alloca(nLength + 1);
+	char* szName = (char*)alloca(nLength + 1);
 	memcpy(szName, pName, nLength);
 	szName[nLength] = '\0';
 	return FindVariable(szName, pScope);
@@ -1021,7 +1023,7 @@ GCppVariable* GCppParser::FindVariable(const char* pName, int nLength, GCppScope
 
 GCppVariable* GCppParser::FindVariable(const char* pName, int nLength, GCppMethod* pMethod)
 {
-	char* szName = (char*)_alloca(nLength + 1);
+	char* szName = (char*)alloca(nLength + 1);
 	memcpy(szName, pName, nLength);
 	szName[nLength] = '\0';
 	GCppVariable* pVar;
@@ -1055,7 +1057,7 @@ GCppMethod* GCppParser::FindMethod(const char* szName, GCppScope* pScope)
 
 GCppMethod* GCppParser::FindMethod(const char* pName, int nLength, GCppScope* pScope)
 {
-	char* szName = (char*)_alloca(nLength + 1);
+	char* szName = (char*)alloca(nLength + 1);
 	memcpy(szName, pName, nLength);
 	szName[nLength] = '\0';
 	return FindMethod(szName, pScope);
@@ -1063,7 +1065,7 @@ GCppMethod* GCppParser::FindMethod(const char* pName, int nLength, GCppScope* pS
 
 GCppMethod* GCppParser::FindMethod(const char* pName, int nLength)
 {
-	char* szName = (char*)_alloca(nLength + 1);
+	char* szName = (char*)alloca(nLength + 1);
 	memcpy(szName, pName, nLength);
 	szName[nLength] = '\0';
 	GCppMethod* pMethod;
@@ -1560,7 +1562,7 @@ GCppDeclaration* GCppParser::parseDecl3(GCppType* pType, bool bParam, bool bDest
 		}
 		if(bDestructor)
 		{
-			char* pTmp = (char*)_alloca(strlen(pType->m_szName) + 2);
+			char* pTmp = (char*)alloca(strlen(pType->m_szName) + 2);
 			strcpy(pTmp, "~");
 			strcat(pTmp, pType->m_szName);
 			szName = m_pStringHeap->Add(pTmp);
@@ -1632,7 +1634,7 @@ GCppDeclaration* GCppParser::parseDecl3(GCppType* pType, bool bParam, bool bDest
 		// Create the variable declaration
 		unsigned int eVarModifiers = m_eVarModifiers;
 		m_eVarModifiers = 0;
-		GCppVariable* pNewVar = new GCppVariable(pType, szName, (GCppVarModifier)eVarModifiers);
+		GCppVariable* pNewVar = new GCppVariable(pType, szName, GetCurrentScope()->m_eCurrentAccess, (GCppVarModifier)eVarModifiers);
 		GCppFile* pFile = GetCurrentFile();
 		if(pFile->IsProjectFile())
 			pNewVar->SetDeclaredInProjectFile();
@@ -1655,7 +1657,7 @@ GCppDeclaration* GCppParser::parseDecl3(GCppType* pType, bool bParam, bool bDest
 
 	// Parse the parameters
 	unsigned int eMethodModifiers = m_eMethodModifiers;
-	Holder<GCppMethod*> hMethod(new GCppMethod(pType, GetCurrentScope(), szName, (GCppMethodModifier)eMethodModifiers));
+	Holder<GCppMethod*> hMethod(new GCppMethod(pType, GetCurrentScope(), szName, GetCurrentScope()->m_eCurrentAccess, (GCppMethodModifier)eMethodModifiers));
 	GCppFile* pFile = GetCurrentFile();
 	if(m_pComment)
 	{
@@ -1953,7 +1955,7 @@ bool GCppParser::ParseMethodBody(GCppMethod* pMethod)
 
 						// Make the local variable
 						char* szName = m_pStringHeap->Add(pTok->GetValue(), pTok->GetLength());
-						GCppVariable* pNewVar = new GCppVariable(pType, szName, (GCppVarModifier)m_eVarModifiers);
+						GCppVariable* pNewVar = new GCppVariable(pType, szName, GetCurrentScope()->m_eCurrentAccess, (GCppVarModifier)m_eVarModifiers);
 						m_eVarModifiers = 0;
 						GCppFile* pFile = GetCurrentFile();
 						if(pFile->IsProjectFile())

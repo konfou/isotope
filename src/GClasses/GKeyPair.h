@@ -16,6 +16,7 @@ class GBigNumber;
 class GXMLTag;
 class GRand;
 
+// This is my home-made (so don't trust it) implementation of symmetric key cryptography.
 class GKeyPair
 {
 private:
@@ -33,24 +34,38 @@ public:
 
 	// Takes ownership of the GBigNumber you pass in
 	void SetPublicKey(GBigNumber* pPublicKey);
+
+	// Takes ownership of the GBigNumber you pass in
 	void SetPrivateKey(GBigNumber* pPrivateKey);
+
+	// Takes ownership of the GBigNumber you pass in
 	void SetN(GBigNumber* pN);
 
 	// Copies the GBigNumber you pass in
 	void CopyPublicKey(GBigNumber* pPublicKey);
+
+	// Copies the GBigNumber you pass in
 	void CopyPrivateKey(GBigNumber* pPrivateKey);
+
+	// Copies the GBigNumber you pass in
 	void CopyN(GBigNumber* pN);
 
-	// Getters
+	// Get the public part of the key (not including N which is public too)
 	GBigNumber* GetPublicKey();
+
+	// Get the private part of the key
 	GBigNumber* GetPrivateKey();
+
+	// Get the N part of the key
 	GBigNumber* GetN();
 
-	// Note: you must delete the GXMLTag this returns
+	// Serialize the key pair. You are responsible to delete the GXMLTag this returns
 	GXMLTag* ToXML(bool bIncludePrivateKey);
 
-	// FromXML
+	// Deserialize the key pari
 	bool FromXML(GXMLTag* pTag);
+
+	// Deserialize the key pari
 	bool FromXML(const char* pBuf, int nBufSize);
 
 	// Returns the maximum number of bytes that you can encrypt using the PowerMod method

@@ -18,6 +18,7 @@
 class GQueue;
 struct HashBucket;
 
+// The base class of hash tables
 class GHashTableBase
 {
 friend class GHashTableEnumerator;
@@ -59,6 +60,7 @@ protected:
 
 #define UNCOMMON_INT 0x80000000
 
+// This class makes it easy to iterate through the values in a hash table
 class GHashTableEnumerator
 {
 protected:
@@ -74,21 +76,23 @@ public:
 		m_nPos = 0;
 	}
 
-	// Returns the next key in the hash table.  Returns NULL when it reaches
-	// the end of the collection
-	const char* GetNextKey();
+	// Gets the next element in the hash table. ppValue is set to
+	// the value and the return value is the key. Returns NULL when
+	// it reaches the end of the collection. (The first time it is
+	// called, it returns the first item in the collection.)
+	const char* GetNext(void** ppOutValue);
 
 	// Sets the value at pOutInt to the next integer key in the hash table.  Returns false when it
 	// reaches the end of the collection.
-	bool GetNextIntKey(int* pOutInt)
+	bool GetNextIntKey(int* pOutKey, void** ppOutValue)
 	{
-		int n = (int)GetNextKey();
+		unsigned int n = (unsigned int)GetNext(ppOutValue);
 		if(n == 0)
 			return false;
 		if(n == UNCOMMON_INT)
-			*pOutInt = 0;
+			*pOutKey = 0;
 		else
-			*pOutInt = n;
+			*pOutKey = (int)n;
 		return true;
 	}
 

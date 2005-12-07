@@ -16,6 +16,7 @@
 
 class GQueue;
 
+// Represents a Unicode string
 class GString
 {
 protected:
@@ -28,13 +29,15 @@ public:
 	GString(const wchar_t* wszString = NULL);
 	virtual ~GString();
 
-	// Get
 	int GetLength();
 	const wchar_t* GetString();
-	void GetAnsi(char* pBuf); // pBuf should be at least GetLength() + 1 bytes in size
+
+	// pBuf should be at least GetLength() + 1 bytes in size	
+	void GetAnsi(char* pBuf);
+
+	// returns the Unicode character at the specified position
 	wchar_t GetWChar(int nPos);
 
-	// Add
 	void Add(GString* pString);
 	void Add(const char c);
 	void Add(const wchar_t wChar);
@@ -46,7 +49,6 @@ public:
 	void Add(double d);
 	void Add(float f);
 
-	// Copy
 	void Copy(GString* pString);
 	void Copy(const char* szString);
 	void Copy(const wchar_t* wszString);
@@ -56,19 +58,16 @@ public:
 	void Copy(double d);
 	void Copy(float f);
 
-	// Compare
 	int CompareTo(GString* pString);
 	int CompareTo(const wchar_t* wszString);
 	int CompareIgnoringCase(GString* pString);
 	int CompareIgnoringCase(const wchar_t* wszString);
 
-	// Find
 	int Find(GString* pSubString);
 	int Find(const wchar_t* wszSubstring);
 	int FindIgnoringCase(const wchar_t* wszString);
 	int FindIgnoringCase(GString* pSubString);
 
-	// Misc
 	void Clear();
 	void SetChar(int nPos, wchar_t wc);
 	void InsertChar(int nPos, wchar_t wc);
@@ -83,9 +82,6 @@ public:
 
 
 
-	// --------------
-	// ANSI functions
-	// --------------
 
 	// This is similar to strncpy, but it always makes sure that
 	// there is a null-terminating '\0' at the end of the new string.

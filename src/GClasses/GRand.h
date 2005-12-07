@@ -14,6 +14,8 @@
 
 class GBigNumber;
 
+// A pseudo random number generator for big numbers. It's supposed to be
+// cryptographically strong, but I designed it myself so you shouldn't trust it.
 class GRand
 {
 protected:

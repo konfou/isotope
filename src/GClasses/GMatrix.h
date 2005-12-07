@@ -12,6 +12,9 @@
 #ifndef __GMATRIX_H__
 #define __GMATRIX_H__
 
+class GVector;
+
+// A two-dimensional matrix
 class GMatrix
 {
 protected:
@@ -20,16 +23,46 @@ protected:
 	int m_nColumns;
 
 public:
-	GMatrix(int nRows, int nColumns);
+	GMatrix(int nRows = 0, int nColumns = 0);
 	virtual ~GMatrix();
 
+	// Get an element
+	inline double Get(int nRow, int nColumn)
+	{
+		return m_pData[nRow * m_nColumns + nColumn];
+	}
+
+	// Set an element
+	inline void Set(int nRow, int nColumn, double dValue)
+	{
+		m_pData[nRow * m_nColumns + nColumn] = dValue;
+	}
+
+	int GetColumnCount() { return m_nColumns; }
+	int GetRowCount() { return m_nRows; }
 	void SetToIdentity();
-	double Get(int nRow, int nColumn);
-	void Set(int nRow, int nColumn, double fValue);
-	void Redim(int nRows, int nColumns);
+	void Transpose();
+	void Resize(int nRows, int nColumns);
 	void Copy(const GMatrix* pMatrix);
 	void Multiply(GMatrix* pA, GMatrix* pB);
 	double GetDeterminant();
+
+	// Dumps a representation of the matrix to stdout
+	void Print();
+
+	// Dumps a partial representation of the matrix to stdout.
+	// typically you will select a small number for n, like 2 or 3
+	void PrintCorners(int n);
+	void Invert();
+
+	// Returns the sum of the diagonal values in the matrix
+	double ComputeTrace();
+
+	void Solve(double* pVector);
+
+	void ComputeEigenVectors(GVector* pOutEigenValues, GMatrix* pOutEigenVectors);
+
+	int CountNonZeroElements();
 };
 
 #endif // __GMATRIX_H__

@@ -12,6 +12,7 @@
 #ifndef __GFILE_H__
 #define __GFILE_H__
 
+// Contains some useful routines for manipulating files
 class GFile
 {
 public:

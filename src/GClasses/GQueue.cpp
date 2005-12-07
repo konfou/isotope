@@ -157,14 +157,14 @@ void GQueue::Push(const unsigned char* pBuf, int nBufSize)
 void GQueue::Push(float f)
 {
 	int n;
-	for(n = 0; n < sizeof(float); n++)
+	for(n = 0; n < (int)sizeof(float); n++)
 		Push(((char*)&f)[n]);
 }
 
 bool GQueue::Pop(float* pf)
 {
 	int n;
-	for(n = 0; n < sizeof(float); n++)
+	for(n = 0; n < (int)sizeof(float); n++)
 	{
 		if(!Pop(&((char*)pf)[n]))
 			return false;
@@ -175,14 +175,14 @@ bool GQueue::Pop(float* pf)
 void GQueue::Push(double d)
 {
 	int n;
-	for(n = 0; n < sizeof(double); n++)
+	for(n = 0; n < (int)sizeof(double); n++)
 		Push(((char*)&d)[n]);
 }
 
 bool GQueue::Pop(double* pd)
 {
 	int n;
-	for(n = 0; n < sizeof(double); n++)
+	for(n = 0; n < (int)sizeof(double); n++)
 	{
 		if(!Pop(&((char*)pd)[n]))
 			return false;

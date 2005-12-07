@@ -17,6 +17,7 @@
 class GArffAttribute;
 class GArffData;
 class GPointerArray;
+class GMatrix;
 
 class GArffRelation
 {
@@ -62,6 +63,15 @@ public:
 	// Returns the name of the relation
 	const char* GetName() { return m_szName; }
 
+	// Compute the square of the distance between the two points (using input values only)
+	double ComputeInputDistanceSquared(double* pRow1, double* pRow2);
+
+	// Computes the squared distance between input points after scaling by the value in
+	// the array pInputScales.  (pScales should be an array with size equal to
+	// the number of attributes in the relation, even though only the values corresponding
+	// to input attributes are actually used.)
+	double ComputeScaledInputDistanceSquared(double* pRow1, double* pRow2, double* pScales);
+
 protected:
 	double* ParseDataRow(const char* szFile, int nLen);
 	void CountInputs();
@@ -94,6 +104,9 @@ public:
 	// Returns true if this is a continuous (as opposed to discreet) attribute
 	bool IsContinuous() { return m_nValues == 0; }
 
+	// Makes the attribute continuous
+	void SetContinuous();
+
 	// Returns the index of the specified value
 	int FindEnumeratedValue(const char* szValue);
 
@@ -121,7 +134,11 @@ protected:
 	GPointerArray* m_pRows;
 
 public:
+	// Takes ownership of pRows
+	GArffData(GPointerArray* pRows);
+
 	GArffData(int nGrowSize);
+
 	~GArffData();
 
 	// Takes ownership of pRow
@@ -141,6 +158,12 @@ public:
 
 	// Randomizes row order
 	void ShuffleRows();
+
+	// Returns the collection of rows of data
+	GPointerArray* GetRows() { return m_pRows; }
+
+	// Sets the collection of rows of data
+	void SetRows(GPointerArray* pRows) { m_pRows = pRows; }
 
 	// Splits this set of data into two sets such that this set
 	// contains all rows where the value in column "nColumn" is
@@ -171,21 +194,46 @@ public:
 	// Finds the min and the range of the values of the specified attribute
 	void GetMinAndRange(int nAttribute, double* pMin, double* pRange);
 
+	// Finds the means of all attributes
+	void GetMeans(double* pOutMeans, int nAttributes);
+
+	// Finds the average variance of all the attributes
+	void GetVariance(double* pOutVariance, double* pMeans, int nAttributes);
+
+	// Throws out all of the rows in which any of the first "nAttributes"
+	// attributes has a value that is more than "dStandardDeviations"
+	// deviations away from the mean of that attribute. Note that a better
+	// technique would be to compute Euclidian distance using all the
+	// attributes together, but I was feeling too lazy when I wrote this.
+	int RemoveOutlyers(double dStandardDeviations, int nAttributes);
+
 	// Normalizes the specified attribute values
 	void Normalize(int nAttribute, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
 
+	// Normalize a value from the input min and range to the output min and range
 	static double Normalize(double dVal, double dInputMin, double dInputRange, double dOutputMin, double dOutputRange);
 
+	// Produce a row in which each attribute holds the most common value for that attribute
 	double* MakeSetOfMostCommonOutputs(GArffRelation* pRelation);
 
+	// Returns true if all output values in the data set are the same
 	bool IsOutputHomogenous(GArffRelation* pRelation);
 
+	// Replaces missing data with random values
 	void RandomlyReplaceMissingData(GArffRelation* pRelation);
 
+	// Replaces all missing data with the most common value for the attribute
 	void ReplaceMissingAttributeWithMostCommonValue(GArffRelation* pRelation, int nAttribute);
 
-	double** ComputeCovarianceMatrix(GArffRelation* pRelation);
+	// Computes the covariance matrix of the data
+	void ComputeCovarianceMatrix(GMatrix* pOutMatrix, GArffRelation* pRelation);
 
+	// Computes the probability of each possible value for one attribute given knowledge of
+	// a specific value for another of the attributes
+	void GArffData::ComputeCoprobabilityMatrix(GMatrix* pOutMatrix, GArffRelation* pRelation, int nAttr, double noDataValue);
+
+	// Dump a representation of the data to stdout
+	void Print(int nAttributes);
 };
 
 

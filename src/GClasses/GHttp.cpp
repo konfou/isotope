@@ -15,6 +15,7 @@
 #include "GMacros.h"
 #include "GQueue.h"
 #include "GTime.h"
+#include "GHashTable.h"
 #ifdef DARWIN
 #include <sys/malloc.h>
 #else // DARWIN
@@ -89,6 +90,31 @@ GHttpClient::~GHttpClient()
 	delete(m_szRedirect);
 }
 
+GHttpClient::Status GHttpClient::CheckStatus(float* pfProgress)
+{
+	const unsigned char* szChunk;
+	int nSize;
+	while(m_pSocket->GetMessageCount() > 0)
+	{
+		m_dLastReceiveTime = GTime::GetTime();
+		szChunk = m_pSocket->GetNextMessage(&nSize);
+//fwrite(szChunk, nSize, 1, g_pFile);
+//fflush(g_pFile);
+		if(m_bPastHeader)
+			ProcessBody(szChunk, nSize);
+		else
+			ProcessHeader(szChunk, nSize);
+		if(pfProgress)
+		{
+			if(m_bChunked)
+				*pfProgress = (float)m_nDataPos / m_nContentSize;
+			else
+				*pfProgress = 0;
+		}
+	}
+	return m_status;
+}
+
 bool GHttpClient::Get(const char* szUrl, int nPort)
 {
 	if(strnicmp(szUrl, "http://", 7) == 0)
@@ -121,7 +147,7 @@ bool GHttpClient::Get(const char* szUrl, int nPort)
 	if(strlen(szPath) == 0)
 		szPath = "/index.html";
 	GString s;
-	s.Add(L"\r\nGET ");
+	s.Add(L"GET ");
 	while(*szPath != '\0')
 	{
 		if(*szPath == ' ')
@@ -135,11 +161,12 @@ bool GHttpClient::Get(const char* szUrl, int nPort)
 	s.Add(szServer);
 	s.Add(L":");
 	s.Add(nPort);
-	s.Add(L"\r\n\r\n");
+	s.Add(L"\r\nUser-Agent: GHttpClient/1.0\r\nKeep-Alive: 60\r\nConnection: keep-alive\r\n\r\n");
 	char* szRequest = (char*)alloca(s.GetLength() + 1);
 	s.GetAnsi(szRequest);
 	if(!m_pSocket->Send((unsigned char*)szRequest, s.GetLength()))
 		return false;
+//m_pSocket->Send("\r\n\r\n", 4);
 
 	// Update status
 	m_nContentSize = 0;
@@ -151,31 +178,6 @@ bool GHttpClient::Get(const char* szUrl, int nPort)
 	m_pData = NULL;
 	m_status = Downloading;
 	return true;
-}
-
-GHttpClient::Status GHttpClient::CheckStatus(float* pfProgress)
-{
-	const unsigned char* szChunk;
-	int nSize;
-	while(m_pSocket->GetMessageCount() > 0)
-	{
-		m_dLastReceiveTime = GTime::GetTime();
-		szChunk = m_pSocket->GetNextMessage(&nSize);
-//fwrite(szChunk, nSize, 1, g_pFile);
-//fflush(g_pFile);
-		if(m_bPastHeader)
-			ProcessBody(szChunk, nSize);
-		else
-			ProcessHeader(szChunk, nSize);
-		if(pfProgress)
-		{
-			if(m_bChunked)
-				*pfProgress = (float)m_nDataPos / m_nContentSize;
-			else
-				*pfProgress = 0;
-		}
-	}
-	return m_status;
 }
 
 void GHttpClient::ProcessHeader(const unsigned char* szData, int nSize)
@@ -479,7 +481,7 @@ void GHttpServer::Process()
 
 void GHttpServer::ProcessLine(int nConnection, GHttpServerBuffer* pClient, const char* szLine)
 {
-//printf(szLine);
+	OnProcessLine(nConnection, szLine);
 	while(*szLine > '\0' && *szLine <= ' ')
 		szLine++;
 	if(*szLine == '\0')
@@ -583,3 +585,30 @@ void GHttpServer::MakeResponse(int nConnection, GHttpServerBuffer* pClient)
 	}
 	*szOut = '\0';
 }
+
+/*static*/ void GHttpServer::ParseParams(GStringHeap* pStringHeap, GConstStringHashTable* pTable, const char* szParams)
+{
+	char szTmp[512];
+	UnescapeUrl(szTmp, szParams);
+	int nNameStart = 0;
+	int nNameLen, nValueStart, nValueLen;
+	while(true)
+	{
+		for(nNameLen = 0; szTmp[nNameStart + nNameLen] != '=' && szTmp[nNameStart + nNameLen] != '\0'; nNameLen++)
+		{
+		}
+		if(szTmp[nNameStart + nNameLen] == '\0')
+			return;
+		nValueStart = nNameStart + nNameLen + 1;
+		for(nValueLen = 0; szTmp[nValueStart + nValueLen] != '&' && szTmp[nValueStart + nValueLen] != '\0'; nValueLen++)
+		{
+		}
+		const char* szName = pStringHeap->Add(&szTmp[nNameStart], nNameLen);
+		const char* szValue = pStringHeap->Add(&szTmp[nValueStart], nValueLen);
+		pTable->Add(szName, szValue);
+		if(szTmp[nValueStart + nValueLen] == '\0')
+			return;
+		nNameStart = nValueStart + nValueLen + 1;
+	}
+}
+

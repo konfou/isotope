@@ -210,7 +210,7 @@ void GPreRendered3DScreen::Render(G3DObject* pUniverse, const Point3D* pCameraPo
 		else
 		{
 			if(pBackgroundImage)
-				c = pBackgroundImage->InterpolatePixel((dLon + PI / 2) / (PI + PI) * (pBackgroundImage->GetWidth() - 1), (dLat + PI / 2) / PI * (pBackgroundImage->GetHeight() - 1));
+				c = pBackgroundImage->InterpolatePixel(((float)dLon + (float)PI / 2) / ((float)PI + (float)PI) * (pBackgroundImage->GetWidth() - 1), ((float)dLat + (float)PI / 2) / (float)PI * (pBackgroundImage->GetHeight() - 1));
 			else
 				c = 0;
 			results.distance = MAX_DIST;

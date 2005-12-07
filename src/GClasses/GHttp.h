@@ -17,6 +17,8 @@ class GEZSocketServer;
 class GPointerArray;
 class GHttpServerBuffer;
 class GQueue;
+class GStringHeap;
+class GConstStringHashTable;
 
 
 // This class allows you to get files using the HTTP protocol
@@ -70,6 +72,7 @@ public:
 	// delete it yourself.
 	unsigned char* DropData(int* pnSize);
 
+	// This is called when the connection is lost
 	void OnLoseConnection();
 
 protected:
@@ -84,6 +87,7 @@ protected:
 
 #define MAX_SERVER_LINE_SIZE 300
 
+// This class allows you to implement a simple HTTP daemon
 class GHttpServer
 {
 protected:
@@ -98,9 +102,14 @@ public:
 	// You should call this method constantly inside the main loop
 	void Process();
 
+	// Unescapes a URL. (i.e. replace "%20" with " ", etc.)
 	static void UnescapeUrl(char* szOut, const char* szIn);
 
+	// Parses the parameters in a URL and puts them in a table
+	static void ParseParams(GStringHeap* pStringHeap, GConstStringHashTable* pTable, const char* szParams);
+
 protected:
+	virtual void OnProcessLine(int nConnection, const char* szLine) {}
 	void ProcessLine(int nConnection, GHttpServerBuffer* pClient, const char* szLine);
 	void MakeResponse(int nConnection, GHttpServerBuffer* pClient);
 	virtual void DoGet(const char* szUrl, const char* szParams, GQueue* pResponse) = 0;

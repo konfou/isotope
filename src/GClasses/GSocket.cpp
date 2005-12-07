@@ -9,6 +9,8 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
+//#define OLD_NAME_RESOLUTION
+
 #include "GSocket.h"
 #include <time.h>
 #include "GSpinLock.h"
@@ -20,6 +22,7 @@
 #include <wchar.h>
 #ifdef WIN32
 #include "GWindows.h"
+#include <Ws2tcpip.h>
 #else // WIN32
 #include <unistd.h>
 #include <time.h>
@@ -110,7 +113,7 @@ void ThrowError(const wchar_t* wszFormat, ...)
 void gsocket_LogError()
 {
 	const wchar_t* wszMsg = NULL;
-#ifdef WIN32	
+#ifdef WIN32
 	int n = WSAGetLastError();
 	switch(n)
 	{
@@ -246,6 +249,8 @@ GSocket::~GSocket()
 		shutdown(m_s, 2);
 #ifdef WIN32		
 		closesocket(m_s);
+#else
+		close(m_s);
 #endif
 		m_s = INVALID_SOCKET;
 	}
@@ -264,6 +269,8 @@ GSocket::~GSocket()
 				shutdown(Sock, 2);
 #ifdef WIN32				
 				closesocket(Sock);
+#else
+				close(m_s);
 #endif // WIN32
 				m_pHostSockets->SetSocket(n, INVALID_SOCKET);
 			}
@@ -403,6 +410,8 @@ void GSocket::Listen()
 		shutdown(m_s, 2);
 #ifdef WIN32
 		closesocket(m_s);
+#else
+		close(m_s);
 #endif // WIN32
 		m_s = INVALID_SOCKET;
 	}
@@ -421,6 +430,8 @@ void GSocket::Listen()
 		shutdown(m_pHostSockets->GetSocket(nSocketNumber - 1), 2);
 #ifdef WIN32
 		closesocket(m_pHostSockets->GetSocket(nSocketNumber - 1));
+#else
+		close(m_s);
 #endif // WIN32		
 		m_pHostSockets->SetSocket(nSocketNumber - 1, INVALID_SOCKET);
 	}
@@ -833,8 +844,9 @@ unsigned short GSocket::StringToPort(const char* szURL)
 	if(strlen(pPort) > 0)
 		nPort = atoi(pPort);
 	return(nPort);
-
 }
+
+#ifdef OLD_NAME_RESOLUTION
 
 bool GSocket::Connect(in_addr nAddr, u_short nPort, short nFamily)
 {
@@ -843,7 +855,7 @@ bool GSocket::Connect(in_addr nAddr, u_short nPort, short nFamily)
 		GAssert(false, "You can only call Connect for a Client socket\n");
 		return false;
 	}
-	
+
 	// Make the address structure
 	SOCKADDR_IN sa;
 	sa.sin_family = nFamily;
@@ -860,17 +872,22 @@ bool GSocket::Connect(in_addr nAddr, u_short nPort, short nFamily)
 		shutdown(m_s, 2);
 #ifdef WIN32
 		closesocket(m_s);
+#else
+		close(m_s);
 #endif // WIN32
 		m_s = INVALID_SOCKET;
 	}
 
 	// Make the socket
+//printf("Connecting to %d.%d.%d.%d on port %d... ", ((unsigned char*)&nAddr)[0], ((unsigned char*)&nAddr)[1], ((unsigned char*)&nAddr)[2], ((unsigned char*)&nAddr)[3], nPort);
 	m_s = socket(AF_INET, m_bUDP ? SOCK_DGRAM : SOCK_STREAM, 0);
 	if(m_s == INVALID_SOCKET)
 	{
+//printf("Failed.\n");
 		gsocket_LogError();
 		return false;
 	}
+//printf("OK.\n");
 
 	// Connect
 	if(connect(m_s, (struct sockaddr*)&sa, sizeof(SOCKADDR)))
@@ -905,16 +922,90 @@ bool GSocket::Connect(in_addr nAddr, u_short nPort, short nFamily)
 	
 	return true;
 }
-
+/*
 bool GSocket::Connect(const char* szURL)
 {
 	return Connect(StringToAddr(szURL), StringToPort(szURL));
 }
-
+*/
 bool GSocket::Connect(const char* szAddr, unsigned short nPort)
 {
 	return Connect(StringToAddr(szAddr), nPort);
 }
+
+#else // OLD_NAME_RESOLUTION
+
+bool GSocket::Connect(const char* szURL, unsigned short nPort)
+{
+	// *** If you use VisualStudio 6.0 and you get an error that says 'hints' uses undefined struct 'addrinfo'
+	// *** on the next code line then you either need to update your Platform SDK or uncomment the
+	// *** #define OLD_NAME_RESOLUTION at the top of this file. Updating your Platform SDK is a better solution.
+	struct addrinfo hints, *res, *res0;
+	int error;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	char szPort[32];
+	itoa(nPort, szPort, 10);
+	error = getaddrinfo(szURL, szPort, &hints, &res0);
+	if (error)
+	{
+		GAssert(false, gai_strerror(error));
+		gsocket_LogError();
+	}
+	m_s = INVALID_SOCKET;
+	for(res = res0; res; res = res->ai_next)
+	{
+//printf("Attempting to connect to %d.%d.%d.%d on port %d... ", ((unsigned char*)&res->ai_addr->sa_data)[2], ((unsigned char*)&res->ai_addr->sa_data)[3], ((unsigned char*)&res->ai_addr->sa_data)[4], ((unsigned char*)&res->ai_addr->sa_data)[5], nPort);
+
+		m_s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if(m_s < 0)
+			continue;
+
+		if(connect(m_s, res->ai_addr, res->ai_addrlen) < 0)
+		{
+#ifdef WIN32
+			closesocket(m_s);
+#else // WIN32
+			close(m_s);
+#endif // !WIN32
+			m_s = INVALID_SOCKET;
+//printf("Failed.\n");
+			continue;
+		}
+
+//printf("OK\n");
+		break;  // we got a connection
+	}
+	freeaddrinfo(res0);
+	if(m_s < 0)
+	{
+		// todo: handle the error
+		return false;
+	}
+
+	// Spawn the listener thread
+	m_pMutexSocketNumber->Lock("Connect: About to spawn listen thread");
+	m_nSocketNumber = 0;
+	m_hListenThread = GThread::SpawnThread(ListenThread, this);
+	if(m_hListenThread == BAD_HANDLE)
+	{
+		GAssert(false, "Failed to spawn listening thread\n");
+		gsocket_LogError();
+		m_pMutexSocketNumber->Unlock();
+		return false;
+	}
+#ifdef WIN32
+	Sleep(0);
+#else // WIN32
+	usleep(0);
+#endif // else WIN32
+	
+	return true;
+}
+
+#endif // !OLD_NAME_RESOLUTION
 
 void GSocket::Disconnect(int nConnectionNumber)
 {
@@ -928,6 +1019,8 @@ void GSocket::Disconnect(int nConnectionNumber)
 		shutdown(m_s, 2);
 #ifdef WIN32
 		closesocket(m_s);
+#else
+		close(m_s);
 #endif // WIN32
 		m_s = INVALID_SOCKET;
 	}
@@ -946,9 +1039,11 @@ void GSocket::Disconnect(int nConnectionNumber)
 			shutdown(Sock, 2);
 #ifdef WIN32
 			closesocket(Sock);
+#else
+			close(m_s);
 #endif // WIN32
 			m_pHostSockets->SetSocket(nConnectionNumber - 1, INVALID_SOCKET);
-		}	
+		}
 	}
 }
 

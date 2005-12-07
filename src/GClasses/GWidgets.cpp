@@ -20,6 +20,7 @@
 #endif // !WIN32
 #include "GFile.h"
 
+
 GWidgetStyle::GWidgetStyle()
 {
 	m_nButtonFontSize = 14;
@@ -383,8 +384,11 @@ void GWidgetDialog::ReleaseWidget()
 {
 	if(!m_pGrabbedWidget)
 		return;
-	m_pGrabbedWidget->Release();
+
+	// Use a local var in case the handler destroys this dialog
+	GWidgetAtomic* pGrabbedWidget = m_pGrabbedWidget;
 	m_pGrabbedWidget = NULL;
+	pGrabbedWidget->Release();
 }
 
 /*virtual*/ void GWidgetDialog::OnDestroyWidget(GWidget* pWidget)
@@ -439,8 +443,8 @@ GWidgetTextButton::GWidgetTextButton(GWidgetGroup* pParent, int x, int y, int w,
 /*virtual*/ void GWidgetTextButton::Release()
 {
 	m_pressed = false;
-	m_pParent->OnReleaseTextButton(this);
 	Draw(NULL);
+	m_pParent->OnReleaseTextButton(this);
 }
 
 void GWidgetTextButton::Update()
@@ -578,8 +582,8 @@ GWidgetVCRButton::GWidgetVCRButton(GWidgetGroup* pParent, int x, int y, int w, i
 /*virtual*/ void GWidgetVCRButton::Grab()
 {
 	m_pressed = true;
-	m_pParent->OnPushVCRButton(this);
 	Draw(NULL);
+	m_pParent->OnPushVCRButton(this);
 }
 
 /*virtual*/ void GWidgetVCRButton::Release()
@@ -1298,7 +1302,7 @@ void GWidgetListBox::SetSize(int w, int h)
 	// Calculate rects
 	GRect r;
 	int nItemHeight = m_pStyle->GetListBoxLineHeight(); 
-	int nFirstItem = m_nScrollPos / nItemHeight;
+	//int nFirstItem = m_nScrollPos / nItemHeight;
 	r.x = 1;
 	r.y = 1 - (m_nScrollPos % nItemHeight);
 	r.w = w - 2;
@@ -1362,10 +1366,10 @@ void GWidgetListBox::SetSize(int w, int h)
 void GWidgetListBox::OnGrabItem(int nIndex)
 {
 	SetSelection(nIndex);
-	if(m_pParent)
-		m_pParent->OnChangeListSelection(this);
 	m_dirty = true; // todo: only redraw the list item
 	Draw(NULL);
+	if(m_pParent)
+		m_pParent->OnChangeListSelection(this);
 }
 
 GWidgetListBoxItem* GWidgetListBox::GetItem(int n)

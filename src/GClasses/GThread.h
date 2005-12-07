@@ -17,6 +17,7 @@
 #include <windows.h>
 #endif // WIN32
 
+// A wrapper for PThreads on Linux and for some corresponding WIN32 api on Windows
 class GThread
 {
 public:

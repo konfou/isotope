@@ -46,10 +46,11 @@ protected:
 	GXMLTag* ParseTag();
 	bool ParseCloser(int nNameStart, int nNameLength);
 	int ParseName();
-	bool IsTheNextOneACloser();
 	void EatWhitespace();
 	GXMLAttribute* ParseAttribute();
 	bool UnescapeAttrValue(const char* pValue, int nLength, char* pBuffer);
+	void MoveIntoNextTag();
+	GXMLTag* ParseTagInternal();
 };
 
 /*static*/ const char* GXMLParser::s_szCommentError = "The tag is a comment";
@@ -109,7 +110,13 @@ void GXMLParser::EatWhitespace()
 
 GXMLTag* GXMLParser::Parse(const char** pszErrorMessage, int* pnErrorOffset, int* pnErrorLine, int* pnErrorColumn)
 {
-	GXMLTag* pRoot = ParseTag();
+	GXMLTag* pRoot;
+	m_szErrorMessage = s_szCommentError;
+	while(m_szErrorMessage == s_szCommentError)
+	{
+		m_szErrorMessage = NULL;
+		pRoot = ParseTag();
+	}
 	if(pszErrorMessage)
 		*pszErrorMessage = m_szErrorMessage;
 	if(pnErrorOffset)
@@ -123,14 +130,26 @@ GXMLTag* GXMLParser::Parse(const char** pszErrorMessage, int* pnErrorOffset, int
 
 GXMLTag* GXMLParser::ParseTag()
 {
-	// Parse the name
-	EatWhitespace();
-	if(m_nPos >= m_nLength || m_pFile[m_nPos] != '<')
+	MoveIntoNextTag();
+	if(m_nPos >= m_nLength)
 	{
-		SetError("Expected a '<'");
+		SetError("Expected a tag");
 		return NULL;
 	}
-	m_nPos++;
+	return ParseTagInternal();
+}
+	
+void GXMLParser::MoveIntoNextTag()
+{
+	// Parse the name
+	while(m_nPos < m_nLength && m_pFile[m_nPos] != '<')
+		m_nPos++;
+	if(m_nPos < m_nLength)
+		m_nPos++;
+}
+
+GXMLTag* GXMLParser::ParseTagInternal()
+{
 	int nNameStart = m_nPos;
 	int nNameLength = ParseName();
 	if(nNameLength < 1)
@@ -138,7 +157,22 @@ GXMLTag* GXMLParser::ParseTag()
 		SetError("Expected a tag name");
 		return NULL;
 	}
-	if(nNameLength >= 3 && strncmp(&m_pFile[nNameStart], "!--", 3) == 0)
+	if(m_pFile[nNameStart] == '?')
+	{
+		while(true)
+		{
+			if(m_nPos >= m_nLength)
+				break;
+			if(m_pFile[m_nPos] == '>')
+				break;
+			m_nPos++;
+		}
+		if(m_nPos < m_nLength)
+			m_nPos++;
+		SetError(s_szCommentError);
+		return NULL;
+	}
+	else if(nNameLength >= 3 && strncmp(&m_pFile[nNameStart], "!--", 3) == 0)
 	{
 		m_nPos -= nNameLength;
 
@@ -168,6 +202,7 @@ GXMLTag* GXMLParser::ParseTag()
 		return NULL;
 	}
 	GXMLTag* pNewTag = new GXMLTag(&m_pFile[nNameStart], nNameLength);
+	Holder<GXMLTag*> hNewTag(pNewTag);
 	pNewTag->SetLineNumber(m_nLine);
 	int nStartColumn = m_nPos - m_nLineStart + 1;
 
@@ -184,10 +219,7 @@ GXMLTag* GXMLParser::ParseTag()
 			break;
 		GXMLAttribute* pNewAttr = ParseAttribute();
 		if(!pNewAttr)
-		{
-			delete(pNewTag);
 			return NULL;
-		}
 		pNewTag->AddAttribute(pNewAttr);
 	}
 	int nEndColumn = m_nPos - m_nLineStart + 1;
@@ -197,9 +229,21 @@ GXMLTag* GXMLParser::ParseTag()
 	{
 		// Parse the children
 		m_nPos++;
-		while(!IsTheNextOneACloser())
+		while(true)
 		{
-			GXMLTag* pChildTag = ParseTag();
+			MoveIntoNextTag();
+			if(m_nPos >= m_nLength)
+			{
+				SetError("Expected a closer tag");
+				return NULL;
+			}
+			if(m_pFile[m_nPos] == '/')
+			{
+				if(!ParseCloser(nNameStart, nNameLength))
+					return NULL;
+				break;
+			}
+			GXMLTag* pChildTag = ParseTagInternal();
 			if(!pChildTag)
 			{
 				if(m_szErrorMessage == s_szCommentError)
@@ -208,20 +252,9 @@ GXMLTag* GXMLParser::ParseTag()
 					continue;
 				}
 				else
-				{
-					delete(pNewTag);
 					return NULL;
-				}
 			}
 			pNewTag->AddChildTag(pChildTag);
-		}
-
-		// Parse the closer
-		EatWhitespace();
-		if(!ParseCloser(nNameStart, nNameLength))
-		{
-			delete(pNewTag);
-			return NULL;
 		}
 	}
 	else
@@ -233,12 +266,11 @@ GXMLTag* GXMLParser::ParseTag()
 		if(m_nPos >= m_nLength || m_pFile[m_nPos] != '>')
 		{
 			SetError("Expected a '>'");
-			delete(pNewTag);
 			return NULL;
 		}
 		m_nPos++;
 	}
-	return pNewTag;
+	return hNewTag.Drop();
 }
 
 int GXMLParser::ParseName()
@@ -267,30 +299,8 @@ int GXMLParser::ParseName()
 	return nLength;
 }
 
-bool GXMLParser::IsTheNextOneACloser()
-{
-	int nPos = m_nPos;
-	while(nPos < m_nLength && isWhitespace(m_pFile[nPos]))
-		nPos++;
-	if(nPos >= m_nLength || m_pFile[nPos] != '<')
-		return false;
-	nPos++;
-	while(nPos < m_nLength && isWhitespace(m_pFile[nPos]))
-		nPos++;
-	if(nPos >= m_nLength || m_pFile[nPos] != '/')
-		return false;
-	return true;
-}
-
 bool GXMLParser::ParseCloser(int nNameStart, int nNameLength)
 {
-	if(m_nPos >= m_nLength || m_pFile[m_nPos] != '<')
-	{
-		SetError("Expected a '<'");
-		return false;
-	}
-	m_nPos++;
-	EatWhitespace();
 	if(m_nPos >= m_nLength || m_pFile[m_nPos] != '/')
 	{
 		SetError("Expected a '/'");
@@ -314,8 +324,6 @@ bool GXMLParser::ParseCloser(int nNameStart, int nNameLength)
 	m_nPos++;
 	return true;
 }
-
-
 
 GXMLAttribute* GXMLParser::ParseAttribute()
 {
@@ -399,6 +407,8 @@ bool GXMLParser::UnescapeAttrValue(const char* pValue, int nLength, char* pBuffe
 					nLength--;
 					if(UCHAR(*pValue) != 'X')
 						return false;
+					pValue++;
+					nLength--;
 					int nNum = 0;
 					while(*pValue != ';' && nLength > 0)
 					{
@@ -411,6 +421,8 @@ bool GXMLParser::UnescapeAttrValue(const char* pValue, int nLength, char* pBuffe
 							nNum += UCHAR(*pValue) - '0';
 						else
 							nNum += UCHAR(*pValue) - 'A' + 10;
+						pValue++;
+						nLength--;
 					}
 					if(nLength < 1)
 						return false;

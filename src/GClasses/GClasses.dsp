@@ -143,10 +143,6 @@ SOURCE=.\GBitTable.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\GBlock.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\GBuffer.h
 # End Source File
 # Begin Source File
@@ -227,10 +223,6 @@ SOURCE=.\GDirList.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\GDispRect.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\GDSound.h
 # End Source File
 # Begin Source File
@@ -259,15 +251,19 @@ SOURCE=.\GFlipTable.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\GFont.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\GFourier.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=.\GFourier.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GGenetic.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GGenetic.h
 # End Source File
 # Begin Source File
 
@@ -303,6 +299,14 @@ SOURCE=.\GHeap.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GHtml.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GHtml.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GHttp.cpp
 # End Source File
 # Begin Source File
@@ -327,7 +331,11 @@ SOURCE=.\GKeyPair.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\GLevel.cpp
+SOURCE=.\GKNN.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GKNN.h
 # End Source File
 # Begin Source File
 
@@ -340,6 +348,14 @@ SOURCE=.\GLList.h
 # Begin Source File
 
 SOURCE=.\GMacros.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GManifold.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GManifold.h
 # End Source File
 # Begin Source File
 
@@ -483,10 +499,6 @@ SOURCE=.\GSpinLock.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\GSprite.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\GStack.cpp
 # End Source File
 # Begin Source File
@@ -516,10 +528,6 @@ SOURCE=.\GThread.cpp
 # Begin Source File
 
 SOURCE=.\GThread.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\GTile.cpp
 # End Source File
 # Begin Source File
 
@@ -555,6 +563,10 @@ SOURCE=.\GTrigTable.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GVector.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\GVector.h
 # End Source File
 # Begin Source File
@@ -568,10 +580,6 @@ SOURCE=.\GWidgets.cpp
 # Begin Source File
 
 SOURCE=.\GWidgets.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\GWindow.cpp
 # End Source File
 # Begin Source File
 

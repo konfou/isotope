@@ -21,6 +21,7 @@ class QImage;
 class GImage;
 class G3DObject;
 
+// Represents a spherical image with pixels evenly distributed on the surface of the sphere
 class GSphereImage
 {
 friend class GSphereImagePixelEnumerator;
@@ -36,21 +37,25 @@ public:
 	GSphereImage(int nQuarterGirth); // nQuarterGirth is one fourth the circumference of the sphere
 	virtual ~GSphereImage();
 
-	int GetQuarterGirth() // returns one fourth the circumference of the sphere
+	// returns one fourth the circumference of the sphere	
+	int GetQuarterGirth()
 	{
 		return m_nQuarterGirth;
 	}
 
+	// Returns the width of the flattened image that textures the sphere
 	int GetWidth()
 	{
 		return m_nWidth;
 	}
 
+	// Returns the height of the flattened image that textures the sphere
 	int GetHeight()
 	{
 		return m_nHeight;
 	}
 
+	// Returns the radius of the sphere
 	double GetRadius()
 	{
 		return m_dRadius;
@@ -83,7 +88,7 @@ protected:
 };
 
 
-
+// This class iterates through the pixels in a GSphereImage
 class GSphereImagePixelEnumerator
 {
 protected:

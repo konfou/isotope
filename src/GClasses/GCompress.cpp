@@ -11,6 +11,7 @@
 
 #include "GCompress.h"
 #include "GHashTable.h"
+#include "GBits.h"
 
 class GBlobHashTable : public GHashTableBase
 {
@@ -80,7 +81,7 @@ public:
 	int nMinRecurrence = 2 + 2 * sizeof(unsigned int) - nBlobSize;
 	if(nMinRecurrence < 2)
 		nMinRecurrence = 2;
-	GAssert(nBlobSize > sizeof(unsigned int), "nBlobSize must be more than sizeof(unsigned int)");
+	GAssert(nBlobSize > (int)sizeof(unsigned int), "nBlobSize must be more than sizeof(unsigned int)");
 	GBlobHashTable ht(nSize, nBlobSize);
 	GHashTable htSmall(nSize);
 	int n = 0;
@@ -130,7 +131,7 @@ public:
 				int i;
 				for(i = 0; i < 30; i++)
 				{
-					replacement = GetRandUInt();
+					replacement = GBits::GetRandomUint();
 					if(replacement == 0)
 					{
 						i--;
@@ -269,7 +270,7 @@ public:
 			pData[1]++;
 			continue;
 		}
-		if(nBlobSize <= sizeof(unsigned int))
+		if(nBlobSize <= (int)sizeof(unsigned int))
 			break;
 	}
 	memcpy(pOutBuffer, pIn, nSize);
@@ -282,7 +283,7 @@ public:
 /*static*/ unsigned char* GCompress::DecompressBlock(const unsigned char* pBytes, int nSize, int* pnOutNewSize)
 {
 	// Get data
-	if(nSize < 2 * sizeof(unsigned int))
+	if(nSize < 2 * (int)sizeof(unsigned int))
 	{
 		GAssert(false, "bogus blob");
 		return NULL;

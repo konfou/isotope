@@ -19,6 +19,7 @@ struct ComplexNumber
 };
 
 
+// Fourier transform
 class GFourier
 {
 public:

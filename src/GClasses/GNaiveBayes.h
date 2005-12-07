@@ -7,6 +7,7 @@ class GXMLTag;
 class GPointerArray;
 struct GNaiveBayesOutputAttr;
 
+// A naive Bayes classifier
 class GNaiveBayes
 {
 protected:
@@ -20,10 +21,18 @@ public:
 	GNaiveBayes(GXMLTag* pTag);
 	~GNaiveBayes();
 
+	// Adds a single training sample to the collection
 	void AddTrainingSample(double* pRow);
+
+	// Train using all the samples in a collection
 	void Train(GArffData* pData);
+
+	// Evaluate
 	double Eval(double* pRow);
+
+	// Serialize the internal representation
 	GXMLTag* ToXml(GPointerArray* pAttrNames);
+
 	void SetEquivalentSampleSize(int n) { m_nEquivalentSampleSize = n; }
 };
 

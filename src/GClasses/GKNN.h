@@ -1,0 +1,51 @@
+#ifndef __GKNN_H__
+#define __GKNN_H__
+
+class GArffRelation;
+class GPointerArray;
+class GArffData;
+
+// Implements the K-Nearest Neighbor learning algorithm
+class GKNN
+{
+protected:
+	GArffRelation* m_pRelation;
+	int m_nNeighbors;
+	GPointerArray* m_pRows;
+	double* m_pScaleFactors;
+
+public:
+	GKNN(GArffRelation* pRelation, int nNeighbors);
+	~GKNN();
+
+	// Adds a point to the collection
+	void AddRow(double* pRow);
+
+	// Recompute the amount to scale each dimension so that all dimensions
+	// have equal weight
+	void RecomputeScaleFactors();
+
+	// Add all the points in pData to the collection and recompute the
+	// scale factors
+	void Train(GArffData* pData);
+
+	// Evaluate with each neighbor having equal vote
+	void EvalEqualWeight(double* pRow);
+
+	// Evaluate with each neighbor having a linear vote
+	void EvalLinearWeight(double* pRow);
+
+	// Find the row that helps the lest with predictive accuracy (very expensive)
+	int FindLeastHelpfulRow(GArffData* pTestSet);
+
+	// Drops a point from the collection
+	double* DropRow(int nRow);
+
+	// Measure predictive accuracy against a test set
+	double MeasureError(GArffData* pTestSet);
+
+protected:
+	void FindNeighbors(int i, double* pRow, int* pNeighbors);
+};
+
+#endif // __GKNN_H__

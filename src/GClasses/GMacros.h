@@ -69,16 +69,6 @@ inline double MAX(double a, double b)
 	return a > b ? a : b;
 }
 
-inline unsigned int ReverseEndian(unsigned int in)
-{
-	unsigned int out;
-	((unsigned char*)&out)[0] = ((unsigned char*)&in)[3];
-	((unsigned char*)&out)[1] = ((unsigned char*)&in)[2];
-	((unsigned char*)&out)[2] = ((unsigned char*)&in)[1];
-	((unsigned char*)&out)[3] = ((unsigned char*)&in)[0];
-	return out;
-}
-
 #ifdef WIN32
 #define BAD_HANDLE (void*)0xffffffff
 #else // WIN32
@@ -136,7 +126,7 @@ inline int ABS(int n)
                 {                           \
 				    if(!(x))                \
 					{                       \
-						fprintf(stderr, y); \
+						fprintf(stderr, "Debug Assert Failed: %s\n", y); \
 						assert(x);          \
 				    }                       \
 				}
@@ -148,19 +138,6 @@ inline int ABS(int n)
 
 void ThrowError(wchar_t* wszFormat, ...);
 
-
-inline bool IsPowerOfTwo(unsigned int n)
-{
-	return ((n & (n - 1)) == 0);
-}
-
-inline unsigned int GetRandUInt()
-{
-	return
-		(((unsigned int)rand() % 0xfff) << 20) |
-		(((unsigned int)rand() % 0xfff) << 8) |
-		((unsigned int)rand() % 0xff);
-}
 
 // Macro for allocating a temporary buffer
 #define MAX_STACK_TEMP_BUFFER 1024
@@ -191,7 +168,7 @@ public:
 
 // Macro for converting Unicode to Ansi
 #define ConvertUnicodeToAnsi(wszUnicode, szAnsi)            \
-    char* szAnsi = (char*)alloca(wcslen(wszUnicode) + 1);  \
+    char* szAnsi = (char*)alloca(wcslen(wszUnicode) + 1);   \
     do                                                      \
     {                                                       \
         int n;                                              \

@@ -41,10 +41,7 @@ void WipeBuffer(char* pBuffer, int nSize)
 void Digest(unsigned char* digest, unsigned char* pBlob, int nBlobSize)
 {
 	if(DIGEST_BYTES != 20)
-	{
-		int zero = 0;
-		int impossible = zero / zero; // Sha1 requires the digest size be set to 20 bytes!
-	}
+		throw "Sha1 requires the digest size be set to 20 bytes!";
 	SHA_CTX ctx;
 	memset(&ctx, '\0', sizeof(SHA_CTX));
 	SHA1_Init(&ctx);

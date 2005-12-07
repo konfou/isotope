@@ -3,6 +3,7 @@
 #include "GArff.h"
 #include "GXML.h"
 #include "GArray.h"
+#include <math.h>
 
 struct GNaiveBayesInputAttr
 {
@@ -45,7 +46,8 @@ struct GNaiveBayesInputAttr
 	void AddTrainingSample(double* pRow)
 	{
 		int nValue = (int)pRow[m_nIndex];
-		m_pValueCounts[nValue]++;
+		if(nValue >= 0)
+			m_pValueCounts[nValue]++;
 	}
 
 	int Eval(double* pRow)
@@ -123,13 +125,17 @@ struct GNaiveBayesOutputValue
 
 	double Eval(double* pRow, int nEquivalentSampleSize)
 	{
-		double dProb = m_nCount;
-		double dFac = (double)m_nInputs / m_nCount;
+		double dProb = log((double)m_nCount);
 		int n;
 		for(n = 0; n < m_nInputs; n++)
 		{
-			dProb *= (m_pInputs[n]->Eval(pRow) + ((double)nEquivalentSampleSize / m_pInputs[n]->m_nValues));
-			dProb /= (m_nCount + nEquivalentSampleSize);
+			dProb += log(
+							(
+								(double)m_pInputs[n]->Eval(pRow) + 
+								((double)nEquivalentSampleSize / m_pInputs[n]->m_nValues)
+							) / 
+							(m_nCount + nEquivalentSampleSize)
+						);
 		}
 		return dProb;
 	}
@@ -197,7 +203,8 @@ struct GNaiveBayesOutputAttr
 	void AddTrainingSample(double* pRow)
 	{
 		int nValue = (int)pRow[m_nIndex];
-		m_pValues[nValue]->AddTrainingSample(pRow);
+		if(nValue >= 0)
+			m_pValues[nValue]->AddTrainingSample(pRow);
 	}
 
 	double Eval(double* pRow, int nEquivalentSampleSize)
@@ -218,7 +225,7 @@ struct GNaiveBayesOutputAttr
 			dTotalProbability += dProb;
 		}
 		pRow[m_nIndex] = (double)nBestOutputValue;
-		return dBestProbability / dTotalProbability;
+		return exp(dBestProbability - dTotalProbability);
 	}
 
 	GXMLTag* ToXml(GPointerArray* pAttrNames)

@@ -140,25 +140,28 @@ GColor GImage::SafeGetPixel(int nX, int nY)
 		return 0;
 }
 
-GColor GImage::InterpolatePixel(double dX, double dY)
+GColor GImage::InterpolatePixel(float dX, float dY)
 {
 	int nX = (int)dX;
 	int nY = (int)dY;
-	double dXDif = dX - nX;
-	double dYDif = dY - nY;
+	float dXDif = dX - nX;
+	float dYDif = dY - nY;
 	GColor c1;
 	GColor c2;
 	c1 = SafeGetPixel(nX, nY);
 	c2 = SafeGetPixel(nX + 1, nY);
-	double dR1 = dXDif * (double)gRed(c2) + (1 - dXDif) * (double)gRed(c1);
-	double dG1 = dXDif * (double)gGreen(c2) + (1 - dXDif) * (double)gGreen(c1);
-	double dB1 = dXDif * (double)gBlue(c2) + (1 - dXDif) * (double)gBlue(c1);
+	float dA1 = dXDif * (float)gAlpha(c2) + (1 - dXDif) * (float)gAlpha(c1);
+	float dR1 = dXDif * (float)gRed(c2) + (1 - dXDif) * (float)gRed(c1);
+	float dG1 = dXDif * (float)gGreen(c2) + (1 - dXDif) * (float)gGreen(c1);
+	float dB1 = dXDif * (float)gBlue(c2) + (1 - dXDif) * (float)gBlue(c1);
 	c1 = SafeGetPixel(nX, nY + 1);
 	c2 = SafeGetPixel(nX + 1, nY + 1);
-	double dR2 = dXDif * (double)gRed(c2) + (1 - dXDif) * (double)gRed(c1);
-	double dG2 = dXDif * (double)gGreen(c2) + (1 - dXDif) * (double)gGreen(c1);
-	double dB2 = dXDif * (double)gBlue(c2) + (1 - dXDif) * (double)gBlue(c1);
-	return gRGB((int)(dYDif * dR2 + (1 - dYDif) * dR1),
+	float dA2 = dXDif * (float)gAlpha(c2) + (1 - dXDif) * (float)gAlpha(c1);
+	float dR2 = dXDif * (float)gRed(c2) + (1 - dXDif) * (float)gRed(c1);
+	float dG2 = dXDif * (float)gGreen(c2) + (1 - dXDif) * (float)gGreen(c1);
+	float dB2 = dXDif * (float)gBlue(c2) + (1 - dXDif) * (float)gBlue(c1);
+	return gARGB((int)(dYDif * dA2 + (1 - dYDif) * dA1),
+				(int)(dYDif * dR2 + (1 - dYDif) * dR1),
 				(int)(dYDif * dG2 + (1 - dYDif) * dG1),
 				(int)(dYDif * dB2 + (1 - dYDif) * dB1));
 }
@@ -1238,14 +1241,14 @@ void GImage::Rotate(GImage* pSourceImage, int nX, int nY, double dAngle)
 {
 	int x;
 	int y;
-	double dCos = cos(dAngle);
-	double dSin = sin(dAngle);
+	float dCos = (float)cos(dAngle);
+	float dSin = (float)sin(dAngle);
 	for(y = 0; y < (int)m_nHeight; y++)
 	{
 		for(x = 0; x < (int)m_nWidth; x++)
 		{
-			double dX = (x - nX) * dCos - (y - nY) * dSin + nX;
-			double dY = (x - nX) * dSin + (y - nY) * dCos + nY;
+			float dX = (x - nX) * dCos - (y - nY) * dSin + nX;
+			float dY = (x - nX) * dSin + (y - nY) * dCos + nY;
 			GColor col = pSourceImage->InterpolatePixel(dX, dY);
 			SetPixel(x, y, col);
 		}
@@ -1518,7 +1521,7 @@ bool GImage::LoadBMPFile(FILE* pFile)
 
 bool GImage::LoadBMPFile(const unsigned char* pFile, int nLen)
 {
-	if(nLen < sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER))
+	if(nLen < (int)(sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)))
 		return false;
 	BITMAPFILEHEADER* h1 = (BITMAPFILEHEADER*)pFile;
 	BITMAPINFOHEADER* h2 = (BITMAPINFOHEADER*)((char*)h1 + sizeof(BITMAPFILEHEADER));
@@ -1655,7 +1658,7 @@ void GImage::Scale(unsigned int nNewWidth, unsigned int nNewHeight)
 	{
 		for(x = 0; x < (int)nNewWidth; x++)
 		{
-			col = tmpImage.InterpolatePixel((double)x * (double)nOldWidth / (double)nNewWidth, (double)y * (double)nOldHeight / (double)nNewHeight);
+			col = tmpImage.InterpolatePixel((float)(x * nOldWidth) / nNewWidth, (float)(y * nOldHeight) / nNewHeight);
 			SetPixel(x, y, col);
 		}
 	}

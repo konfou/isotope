@@ -12,8 +12,9 @@ ifeq ($(UNAME),Darwin)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -no-cpp-precomp
 OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -no-cpp-precomp
 else
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
-OPT_CFLAGS = $(CFLAGS) -O3
+#DBG_CFLAGS = $(CFLAGS) -fpermissive -g -D_DEBUG -Wall
+DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -Wall
+OPT_CFLAGS = $(CFLAGS) -O3 -Wall
 endif
 
 ################
@@ -26,8 +27,10 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GBezier.cpp\
                    $(GCLASSES_PATH)/GBigNumber.cpp\
                    $(GCLASSES_PATH)/GBillboardCamera.cpp\
+                   $(GCLASSES_PATH)/GBits.cpp\
                    $(GCLASSES_PATH)/GBitTable.cpp\
                    $(GCLASSES_PATH)/GCompress.cpp\
+                   $(GCLASSES_PATH)/GCppParser.cpp\
                    $(GCLASSES_PATH)/GCrypto.cpp\
                    $(GCLASSES_PATH)/GDaftLearner.cpp\
                    $(GCLASSES_PATH)/GDataBase.cpp\
@@ -38,17 +41,21 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GEZSocket.cpp\
                    $(GCLASSES_PATH)/GFile.cpp\
                    $(GCLASSES_PATH)/GFourier.cpp\
+                   $(GCLASSES_PATH)/GFuzzyLogic.cpp\
+                   $(GCLASSES_PATH)/GGenetic.cpp\
                    $(GCLASSES_PATH)/GGrammar.cpp\
                    $(GCLASSES_PATH)/GHardFont.cpp\
                    $(GCLASSES_PATH)/GHashTable.cpp\
                    $(GCLASSES_PATH)/GHeap.cpp\
+                   $(GCLASSES_PATH)/GHtml.cpp\
                    $(GCLASSES_PATH)/GHttp.cpp\
                    $(GCLASSES_PATH)/GImage.cpp\
                    $(GCLASSES_PATH)/GKeyPair.cpp\
+                   $(GCLASSES_PATH)/GKNN.cpp\
                    $(GCLASSES_PATH)/GLList.cpp\
+                   $(GCLASSES_PATH)/GManifold.cpp\
                    $(GCLASSES_PATH)/GMath.cpp\
                    $(GCLASSES_PATH)/GMatrix.cpp\
-                   $(GCLASSES_PATH)/GMipsEmulator.cpp\
                    $(GCLASSES_PATH)/GNaiveBayes.cpp\
                    $(GCLASSES_PATH)/GNeuralNet.cpp\
                    $(GCLASSES_PATH)/GParseTree.cpp\
@@ -59,10 +66,12 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GRand.cpp\
                    $(GCLASSES_PATH)/GRayTrace.cpp\
                    $(GCLASSES_PATH)/GRiddle.cpp\
+                   $(GCLASSES_PATH)/GSDL.cpp\
                    $(GCLASSES_PATH)/GSocket.cpp\
                    $(GCLASSES_PATH)/GSphereImage.cpp\
                    $(GCLASSES_PATH)/GSpinLock.cpp\
                    $(GCLASSES_PATH)/GStack.cpp\
+                   $(GCLASSES_PATH)/GStemmer.cpp\
                    $(GCLASSES_PATH)/GStream.cpp\
                    $(GCLASSES_PATH)/GString.cpp\
                    $(GCLASSES_PATH)/GThread.cpp\
@@ -70,6 +79,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GTrie.cpp\
                    $(GCLASSES_PATH)/GTrigTable.cpp\
                    $(GCLASSES_PATH)/GVirtualMem.cpp\
+                   $(GCLASSES_PATH)/GVector.cpp\
                    $(GCLASSES_PATH)/GWidgets.cpp\
                    $(GCLASSES_PATH)/GXML.cpp\
                    $(GCLASSES_PATH)/sha1.cpp\
@@ -81,9 +91,11 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GBezier.h\
                    $(GCLASSES_PATH)/GBigNumber.h\
                    $(GCLASSES_PATH)/GBillboardCamera.h\
+                   $(GCLASSES_PATH)/GBits.h\
                    $(GCLASSES_PATH)/GBitTable.h\
                    $(GCLASSES_PATH)/GBuffer.h\
                    $(GCLASSES_PATH)/GCompress.h\
+                   $(GCLASSES_PATH)/GCppParser.h\
                    $(GCLASSES_PATH)/GCrypto.h\
                    $(GCLASSES_PATH)/GDaftLearner.h\
                    $(GCLASSES_PATH)/GDataBase.h\
@@ -92,15 +104,20 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GFile.h\
                    $(GCLASSES_PATH)/GFlipTable.h\
                    $(GCLASSES_PATH)/GFourier.h\
+                   $(GCLASSES_PATH)/GFuzzyLogic.h\
+                   $(GCLASSES_PATH)/GGenetic.h\
                    $(GCLASSES_PATH)/GGrammar.h\
                    $(GCLASSES_PATH)/GHardFont.h\
                    $(GCLASSES_PATH)/GHashTable.h\
                    $(GCLASSES_PATH)/GHeap.h\
+                   $(GCLASSES_PATH)/GHtml.h\
                    $(GCLASSES_PATH)/GHttp.h\
                    $(GCLASSES_PATH)/GImage.h\
                    $(GCLASSES_PATH)/GKeyPair.h\
+                   $(GCLASSES_PATH)/GKNN.h\
                    $(GCLASSES_PATH)/GLList.h\
                    $(GCLASSES_PATH)/GMacros.h\
+                   $(GCLASSES_PATH)/GManifold.h\
                    $(GCLASSES_PATH)/GMemChunk.h\
                    $(GCLASSES_PATH)/GNaiveBayes.h\
                    $(GCLASSES_PATH)/GNeuralNet.h\
@@ -112,9 +129,11 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GRand.h\
                    $(GCLASSES_PATH)/GRayTrace.h\
                    $(GCLASSES_PATH)/GRiddle.h\
+                   $(GCLASSES_PATH)/GSDL.h\
                    $(GCLASSES_PATH)/GSocket.h\
                    $(GCLASSES_PATH)/GSphereImage.h\
                    $(GCLASSES_PATH)/GSpinLock.h\
+                   $(GCLASSES_PATH)/GStemmer.h\
                    $(GCLASSES_PATH)/GString.h\
                    $(GCLASSES_PATH)/GThread.h\
                    $(GCLASSES_PATH)/GTime.h\

@@ -104,7 +104,7 @@ public:
 	// You should only call Connect for a Client socket
 	bool Connect(struct in_addr nAddr, u_short nPort, short nFamily = AF_INET);
 	bool Connect(const char* szAddr, unsigned short nPort);
-	bool Connect(const char* szURL);
+	//bool Connect(const char* szURL);
 	void Disconnect(int nConnectionNumber = 0);
 
 	bool Send(const unsigned char *pBuf, int nLen, int nConnectionNumber = 0);

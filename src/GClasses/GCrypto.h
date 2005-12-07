@@ -44,8 +44,13 @@ void WipeBuffer(unsigned char* pBuffer, int nSize);
 void WipeBuffer(char* pBuffer, int nSize);
 void SafeStrCpy(char* szDest, const char* szSrc, int nMaxSize);
 void Xor(unsigned char* pDest, unsigned char* pSource, int nBytes);
-void Digest(unsigned char* digest, unsigned char* pBlob, int nBlobSize); // Currently uses Sha1, but you can swap out any cryptographic digest algorithm you want
 
+// Currently uses Sha1, but you can swap out any cryptographic digest algorithm you want
+void Digest(unsigned char* digest, unsigned char* pBlob, int nBlobSize);
+
+// This is my own home-made (so don't trust it) encryption algorithm. It's based on
+// the hashing algorithm of your choice. If you plug in a stronger hashing algorithm
+// then this becomes a stronger block cypher. Currently it's hooked up to SHA1
 class GCrypto
 {
 private:
@@ -94,6 +99,7 @@ public:
 	// Decrypts a buffer
 	static void Decrypt(unsigned char* pData, int nDataSize, const unsigned char* pPassphrase, int nPassphraseSize);
 
+	// Encrypt or decrypt a single block
 	void ProcessChunk(unsigned char* pChunk, int nChunkSize)
 	{
 		// Finish the last block if we didn't yet

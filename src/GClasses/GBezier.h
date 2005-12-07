@@ -14,6 +14,7 @@
 
 struct GBezierPoint;
 
+// Represents a Bezier curve
 class GBezier
 {
 protected:

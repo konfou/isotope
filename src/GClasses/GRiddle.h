@@ -16,6 +16,9 @@ class GRand;
 class GXMLTag;
 class GKeyPair;
 
+// This class is meant for fighting denial-of-service attacks against a server by requiring
+// the client to solve a riddle (a computationally intensive process) before further service
+// will be given.
 class GRiddle
 {
 protected:

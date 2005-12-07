@@ -14,6 +14,7 @@
 
 #include "GSocket.h"
 
+// This class is designed to make network communication really easy
 class GEZSocketServer : public GSocket
 {
 protected:
@@ -39,13 +40,19 @@ public:
 
 	virtual ~GEZSocketServer();
 
+	// Send some data
 	bool Send(const void* pBuf, int nLen, int nConnectionNumber);
+
+	// Returns the number of messages waiting to be received
 	int GetMessageCount();
-	unsigned char* GetNextMessage(int* pnSize, int* pnOutConnectionNumber); // you must delete the buffer this returns
+
+	// Receive the next message. (You are responsible to delete the buffer this returns)
+	unsigned char* GetNextMessage(int* pnSize, int* pnOutConnectionNumber);
 };
 
 // --------------------------------------------------------------------------
 
+// This class is designed to make network communication really easy
 class GEZSocketClient : public GSocket
 {
 protected:
@@ -72,9 +79,14 @@ public:
 
 	virtual ~GEZSocketClient();
 
+	// Send some data
 	bool Send(const void* pBuf, int nLen);
+
+	// Returns the number of messages waiting to be received
 	int GetMessageCount();
-	unsigned char* GetNextMessage(int* pnSize); // you must delete the buffer this returns
+
+	// Receive the next message. (You are responsible to delete the buffer this returns)
+	unsigned char* GetNextMessage(int* pnSize);
 };
 
 // --------------------------------------------------------------------------
@@ -96,13 +108,16 @@ public:
 	static GSecureSocketServer* HostSecureSocket(u_short nPort, int nMaxPacketSize, GRand* pRand);
 	virtual ~GSecureSocketServer();
 
+	// Send some data
 	bool Send(const void* pBuf, int nLen, int nConnectionNumber);
 
+	// Returns the number of messages waiting to be received
 	// Note: you should call this method regularly.  If you don't, client's won't be
 	// able to handshake with this socket.
 	int GetMessageCount();
 	
-	unsigned char* GetNextMessage(int* pnSize, int* pnOutConnectionNumber); // you must delete the buffer this returns
+	// Receive the next message. (You are responsible to delete the buffer this returns)
+	unsigned char* GetNextMessage(int* pnSize, int* pnOutConnectionNumber);
 
 protected:
 	void Handshake();
@@ -131,8 +146,13 @@ public:
 	static GSecureSocketClient* ConnectToSecureSocket(const char* szAddress, u_short nPort, int nMaxPacketSize, GRand* pRand);
 	virtual ~GSecureSocketClient();
 
+	// Send some data
 	bool Send(const void* pBuf, int nLen);
+
+	// Returns the number of messages waiting to be received
 	int GetMessageCount();
+
+	// Receive the next message. (You are responsible to delete the buffer this returns)
 	unsigned char* GetNextMessage(int* pnSize);
 
 protected:

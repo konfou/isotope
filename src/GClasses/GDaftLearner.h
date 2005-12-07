@@ -13,13 +13,14 @@
 #define __GDAFTLEARNER_H__
 
 class GDaftNode;
-class GImage;
 class GArffRelation;
 class GArffData;
-class GNeuralNet;
-class GPointerQueue;
 
-// Uses the Divide And Fit Technique for learning
+class GStringHeap;
+class GAVLTree;
+class GMatrix;
+
+// Uses the Divide And Fit Technique for learning--this is still an experimental algorithm
 class GDaftLearner
 {
 protected:
@@ -48,46 +49,34 @@ protected:
 
 
 
+// Returns the error at the point specified by the array pArrPoint
+typedef double (*GSearchCritic)(void* pThis, double* pArrPoint);
 
-class GSquisher
+// This is still an experimental algorithm. It's designed to search complex
+// hypersurfaces by optimizing between exploration and exploitation using
+// the intersection of Gaussians extending from known points as a guide
+class GSearch
 {
 protected:
-	int m_nDataPoints;
 	int m_nDimensions;
-	int m_nNeighbors;
-	int m_nDataIndex;
-	int m_nValueIndex;
-	int m_nRecordSize;
-	int m_nCurrentDimension;
-	int m_nTargetDimensions;
-	int m_nPass;
-	unsigned char* m_pData;
-	double m_dAveNeighborDist;
-	double m_dSquishingRate;
-	double m_dLearningRate;
-	GPointerQueue* m_pQ;
+	GStringHeap* m_pHeap;
+	GAVLTree* m_pPriorityQueue;
+	GSearchCritic m_pCritic;
+	void* m_pCriticThis;
+	GMatrix* m_pMatrix;
+	double m_dThoroughness;
 
 public:
-	GSquisher(int nDataPoints, int nDimensions, int nNeighbors);
-	~GSquisher();
+	GSearch(int nDimensions, double dMin, double dRange, double dThoroughness, GSearchCritic pCritic, void* pCriticThis);
+	~GSearch();
 
-	void SquishBegin(int nTargetDimensions);
-	void SquishPass();
-
-	void SetDataPoint(int n, double* pValues);
-	double* GetDataPoint(int n);
-	
-	// for internal use only
-	int DataPointSortCompare(unsigned char* pA, unsigned char* pB);
+	void Iterate();
 
 protected:
-	void CalculateMetadata(int nTargetDimensions);
-	int FindMostDistantNeighbor(struct GSquisherNeighbor* pNeighbors);
-	double CalculateDistance(unsigned char* pA, unsigned char* pB);
-	double CalculateVectorCorrelation(unsigned char* pA, unsigned char* pVertex, unsigned char* pB);
-	double CalculateDataPointError(unsigned char* pDataPoint);
-	int AjustDataPoint(unsigned char* pDataPoint, int nTargetDimensions);
+	double* AddPoint(double* pPoint);
+	double MeasureDistanceSquared(double* pPoint1, double* pPoint2);
+	void AddSearchArea(double** ppNeighbors);
+	double ComputeOptimisticSearchPointError(double* pSearchPoint, double* pNeighbor);
 };
-
 
 #endif // __GDAFTLEARNER_H__

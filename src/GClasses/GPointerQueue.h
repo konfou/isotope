@@ -24,6 +24,7 @@ public:
 	~GPointerQueueChunk();
 };
 
+// Represents a FIFO queue of pointers
 class GPointerQueue
 {
 protected:

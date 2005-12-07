@@ -52,7 +52,7 @@ enum GCppVarModifier
 };
 
 
-
+// The base class of all CPP parsing objects
 class GCppObject
 {
 protected:
@@ -78,10 +78,10 @@ public:
 
 
 
-
+// Represents a scope in CPP code
 class GCppScope : public GCppObject
 {
-friend GCppParser;
+friend class GCppParser;
 protected:
 	GStringHeap* m_pStringHeap;
 	GCppAccess m_eCurrentAccess;
@@ -102,10 +102,10 @@ public:
 
 
 
-
+// Represents a type in CPP code
 class GCppType : public GCppScope
 {
-friend GCppParser;
+friend class GCppParser;
 protected:
 	const char* m_szName;
 	bool m_bPrimitive;
@@ -123,7 +123,7 @@ public:
 };
 
 
-
+// Represents a struct in CPP code
 class GCppStruct : public GCppType
 {
 protected:
@@ -141,7 +141,7 @@ public:
 
 
 
-
+// Represents a class in CPP code
 class GCppClass : public GCppStruct
 {
 protected:
@@ -170,7 +170,7 @@ public:
 
 
 
-
+// Represents an enum in CPP code
 class GCppEnum : public GCppType
 {
 protected:
@@ -187,7 +187,7 @@ public:
 };
 
 
-
+// Represents a function pointer in CPP code
 class GCppFuncPtr : public GCppType
 {
 protected:
@@ -204,7 +204,7 @@ public:
 };
 
 
-
+// Represents a declaration in CPP code
 class GCppDeclaration : public GCppObject
 {
 public:
@@ -217,14 +217,16 @@ public:
 protected:
 	GCppType* m_pType;
 	const char* m_szName;
+	GCppAccess m_eAccess;
 	bool m_bDeclaredInProjectFile;
 
 public:
-	GCppDeclaration(GCppType* pType, const char* szName)
+	GCppDeclaration(GCppType* pType, const char* szName, GCppAccess eAccess)
 		: GCppObject()
 	{
 		m_pType = pType;
 		m_szName = szName;
+		m_eAccess = eAccess;
 		m_bDeclaredInProjectFile = false;
 	}
 
@@ -237,11 +239,12 @@ public:
 	GCppType* GetType() { return m_pType; }
 	void SetDeclaredInProjectFile() { m_bDeclaredInProjectFile = true; }
 	bool IsDeclaredInProjectFile() { return m_bDeclaredInProjectFile; }
+	GCppAccess GetAccess() { return m_eAccess; }
 };
 
 
 
-
+// Represents a variable in CPP code
 class GCppVariable : public GCppDeclaration
 {
 friend class GCppParser;
@@ -249,8 +252,8 @@ protected:
 	GCppVarModifier m_eModifiers;
 
 public:
-	GCppVariable(GCppType* pType, const char* szName, GCppVarModifier eModifiers)
-		: GCppDeclaration(pType, szName)
+	GCppVariable(GCppType* pType, const char* szName, GCppAccess eAccess, GCppVarModifier eModifiers)
+		: GCppDeclaration(pType, szName, eAccess)
 	{
 		m_eModifiers = eModifiers;
 	}
@@ -270,7 +273,7 @@ public:
 
 
 
-// Represents a method
+// Represents a method in CPP code
 class GCppMethod : public GCppDeclaration
 {
 friend class GCppParser;
@@ -282,7 +285,7 @@ protected:
 	GCppScope* m_pScope;
 
 public:
-	GCppMethod(GCppType* pReturnType, GCppScope* pScope, const char* szName, GCppMethodModifier eModifiers);
+	GCppMethod(GCppType* pReturnType, GCppScope* pScope, const char* szName, GCppAccess eAccess, GCppMethodModifier eModifiers);
 	virtual ~GCppMethod();
 
 	virtual DeclType GetDeclType()
@@ -306,7 +309,7 @@ public:
 
 
 
-
+// Represents a file in CPP code
 class GCppFile
 {
 friend class GCppParser;
@@ -349,10 +352,10 @@ public:
 
 
 
-
+// Represents a token in CPP code
 class GCppToken
 {
-friend GCppParser;
+friend class GCppParser;
 protected:
 	int m_nStart;
 	int m_nLength;
@@ -386,7 +389,7 @@ public:
 #define MAX_INCLUDE_NESTING 100
 #define MAX_SCOPE_NESTING 15
 
-// This class parses a C or C++ or header file
+// This class parses a C or C++ code and header files
 class GCppParser
 {
 protected:

@@ -832,6 +832,8 @@ void GDataBase::Query(GDBQueryEnumerator* pOutEnumerator, GDBRecord* pTableRecor
 			if(bLeftToRight)
 				pOutEnumerator->m_bNeedCompareValue = false;
 			break;
+		default:
+			break;
 	}
 	if(pOutEnumerator->m_bNeedCompareValue)
 	{

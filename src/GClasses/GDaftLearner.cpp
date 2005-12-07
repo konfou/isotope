@@ -17,9 +17,11 @@
 #include "GArff.h"
 #include "GNeuralNet.h"
 #include "GArray.h"
-
+#include "GAVLTree.h"
+#include "GHashTable.h"
 #include <math.h>
 #include "GPointerQueue.h"
+#include "GMatrix.h"
 
 class GDaftNode
 {
@@ -260,15 +262,13 @@ printf("Fitting...\n");
 	pNNFit->AddLayer(2);
 	pNNFit->SetAcceptableMeanSquareError(.0001);
 	pNNFit->SetLearningRate(.25);
-	pNNFit->SetHopefulness(.66);
+	pNNFit->SetRunEpochs(16000);
 	pNNFit->SetMaximumEpochs(50000);
-	pNNFit->SetMinimumEpochs(16000);
 	pNNFit->Train(pData, pData);
 
 printf("Subtracting predicted results...\n");
 	// Subtract the predicted results
 	int nAttributeCount = m_pRelation->GetAttributeCount();
-	int nInputs = m_pRelation->GetInputCount();
 	double* pSample = (double*)alloca(sizeof(double) * nAttributeCount);
 	double* pRow;
 	int n;
@@ -340,349 +340,208 @@ if(pNode->m_bUsed)
 	return GArffData::Normalize(dVal, NORMALIZE_MIN, NORMALIZE_RANGE, pNode->m_dMin, pNode->m_dRange);
 }
 
-
 // --------------------------------------------------------------------------
 
-struct GSquisherNeighbor
+class GSearchSpot : public GAVLNode
 {
-	unsigned char* m_pNeighbor;
-	unsigned char* m_pNeighborsNeighbor;
-	double m_dCosTheta;
-	double m_dDistance;
+protected:
+	double* m_pPoint;
+	double** m_pNeighbors;
+
+public:
+	GSearchSpot(double* pPoint, int nNeighbors, double** ppNeighbors)
+	{
+		m_pPoint = pPoint;
+		m_pNeighbors = new double*[nNeighbors];
+		int n;
+		for(n = 0; n < nNeighbors; n++)
+			m_pNeighbors[n] = ppNeighbors[n];
+	}
+
+	virtual ~GSearchSpot()
+	{
+		delete(m_pNeighbors);
+	}
+
+	virtual int Compare(GAVLNode* pThat)
+	{
+		GSearchSpot* pOther = (GSearchSpot*)pThat;
+		if(m_pPoint[0] > pOther->m_pPoint[0])
+			return 1;
+		else if(m_pPoint[0] < pOther->m_pPoint[0])
+			return -1;
+		else
+			return 0;
+	}
+
+	double* GetPoint() { return m_pPoint; }
+	double** GetNeighbors() { return m_pNeighbors; }
 };
 
-struct GSquisherData
+GSearch::GSearch(int nDimensions, double dMin, double dRange, double dThoroughness, GSearchCritic pCritic, void* pCriticThis)
 {
-	int m_nCycle;
-};
-
-GSquisher::GSquisher(int nDataPoints, int nDimensions, int nNeighbors)
-{
-	m_nDataPoints = nDataPoints;
 	m_nDimensions = nDimensions;
-	m_nNeighbors = nNeighbors;
-	m_nDataIndex = sizeof(struct GSquisherNeighbor) * m_nNeighbors;
-	m_nValueIndex = m_nDataIndex + sizeof(struct GSquisherData);
-	m_nRecordSize = m_nValueIndex + sizeof(double) * m_nDimensions;
-	m_pData = new unsigned char[m_nRecordSize * nDataPoints];
-	m_dSquishingRate = .95;
-	m_nTargetDimensions = 0;
-	m_nPass = 0;
-	m_dAveNeighborDist = 0;
-	m_pQ = NULL;
-}
+	m_pHeap = new GStringHeap(4096);
+	m_pPriorityQueue = new GAVLTree();
+	m_pCritic = pCritic;
+	m_pCriticThis = pCriticThis;
+	m_dThoroughness = dThoroughness;
+	m_pMatrix = new GMatrix(nDimensions + 1, nDimensions + 1);
 
-GSquisher::~GSquisher()
-{
-	delete(m_pData);
-	delete(m_pQ);
-}
-
-void GSquisher::SetDataPoint(int n, double* pValues)
-{
-	memcpy(&m_pData[n * m_nRecordSize + m_nValueIndex], pValues, sizeof(double) * m_nDimensions);
-}
-
-double* GSquisher::GetDataPoint(int n)
-{
-	return (double*)&m_pData[n * m_nRecordSize + m_nValueIndex];
-}
-
-int GSquisher::DataPointSortCompare(unsigned char* pA, unsigned char* pB)
-{
-	pA += m_nValueIndex;
-	pB += m_nValueIndex;
-	double dA = ((double*)pA)[m_nCurrentDimension];
-	double dB = ((double*)pB)[m_nCurrentDimension];
-	if(dA > dB)
-		return 1;
-	else if(dA < dB)
-		return -1;
-	return 0;
-}
-
-int GSquisher_DataPointSortCompare(void* pThis, void* pA, void* pB)
-{
-	return ((GSquisher*)pThis)->DataPointSortCompare((unsigned char*)pA, (unsigned char*)pB);
-}
-
-int GSquisher::FindMostDistantNeighbor(struct GSquisherNeighbor* pNeighbors)
-{
-	int nMostDistant = 0;
+	// Make the initial neighbor points
+	double* pPoint = (double*)alloca(sizeof(double) * (nDimensions + 1));
+	double** ppNeighbors = (double**)alloca(sizeof(double*) * (nDimensions + 1));
 	int n;
-	for(n = 1; n < m_nNeighbors; n++)
+	for(n = 0; n < nDimensions; n++)
+		pPoint[n + 1] = dMin;
+	pPoint[0] = pCritic(m_pCriticThis, &pPoint[1]);
+	ppNeighbors[0] = AddPoint(pPoint);
+	for(n = 0; n < nDimensions; n++)
 	{
-		if(pNeighbors[n].m_dDistance > pNeighbors[nMostDistant].m_dDistance)
-			nMostDistant = n;
+		pPoint[n + 1] = dMin + dRange * nDimensions;
+		pPoint[0] = pCritic(m_pCriticThis, &pPoint[1]);
+		ppNeighbors[n + 1] = AddPoint(pPoint);
+		pPoint[n + 1] = dMin;
 	}
-	return nMostDistant;
+
+	// Make the initial search point
+	AddSearchArea(ppNeighbors);
 }
 
-double GSquisher::CalculateDistance(unsigned char* pA, unsigned char* pB)
+GSearch::~GSearch()
 {
-	pA += m_nValueIndex;
-	pB += m_nValueIndex;
-	double* pdA = (double*)pA;
-	double* pdB = (double*)pB;
-	double dTmp;
+	delete(m_pHeap);
+	delete(m_pPriorityQueue);
+	delete(m_pMatrix);
+}
+
+double* GSearch::AddPoint(double* pPoint)
+{
+	double* pNewPoint = (double*)m_pHeap->Allocate(sizeof(double) * (m_nDimensions + 1));
+	memcpy(pNewPoint, pPoint, sizeof(double) * (m_nDimensions + 1));
+	return pNewPoint;
+}
+
+double GSearch::MeasureDistanceSquared(double* pPoint1, double* pPoint2)
+{
+	int n;
+	double d;
 	double dSum = 0;
-	int n;
 	for(n = 0; n < m_nDimensions; n++)
 	{
-		dTmp = pdB[n] - pdA[n];
-		dSum += (dTmp * dTmp);
+		d = pPoint1[n + 1] - pPoint2[n + 1];
+		dSum += (d * d);
 	}
-	return sqrt(dSum);
+	return dSum;
 }
 
-double GSquisher::CalculateVectorCorrelation(unsigned char* pA, unsigned char* pVertex, unsigned char* pB)
+void GSearch::AddSearchArea(double** ppNeighbors)
 {
-	pA += m_nValueIndex;
-	pVertex += m_nValueIndex;
-	pB += m_nValueIndex;
-	double* pdA = (double*)pA;
-	double* pdV = (double*)pVertex;
-	double* pdB = (double*)pB;
-	double dDotProd = 0;
-	double dMagA = 0;
-	double dMagB = 0;
-	double dA, dB;
+	// Make sure the thoroughness value isn't too small
+	double d, distSquared;
+	int row, col;
+	double dFac = m_dThoroughness * m_dThoroughness;
+	for(row = 0; row <= m_nDimensions; row++)
+	{
+		for(col = 0; col <= m_nDimensions; col++)
+		{
+			if(col == row)
+				continue;
+			if(ppNeighbors[row][0] < ppNeighbors[col][0])
+				continue;
+			distSquared = MeasureDistanceSquared(ppNeighbors[row], ppNeighbors[col]);
+			d = ppNeighbors[row][0] * exp(dFac * distSquared / (-2));
+			if(d <= ppNeighbors[col][0])
+				continue;
+			dFac = 2 * log(2 * ppNeighbors[row][0] / ppNeighbors[col][0]) / distSquared;
+			m_dThoroughness = sqrt(dFac);
+// todo: remove this check
+GAssert(ppNeighbors[row][0] * exp(dFac * distSquared / (-2)) < ppNeighbors[col][0] * .6, "didn't work");
+printf("###### Thoroughness-> %f\n", m_dThoroughness);
+		}
+	}
+
+	// Find the intersection point of (m_nDimensions + 1) Gaussians centered and scaled to each neighbor
+	double* pIntersectPoint = (double*)m_pHeap->Allocate(sizeof(double) * (m_nDimensions + 1));
+	double* pVector = (double*)alloca(sizeof(double) * (m_nDimensions + 1));
+	for(row = 0; row <= m_nDimensions; row++)
+		pVector[row] = 0;
+	double* pNeighbor;
+	double dVal;
+	for(row = 0; row <= m_nDimensions; row++)
+	{
+		dVal = 0;
+		pNeighbor = ppNeighbors[row];
+		for(col = 0; col < m_nDimensions; col++)
+		{
+			m_pMatrix->Set(row, col, dFac * pNeighbor[1 + col]);
+			dVal += (pNeighbor[1 + col] * pNeighbor[1 + col]);
+		}
+		m_pMatrix->Set(row, m_nDimensions, -1);
+		pVector[row] = (dFac * dVal / 2) - log(pNeighbor[0]);
+	}
+	m_pMatrix->Solve(pVector);
+	memcpy(&pIntersectPoint[1], pVector, sizeof(double) * m_nDimensions);
+
+	// Compute the optimistic error
+	pIntersectPoint[0] = ComputeOptimisticSearchPointError(pIntersectPoint, ppNeighbors[0]);
+
+	// todo: remove this check
+#ifdef _DEBUG
+	if(m_nDimensions > 1)
+	{
+		double dVal2 = ComputeOptimisticSearchPointError(pIntersectPoint, ppNeighbors[1]);
+		GAssert(dVal2 - pIntersectPoint[0] < .001 && dVal2 - pIntersectPoint[0] > -.001, "point is not true intersection of Gaussians");
+		if(m_nDimensions > 2)
+		{
+			double dVal3 = ComputeOptimisticSearchPointError(pIntersectPoint, ppNeighbors[2]);
+			GAssert(dVal3 - pIntersectPoint[0] < .001 && dVal3 - pIntersectPoint[0] > -.001, "point is not true intersection of Gaussians");
+		}
+	}
+#endif // _DEBUG
+
+	// Add a new search spot to the priority queue
+printf("(%f, %f)->%f    OptimisticError=%f\n", ppNeighbors[0][1], ppNeighbors[1][1], pIntersectPoint[1], pIntersectPoint[0]);
+	GSearchSpot* pSearchSpot = new GSearchSpot(pIntersectPoint, m_nDimensions + 1, ppNeighbors);
+	m_pPriorityQueue->Insert(pSearchSpot);
+}
+
+double GSearch::ComputeOptimisticSearchPointError(double* pSearchPoint, double* pNeighbor)
+{
+	// find the square of the distance between the two points
+	double dSum = 0;
+	double d;
 	int n;
-	for(n = 0; n < m_nDimensions; n++)
+	for(n = 1; n <= m_nDimensions; n++)
 	{
-		dA = pdA[n] - pdV[n];
-		dB = pdB[n] - pdV[n];
-		dDotProd += (dA * dB);
-		dMagA += (dA * dA);
-		dMagB += (dB * dB);
+		d = pSearchPoint[n] - pNeighbor[n];
+		dSum += (d * d);
 	}
-	return dDotProd / (sqrt(dMagA) * sqrt(dMagB));
+
+	// Compute the position on the Gaussian
+	return pNeighbor[0] * exp((m_dThoroughness * m_dThoroughness * dSum) / (-2));
 }
 
-void GSquisher::CalculateMetadata(int nTargetDimensions)
+void GSearch::Iterate()
 {
-	// Calculate how far we need to look to have a good chance of finding the
-	// nearest neighbors
-	int nDimSpan = (int)(pow((double)m_nDataPoints, (double)1 / nTargetDimensions) * 2);
-	GAssert(nDimSpan > m_nNeighbors, "These numbers aren't going to work very well");
+	// Get the next spot from the priority queue
+	GSearchSpot* pSpot = (GSearchSpot*)m_pPriorityQueue->Unlink(0);
+	GAssert(pSpot, "the queue should never be empty");
 
-	// Find the nearest neighbors
-	GPointerArray arr(m_nDataPoints);
-	int n, i, j;
-	for(n = 0; n < m_nDataPoints; n++)
-		arr.AddPointer(&m_pData[n * m_nRecordSize]);
+	// Ask the critic for the actual error of this spot
+	double* pPoint = pSpot->GetPoint();
+	pPoint[0] = m_pCritic(m_pCriticThis, &pPoint[1]);
 
-	// Initialize everybody's neighbors
-	struct GSquisherNeighbor* pNeighbors;
-	for(n = 0; n < m_nDataPoints; n++)
-	{
-		pNeighbors = (struct GSquisherNeighbor*)arr.GetPointer(n);
-		for(i = 0; i < m_nNeighbors; i++)
-		{
-			pNeighbors[i].m_pNeighbor = NULL;
-			pNeighbors[i].m_pNeighborsNeighbor = NULL;
-			pNeighbors[i].m_dDistance = 1e100;
-		}
-	}
-
-	// Find the nearest neighbors
-	int nMostDistantNeighbor;
-	int nStart, nEnd;
-	double dDistance;
-	unsigned char* pCandidate;
-	for(m_nCurrentDimension = 0; m_nCurrentDimension < m_nDimensions; m_nCurrentDimension++)
-	{
-		// Sort on the current dimension
-		arr.Sort(GSquisher_DataPointSortCompare, this);
-
-		// Do a pass in this dimension for every data point to search for nearest neighbors
-		for(n = 0; n < m_nDataPoints; n++)
-		{
-			// Check all the data points that are close in this dimension
-			pNeighbors = (struct GSquisherNeighbor*)arr.GetPointer(n);
-			nMostDistantNeighbor = FindMostDistantNeighbor(pNeighbors);
-			nStart = MAX(0, n - nDimSpan);
-			nEnd = MIN(m_nDataPoints - 1, n + nDimSpan);
-			for(i = nStart; i <= nEnd; i++)
-			{
-				if(i == n)
-					continue;
-				pCandidate = (unsigned char*)arr.GetPointer(i);
-				dDistance = CalculateDistance((unsigned char*)pNeighbors, pCandidate);
-				if(dDistance < pNeighbors[nMostDistantNeighbor].m_dDistance)
-				{
-					// Check to see if this is already a neighbor
-					for(j = 0; j < m_nNeighbors; j++)
-					{
-						if(pNeighbors[j].m_pNeighbor == pCandidate)
-							break;
-					}
-					if(j == m_nNeighbors)
-					{
-						// Make this a neighbor
-						pNeighbors[nMostDistantNeighbor].m_pNeighbor = pCandidate;
-						pNeighbors[nMostDistantNeighbor].m_dDistance = dDistance;
-						nMostDistantNeighbor = FindMostDistantNeighbor(pNeighbors);
-					}
-				}
-			}
-		}
-	}
-
-	// For each data point, find the most co-linear of each neighbor's neighbors
-	m_dAveNeighborDist = 0;
-	struct GSquisherData* pData;
-	struct GSquisherNeighbor* pNeighborsNeighbors;
-	double dCosTheta;
-	for(n = 0; n < m_nDataPoints; n++)
-	{
-		pNeighbors = (struct GSquisherNeighbor*)arr.GetPointer(n);
-		pData = (struct GSquisherData*)(((unsigned char*)pNeighbors) + m_nDataIndex);
-		pData->m_nCycle = -1;
-		for(i = 0; i < m_nNeighbors; i++)
-		{
-			m_dAveNeighborDist += pNeighbors[i].m_dDistance;
-			pNeighborsNeighbors = (struct GSquisherNeighbor*)pNeighbors[i].m_pNeighbor;
-			pCandidate = pNeighborsNeighbors[0].m_pNeighbor;
-			dCosTheta = CalculateVectorCorrelation((unsigned char*)pNeighbors, (unsigned char*)pNeighborsNeighbors, pCandidate);
-			pNeighbors[i].m_dCosTheta = dCosTheta;
-			pNeighbors[i].m_pNeighborsNeighbor = pCandidate;
-			for(j = 1; j < m_nNeighbors; j++)
-			{
-				pCandidate = pNeighborsNeighbors[j].m_pNeighbor;
-				dCosTheta = CalculateVectorCorrelation((unsigned char*)pNeighbors, (unsigned char*)pNeighborsNeighbors, pCandidate);
-				if(dCosTheta < pNeighbors[i].m_dCosTheta)
-				{
-					pNeighbors[i].m_dCosTheta = dCosTheta;
-					pNeighbors[i].m_pNeighborsNeighbor = pCandidate;
-				}
-			}
-		}
-	}
-
-	m_dAveNeighborDist /= (m_nDataPoints * m_nNeighbors);
-	m_dLearningRate = m_dAveNeighborDist * 10;
-}
-
-double GSquisher::CalculateDataPointError(unsigned char* pDataPoint)
-{
-	double dError = 0;
-	double dDist;
-	double dTheta;
-	struct GSquisherNeighbor* pNeighbors = (struct GSquisherNeighbor*)pDataPoint;
-	struct GSquisherData* pDataPointData = (struct GSquisherData*)(pDataPoint + m_nDataIndex);
-	struct GSquisherData* pNeighborData;
+	// Push the new search spots into the queue
+	double* pOldNeighbor;
+	double** ppNeighbors = pSpot->GetNeighbors();
 	int n;
-	for(n = 0; n < m_nNeighbors; n++)
+	for(n = 0; n <= m_nDimensions; n++)
 	{
-		dDist = CalculateDistance(pDataPoint, pNeighbors[n].m_pNeighbor);
-		dDist -= pNeighbors[n].m_dDistance;
-		dDist /= m_dAveNeighborDist;
-		dDist *= dDist;
-		dTheta = CalculateVectorCorrelation(pDataPoint, pNeighbors[n].m_pNeighbor, pNeighbors[n].m_pNeighborsNeighbor);
-		dTheta -= pNeighbors[n].m_dCosTheta;
-		dTheta *= dTheta;
-		dTheta = MAX((double)0, dTheta - .01);
-		pNeighborData = (struct GSquisherData*)(pNeighbors[n].m_pNeighbor + m_nDataIndex);
-		if(pNeighborData->m_nCycle != pDataPointData->m_nCycle)
-		{
-			dDist /= 6;
-			dTheta /= 6;
-		}
-		dError += (2 * dDist + dTheta);
+		pOldNeighbor = ppNeighbors[n];
+		ppNeighbors[n] = pPoint;
+		AddSearchArea(ppNeighbors);
+		ppNeighbors[n] = pOldNeighbor;
 	}
-	return dError * dError;
+	delete(pSpot);
 }
-
-int GSquisher::AjustDataPoint(unsigned char* pDataPoint, int nTargetDimensions)
-{
-	bool bMadeProgress = true;
-	double* pValues = (double*)(pDataPoint + m_nValueIndex);
-	double dErrorBase = CalculateDataPointError(pDataPoint);
-	double dError;
-	int n, nSteps;
-	for(nSteps = 0; bMadeProgress; nSteps++)
-	{
-		bMadeProgress = false;
-		for(n = 0; n < nTargetDimensions; n++)
-		{
-			pValues[n] += m_dLearningRate;
-			dError = CalculateDataPointError(pDataPoint);
-			if(dError >= dErrorBase)
-			{
-				pValues[n] -= (m_dLearningRate + m_dLearningRate);
-				dError = CalculateDataPointError(pDataPoint);
-			}
-			if(dError >= dErrorBase)
-				pValues[n] += m_dLearningRate;
-			else
-			{
-				dErrorBase = dError;
-				bMadeProgress = true;
-			}
-		}
-	}
-	return nSteps - 1; // the -1 is to undo the last incrementor
-}
-
-void GSquisher::SquishBegin(int nTargetDimensions)
-{
-	GAssert(nTargetDimensions > 0 && nTargetDimensions < m_nDimensions, "out of range");
-	m_nTargetDimensions = nTargetDimensions;
-	m_nPass = 0;
-
-	// Calculate metadata
-	CalculateMetadata(nTargetDimensions);
-
-	// Make the queue
-	m_pQ = new GPointerQueue();
-}
-
-void GSquisher::SquishPass()
-{
-	double* pValues;
-	struct GSquisherData* pData;
-	unsigned char* pDataPoint;
-	struct GSquisherNeighbor* pNeighbors;
-	int n, i;
-
-	// Squish the extra dimensions
-	for(n = 0; n < m_nDataPoints; n++)
-	{
-		pValues = (double*)(&m_pData[n * m_nRecordSize] + m_nValueIndex);
-		for(i = m_nTargetDimensions; i < m_nDimensions; i++)
-			pValues[i] *= m_dSquishingRate;
-	}
-
-	// Pick a random data point and correct outward in a breadth-first mannner
-	int nSeedDataPoint = m_nDataPoints / 2; //(int)(GetRandUInt() % m_nDataPoints);
-	m_pQ->Push(&m_pData[nSeedDataPoint * m_nRecordSize]);
-	int nVisitedNodes = 0;
-	int nSteps = 0;
-	while(m_pQ->GetSize() > 0)
-	{
-		// Check if this one has already been done
-		pDataPoint = (unsigned char*)m_pQ->Pop();
-		pData = (struct GSquisherData*)(pDataPoint + m_nDataIndex);
-		if(pData->m_nCycle == m_nPass)
-			continue;
-		pData->m_nCycle = m_nPass;
-		nVisitedNodes++;
-
-		// Push all neighbors into the queue
-		pNeighbors = (struct GSquisherNeighbor*)pDataPoint;
-		for(n = 0; n < m_nNeighbors; n++)
-			m_pQ->Push(pNeighbors[n].m_pNeighbor);
-
-		// Ajust this data point
-		nSteps += AjustDataPoint(pDataPoint, m_nTargetDimensions);
-	}
-	GAssert(nVisitedNodes * 1.25 > m_nDataPoints, "manifold appears poorly sampled");
-	if(nSteps * 3 < m_nDataPoints)
-		m_dLearningRate *= .9;
-	else if(nSteps > m_nDataPoints * 9)
-		m_dLearningRate /= .9;
-	printf("[Learning Rate: %f]", m_dLearningRate);
-	m_nPass++;
-}
-

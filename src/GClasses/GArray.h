@@ -18,7 +18,7 @@
 #include <winsock2.h>
 #endif // WIN32
 
-
+// A dynamic array
 class GSmallArray
 {
 protected:

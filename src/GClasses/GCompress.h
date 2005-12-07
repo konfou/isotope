@@ -15,6 +15,7 @@
 
 #define GCOMPRESS_CYCLES 4
 
+// This is supposed to be a compression utility, but it doesn't really work
 class GCompress
 {
 public:

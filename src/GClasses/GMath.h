@@ -69,6 +69,12 @@ public:
 	// The gamma function
 	static double gamma(double x);
 
+	// The gaussian function
+	inline static double gaussian(double x)
+	{
+		return exp((x * x) / (-2));
+	}
+
 	// This implements Newton's method for determining a
 	// polynomial f(t) that goes through all the control points
 	// pFuncValues at pTValues.  (You could then convert to a

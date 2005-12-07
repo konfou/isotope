@@ -12,6 +12,7 @@
 #ifndef __GSPINLOCK_H__
 #define __GSPINLOCK_H__
 
+// A spin-lock for synchronization purposes
 class GSpinLock
 {
 protected:

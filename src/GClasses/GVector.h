@@ -12,53 +12,32 @@
 #ifndef __GVECTOR_H__
 #define __GVECTOR_H__
 
-#include "GArray.h"
-
 class GVector
 {
 protected:
-	GArray m_array(32);
+	double* m_pData;
+	int m_nSize;
+	bool m_bDeleteData;
 
 public:
-	GVector() {}
+	GVector();
+	GVector(int nSize);
+	GVector(double* pData, int nSize, bool bTakeOwnership);
+	~GVector();
 
-	virtual ~GVector()
-	{
-		int n;
-		int nCount = m_array.GetSize();
-		for(n = 0; n < nCount; n++)
-			Engine::Release(m_array.GetPointer(n));
-	}
-
-	unsigned char* Get(int nIndex)
-	{
-		return m_array.GetPointer(pOb);
-	}
-
-	void Add(unsigned char* pOb)
-	{
-		Engine::AddRef(pOb);
-		m_array.AddPointer(pOb);
-	}
-
-	void Set(int nIndex, unsigned char* pOb)
-	{
-		Engine::AddRef(pOb);
-		Engine::Release(m_array.GetPointer(nIndex));
-		m_array.SetPointer(nIndex, pOb);
-	}
-
-	void Insert(int nIndex, unsigned char* pOb)
-	{
-		Engine::AddRef(pOb);
-		Engine.InsertPointer(nIndex, pOb);
-	}
-
-	void Delete(int nIndex)
-	{
-		Engine::Release(m_array.GetPointer(nIndex));
-		m_array.Delete(nIndex);
-	}
+	double ComputeDotProduct(GVector* pThat);
+	static double ComputeDotProduct(double* pA, double* pB, int nSize);
+	double* GetData() { return m_pData; }
+	double* DropData();
+	void Copy(double* pData, int nSize);
+	void SetData(double* pData, int nSize, bool bTakeOwnership);
+	double Get(int n) { return m_pData[n]; }
+	void Set(int index, double val) { m_pData[index] = val; }
+	void Add(int index, double val) { m_pData[index] += val; }
+	void Add(GVector* pThat);
+	int GetSize() { return m_nSize; }
+	void Resize(int nSize);
+	int GetIndexOfBiggestValue();
 };
 
 #endif // __GVECTOR_H__

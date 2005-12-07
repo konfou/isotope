@@ -201,6 +201,8 @@ unsigned char* GEZSocketServer::GetNextMessage(int* pnSize, int* pnOutConnection
 
 bool GEZSocketServer::Receive(unsigned char *pBuf, int nLen, int nConnectionNumber)
 {
+//fprintf(stderr, "Received %d bytes from %d {%c%c...%c%c}\n", nLen, nConnectionNumber, pBuf[0], pBuf[1], pBuf[nLen - 2], pBuf[nLen - 1]);
+//fflush(stderr);
 	if(m_nMaxPacketSize == 0)
 	{
 		QueueMessage(pBuf, nLen, nConnectionNumber);
@@ -465,6 +467,8 @@ bool GEZSocketClient::Send(const void* pBuf, int nLen)
 		if(!GSocket::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader), 0))
 			return false;
 	}
+//fprintf(stderr, "Sending %d bytes {%c%c...%c%c}\n", nLen, ((char*)pBuf)[0], ((char*)pBuf)[1], ((char*)pBuf)[nLen - 2], ((char*)pBuf)[nLen - 1]);
+//fflush(stderr);
 	return GSocket::Send((const unsigned char*)pBuf, nLen, 0);
 }
 
@@ -533,7 +537,7 @@ GSecureSocketServer::~GSecureSocketServer()
 {
 	// Check input
 	int nPassphraseSize = pRand->GetRandByteCount();
-	GAssert(nPassphraseSize >= sizeof(int), "pRand not seeded big enough");
+	GAssert(nPassphraseSize >= (int)sizeof(int), "pRand not seeded big enough");
 	GAssert(nMaxPacketSize > 0, "Bad max packet size");
 
 	// Make the socket
@@ -586,7 +590,7 @@ void GSecureSocketServer::Handshake()
 	int nConnection;
 	unsigned char* pBuf = GEZSocketServer::GetNextMessage(&nSize, &nConnection);
 	struct HandshakeHeader* pHeader = (struct HandshakeHeader*)pBuf;
-	if(nSize <= sizeof(struct HandshakeHeader) || pHeader->nMagic != HANDSHAKE_MAGIC)
+	if(nSize <= (int)sizeof(struct HandshakeHeader) || pHeader->nMagic != HANDSHAKE_MAGIC)
 	{
 		GAssert(false, "Bad header packet");
 		memset(pBuf, '\0', nSize);
@@ -763,7 +767,7 @@ GSecureSocketClient::~GSecureSocketClient()
 {
 	// Check input
 	int nPassphraseSize = pRand->GetRandByteCount();
-	GAssert(nPassphraseSize >= sizeof(int), "pRand not seeded big enough");
+	GAssert(nPassphraseSize >= (int)sizeof(int), "pRand not seeded big enough");
 	GAssert(nMaxPacketSize > 0, "Bad max packet size");
 
 	// Make the socket
@@ -822,7 +826,7 @@ bool GSecureSocketClient::HandShake()
 	int nSize;
 	unsigned char* pBuf = GEZSocketClient::GetNextMessage(&nSize);
 	struct HandshakeHeader* pHeader = (struct HandshakeHeader*)pBuf;
-	if(nSize <= sizeof(struct HandshakeHeader) || pHeader->nMagic != HANDSHAKE_MAGIC)
+	if(nSize <= (int)sizeof(struct HandshakeHeader) || pHeader->nMagic != HANDSHAKE_MAGIC)
 	{
 		GAssert(false, "Bad header packet");
 		memset(pBuf, '\0', nSize);
