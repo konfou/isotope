@@ -1,0 +1,31 @@
+class FloatTest(Object)
+{
+	proc main()
+	{
+		// Set initial value
+		!Float:f.new()
+		&f.fromString("3.14159")
+		if(f <> 2.0 + 1.14159)
+			throw("failed")
+
+		// Add 6
+		!Integer:n.Set(6)
+		!Float:f2.new()
+		&f2.fromInteger(n)
+		&f.add(f2)
+
+		// Multiply by
+		&f2.fromString("1.1")
+		&f.multiply(f2)
+
+		// Test the value
+		!String:s.new()
+		f.toString(&s)
+		&f2.fromString("10.055748")
+		f.compareTo(&n, f2)
+		if(n <> 1)
+			throw("failed")
+		if(f <= f2)
+			throw("failed")
+	}
+}

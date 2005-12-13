@@ -1,0 +1,24 @@
+class Foo(Object)
+{
+	method !new()
+	{
+		!this.allocate()
+	}
+}
+
+class Bar(foo)
+{
+	method !new()
+	{
+		!this.allocate()
+	}
+}
+
+class CastNeg(Object)
+{
+	proc main()
+	{
+		!Foo:f.new()
+		!Bar:b.set(f)
+	}
+}

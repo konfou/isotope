@@ -1,0 +1,7 @@
+class PoundTest(Object)
+{
+	proc main()
+	{
+		&Bool#pass.copy(Bool.true)
+	}
+}

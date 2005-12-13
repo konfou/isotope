@@ -1,0 +1,7 @@
+class BasicTestNeg(Object)
+{
+	proc main()
+	{
+		throw("this is an expected exception")
+	}
+}
