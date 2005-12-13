@@ -174,7 +174,10 @@ protected:
 	// to assign the appropriate amount of error to all upstream nodes
 	void Criticize(double* pModel);
 
+	// Adds the input layer with the appropriate number of nodes
+	// corresponding to the number if input attributes in the relation.
 	void MakeInputLayer();
+
 	void MakeInternalRelationAndOutputLayer();
 	void ReadOutput(double* pRow);
 	void PrintNeurons();

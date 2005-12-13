@@ -136,7 +136,7 @@ inline int ABS(int n)
 #endif // else _DEBUG
 #endif // GAssert
 
-void ThrowError(wchar_t* wszFormat, ...);
+void ThrowError(const wchar_t* wszFormat, ...);
 
 
 // Macro for allocating a temporary buffer

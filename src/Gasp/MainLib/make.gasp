@@ -1,0 +1,25 @@
+class Make(Object)
+{
+	proc main()
+	{
+		//Console:out.print("building...")
+		!Project:proj.new()
+		&proj.addFilename("Array.gasp")
+		&proj.addFilename("BigInt.gasp")
+		&proj.addFilename("Bool.gasp")
+		&proj.addFilename("Console.gasp")
+		&proj.addFilename("Engine.gasp")
+		&proj.addFilename("Exception.gasp")
+		&proj.addFilename("Float.gasp")
+		&proj.addFilename("Image.gasp")
+		&proj.addFilename("Library.gasp")
+		&proj.addFilename("PopUps.gasp")
+		&proj.addFilename("Project.gasp")
+		&proj.addFilename("Sdl.gasp")
+		&proj.addFilename("Stream.gasp")
+		&proj.addFilename("String.gasp")
+		proj.build(!Library:lib)
+		lib.save("MainLib.xlib")
+		//Console:out.print("done.")
+	}
+}

@@ -1,0 +1,5 @@
+machine Library
+{
+	method !load(String:filename)
+	method save(String:filename)
+}

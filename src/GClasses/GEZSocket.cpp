@@ -110,6 +110,14 @@ GEZSocketServer::GEZSocketServer(int nMaxPacketSize) : GSocket()
 
 GEZSocketServer::~GEZSocketServer()
 {
+	// Join the other threads now so they don't try
+	// to queue up a message after we delete the
+	// message queue
+	m_bKeepAccepting = false;
+	m_bKeepListening = false;
+	JoinAcceptorThread();
+	JoinAllListenThreads();
+
 	if(m_pBuffers)
 	{
 		int nCount = m_pBuffers->GetSize();
@@ -304,6 +312,14 @@ GEZSocketClient::GEZSocketClient(int nMaxPacketSize) : GSocket()
 
 GEZSocketClient::~GEZSocketClient()
 {
+	// Join the other threads now so they don't try
+	// to queue up a message after we delete the
+	// message queue
+	m_bKeepAccepting = false;
+	m_bKeepListening = false;
+	JoinAcceptorThread();
+	JoinAllListenThreads();
+
 	delete(m_pBuffer);
 	delete(m_pMessageQueue);
 	delete(m_pMessageQueueLock);

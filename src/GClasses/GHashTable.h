@@ -245,6 +245,9 @@ public:
 		return _Get(pKey, ppOutValue);
 	}
 
+	// Gets the value for the specified key
+	bool Get(const char* pKey, int nLen, void** ppOutValue);
+
 	// Removes an entry from the hash table
 	void Remove(const char* pKey)
 	{

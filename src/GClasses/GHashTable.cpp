@@ -299,6 +299,15 @@ void* GHashTableEnumerator::GetCurrentValue()
 	return (void*)m_pHashTable->m_pBuckets[m_nPos - 1].pValue;
 }
 
+// ------------------------------------------------------------------------------
+
+bool GConstStringHashTable::Get(const char* pKey, int nLen, void** ppOutValue)
+{
+	char* szKey = (char*)alloca(nLen + 1);
+	memcpy(szKey, pKey, nLen);
+	szKey[nLen] = '\0';
+	return Get(szKey, ppOutValue);
+}
 
 // ------------------------------------------------------------------------------
 

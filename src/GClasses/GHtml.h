@@ -55,6 +55,9 @@ public:
 	// information in here.
 	virtual void OnTagParam(const char* pTagName, int nTagNameLen, const char* pParamName, int nParamNameLen, const char* pValue, int nValueLen) = 0;
 
+	// This method is called when an HTML comment (<!--comment-->) is found
+	virtual void OnComment(const char* pComment, int nLen) = 0;
+
 protected:
 	void ParseTag();
 	void IgnoreTag();

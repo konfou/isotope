@@ -62,6 +62,7 @@ public:
 
 	virtual double MeasureFitness(unsigned int* pBits);
 
+	void SetWeightsFromBits(unsigned int* pBits);
 };
 
 #endif // __GGENETIC_H__

@@ -1,0 +1,64 @@
+machine String
+{
+	method !new()
+	method toInteger(&Integer:int)
+	method &fromInteger(Integer:int)
+	method getLength(&Integer:length)
+	method !getConstantString(Integer:index)
+	method &copy(String:that)
+	method &copySub(String:that, Integer:index, Integer:length)
+	method &add(String:that)
+	method compare(&Integer:result, String:that)
+	method compareIgnoringCase(&Integer:result, String:that)
+	method &clear()
+	method find(&Integer:index, String:s)
+	method findIgnoringCase(&Integer:index, String:s)
+	method &toUpper()
+	method &toLower()
+	method getChar(&Integer:char, Integer:index)
+	method &setChar(Integer:index, Integer:char)
+}
+
+
+class StringSegment(Object)
+{
+	!String:s
+	!Integer:start
+	!Integer:length
+
+	proc new(!StringSegment:dest, String:s)
+	{
+		allocate(!dest.start)
+		allocate(!dest.length)
+		set(!dest.s, s)
+	}
+
+	method getBounds(&Integer:start, &Integer:length)
+	{
+		&start.copy(this.start)
+		&length.copy(this.length)
+	}
+
+	method &setBounds(Integer:start, Integer:length)
+	{
+		&this.start.copy(start)
+		&this.length.copy(length)
+	}
+
+	method getString(!String:s)
+	{
+		set(!s, this.s)
+	}
+
+	method &setString(String:s)
+	{
+		set(!this.s, s)
+	}
+
+	method getSubString(&String:s)
+	{
+		&s.copySub(this.s, this.start, this.length)
+	}
+
+}
+

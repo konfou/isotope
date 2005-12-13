@@ -260,9 +260,13 @@ public:
 	// Returns the height of the image in pixels
 	unsigned int GetHeight() { return m_nHeight; }
 
-	// Blit an image into this image.  The source rect must be within the source image.
-	// The dest area can be out of the dest image
+	// Blit an image into this image. The source rect must be within the source image.
+	// The dest area can be out of the dest image. The alpha channel is ignored.
 	void Blit(int x, int y, GImage* pSource, GRect* pSourceRect);
+
+	// Blit an image into this image. The source rect must be within the source image.
+	// The dest area can be out of the dest image. Also performs alpha blending.
+	void AlphaBlit(int x, int y, GImage* pSource, GRect* pSourceRect);
 
 	// Analysis Tools
 	void CreateBrightnessHistogram(GImage* pOutImage);

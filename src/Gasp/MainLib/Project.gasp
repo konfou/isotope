@@ -1,0 +1,20 @@
+class Project(Object)
+{
+	!Array:files
+
+	proc new(!Project:dest)
+	{
+		allocate(!dest)
+		!dest.files.new(16)
+	}
+
+	method &addFilename(String:filename)
+	{
+		&this.files.add(filename)
+	}
+
+	method build(!Library:lib)
+	{
+		!Engine:foo.buildProject(!lib, this)
+	}
+}

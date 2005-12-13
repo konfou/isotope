@@ -1,0 +1,7 @@
+machine Stream
+{
+	method !new()
+	method getSize(&Integer:size)
+	method &writeObject(Object:obj)
+	method &readObject(!Object:obj)
+}

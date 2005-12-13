@@ -41,7 +41,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "..\..\Obj\GClasses\Release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /D "_MT" /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /D "_MT" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -65,7 +65,7 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "..\..\Obj\GClasses\Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /D "_MT" /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /D "_MT" /FD /GZ /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
@@ -475,6 +475,14 @@ SOURCE=.\GRiddle.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GSDL.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GSDL.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GSocket.cpp
 # End Source File
 # Begin Source File
@@ -504,6 +512,14 @@ SOURCE=.\GStack.cpp
 # Begin Source File
 
 SOURCE=.\GStack.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GStemmer.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GStemmer.h
 # End Source File
 # Begin Source File
 
@@ -572,6 +588,14 @@ SOURCE=.\GVector.h
 # Begin Source File
 
 SOURCE=.\GVirtualMem.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GVSM.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GVSM.h
 # End Source File
 # Begin Source File
 

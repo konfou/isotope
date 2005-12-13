@@ -1,0 +1,5 @@
+machine PopUps
+{
+	method messageBox(String:title, String:message)
+	method getStringBox(&String:s, String:title)
+}

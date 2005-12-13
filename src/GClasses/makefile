@@ -80,6 +80,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GTrigTable.cpp\
                    $(GCLASSES_PATH)/GVirtualMem.cpp\
                    $(GCLASSES_PATH)/GVector.cpp\
+                   $(GCLASSES_PATH)/GVSM.cpp\
                    $(GCLASSES_PATH)/GWidgets.cpp\
                    $(GCLASSES_PATH)/GXML.cpp\
                    $(GCLASSES_PATH)/sha1.cpp\
@@ -138,6 +139,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GThread.h\
                    $(GCLASSES_PATH)/GTime.h\
                    $(GCLASSES_PATH)/GVector.h\
+                   $(GCLASSES_PATH)/GVSM.h\
                    $(GCLASSES_PATH)/GWidgets.h\
                    $(GCLASSES_PATH)/GXML.h\
                    $(GCLASSES_PATH)/sha1.h\

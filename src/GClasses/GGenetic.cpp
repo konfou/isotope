@@ -65,6 +65,7 @@ void GGeneticBits::MeasureEverybodysFitness()
 	for(n = 0; n < m_nPopulation; n++)
 	{
 		d = MeasureFitness(&m_pData[m_nUintsPerSample * n]);
+		d *= d;
 		if(d > dBest)
 		{
 			m_nBestCurrentCandidate = n;
@@ -106,7 +107,9 @@ void GGeneticBits::DoFitnessProportionateSelection(double dSurvivalRate, double 
 	MeasureEverybodysFitness();
 	double dTotal = SumFitness();
 	int nSurvivors = (int)(m_nPopulation * dSurvivalRate);
-	GAssert(nSurvivors >= 0 && nSurvivors < m_nPopulation, "out of range");
+	if(nSurvivors > m_nPopulation)
+		nSurvivors = m_nPopulation;
+	GAssert(nSurvivors >= 0, "out of range");
 	double d;
 	int n, i, nFather, nMother, nCrossOverPoint;
 	for(i = 0; i < nSurvivors; i++)
@@ -121,9 +124,9 @@ void GGeneticBits::DoFitnessProportionateSelection(double dSurvivalRate, double 
 //	i++;
 
 	// Make one totally random child to keep the system from getting wedged
-	for(n = 0; n < m_nUintsPerSample; n++)
-		m_pData2[m_nUintsPerSample * i + n] = GBits::GetRandomUint();
-	i++;
+//	for(n = 0; n < m_nUintsPerSample; n++)
+//		m_pData2[m_nUintsPerSample * i + n] = GBits::GetRandomUint();
+//	i++;
 
 	// Offspring fill the remaining slots
 	for( ; i < m_nPopulation; i++)
@@ -131,7 +134,7 @@ void GGeneticBits::DoFitnessProportionateSelection(double dSurvivalRate, double 
 		nFather = rand() % m_nPopulation;
 		nMother = rand() % m_nPopulation;
 		nCrossOverPoint = (rand() % (m_nBits / nBitsPerCrossOverPoint)) * nBitsPerCrossOverPoint;
-		CrossOver(&m_pData2[m_nUintsPerSample * i], nBitsPerCrossOverPoint, &m_pData[m_nUintsPerSample * nMother], &m_pData[m_nUintsPerSample * nFather]);
+		CrossOver(&m_pData2[m_nUintsPerSample * i], nCrossOverPoint, &m_pData[m_nUintsPerSample * nMother], &m_pData[m_nUintsPerSample * nFather]);
 	}
 
 	// Swap in the new generation
@@ -151,12 +154,22 @@ void GGeneticBits::DoTournamentSelection(double dProbThatMoreFitSurvives, double
 	MeasureEverybodysFitness();
 	int nSurvivors = (int)(m_nPopulation * dSurvivalRate);
 	GAssert(nSurvivors >= 0 && nSurvivors < m_nPopulation, "out of range");
-	int n, i, j, nFather, nMother, nCrossOverPoint;
+	int i, j, nFather, nMother, nCrossOverPoint;
 	for(i = 0; i < nSurvivors; i++)
 	{
 		j = rand() % m_nPopulation;
-		if(m_pFitness[i] > m_pFitness[j])
-			j = i;
+		if(GBits::GetRandomDouble() > dProbThatMoreFitSurvives)
+		{
+			// Set j to the less fit candidate
+			if(m_pFitness[i] < m_pFitness[j])
+				j = i;
+		}
+		else
+		{
+			// Set j to the more fit candidate
+			if(m_pFitness[i] > m_pFitness[j])
+				j = i;
+		}
 		memcpy(&m_pData2[m_nUintsPerSample * i], &m_pData[m_nUintsPerSample * j], m_nUintsPerSample * sizeof(unsigned int));
 	}
 
@@ -165,9 +178,9 @@ void GGeneticBits::DoTournamentSelection(double dProbThatMoreFitSurvives, double
 //	i++;
 
 	// Make one totally random child to keep the system from getting wedged
-	for(n = 0; n < m_nUintsPerSample; n++)
-		m_pData2[m_nUintsPerSample * i + n] = GBits::GetRandomUint();
-	i++;
+//	for(n = 0; n < m_nUintsPerSample; n++)
+//		m_pData2[m_nUintsPerSample * i + n] = GBits::GetRandomUint();
+//	i++;
 
 	// Offspring fill the remaining slots
 	for( ; i < m_nPopulation; i++)
@@ -199,10 +212,14 @@ void GGeneticBits::DoTournamentSelection(double dProbThatMoreFitSurvives, double
 
 	// Union with the portion from the second uint
 	if(j + nLength > (int)BITS_PER_UINT)
+	{
 		n |= (pBits[i + 1] << (BITS_PER_UINT - j));
+	}
 
 	// Mask away the extra bits
-	n &= ((~0) >> (BITS_PER_UINT - nLength));
+	unsigned int mask = ~0;
+	mask >>= (BITS_PER_UINT - nLength);
+	n &= mask;
 
 	// Convert from Gray code to a value
 	n = GBits::GrayCodeToBinary(n);
@@ -216,6 +233,7 @@ void GGeneticBits::DoTournamentSelection(double dProbThatMoreFitSurvives, double
 GGeneticNeuralNet::GGeneticNeuralNet(int nPopulation, int nBitsPerWeight, GNeuralNet* pNN, GArffRelation* pRelation, GArffData* pValidationData, int nMaxTestSamples)
 : GGeneticBits(nPopulation, nBitsPerWeight * pNN->GetWeightCount())
 {
+	m_pNN = pNN;
 	m_nBitsPerWeight = nBitsPerWeight;
 	m_nWeightCount = pNN->GetWeightCount();
 	m_nMaxTestSamples = nMaxTestSamples;
@@ -231,7 +249,7 @@ GGeneticNeuralNet::~GGeneticNeuralNet()
 	delete(m_pSample);
 }
 
-/*virtual*/ double GGeneticNeuralNet::MeasureFitness(unsigned int* pBits)
+void GGeneticNeuralNet::SetWeightsFromBits(unsigned int* pBits)
 {
 	// Convert the bits to a set of weights
 	int nPos = 0;
@@ -248,6 +266,11 @@ GGeneticNeuralNet::~GGeneticNeuralNet()
 
 	// Copy the weights into the neural net
 	m_pNN->SetWeights(m_pWeights);
+}
+
+/*virtual*/ double GGeneticNeuralNet::MeasureFitness(unsigned int* pBits)
+{
+	SetWeightsFromBits(pBits);
 
 	// Measure fitness
 	double* pRow;
@@ -256,6 +279,7 @@ GGeneticNeuralNet::~GGeneticNeuralNet()
 	int nRowSize = sizeof(double) * m_pRelation->GetAttributeCount();
 	int nOutputs = m_pRelation->GetOutputCount();
 	int i, j, nIndex;
+	double d;
 	double dFitness = 0;
 	for(i = MIN(m_nMaxTestSamples, nRowCount); i > 0; i--)
 	{

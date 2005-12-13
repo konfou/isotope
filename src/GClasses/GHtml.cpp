@@ -99,13 +99,27 @@ void GHtml::ParseTag()
 		nTagNameLen = 63;
 	memcpy(szBuf, &m_pDoc[nTagStart], nTagNameLen);
 	szBuf[nTagNameLen] = '\0';
-/*
+
 	// Handle comment tags
 	if(strncmp(szBuf, "!--", 3) == 0)
 	{
+		// Find the end of the comment--todo: this isn't quite right
+		while(m_nPos < m_nSize && m_pDoc[m_nPos] != '>')
+			m_nPos++;
 
+		// Handle the comment
+		OnComment(&m_pDoc[nTagStart + 3], m_nPos - nTagStart - 5);
+
+		// Advance past the '>'
+		if(m_nPos < m_nSize)
+			m_nPos++;
+
+		// Eat whitespace
+		while(m_nPos < m_nSize && m_pDoc[m_nPos] <= ' ')
+			m_nPos++;
+		return;
 	}
-*/
+
 	// Handle the tag
 	struct GHtmlTagHandlerStruct* pTagHandlerStruct = NULL;
 	if(m_pTagTable->Get(szBuf, (void**)&pTagHandlerStruct))
@@ -114,7 +128,7 @@ void GHtml::ParseTag()
 	}
 	else
 	{
-		printf("Unhandled tag: <%s>\n", szBuf);
+		//printf("Unhandled tag: <%s>\n", szBuf);
 	}
 
 	// Eat whitespace
@@ -130,22 +144,34 @@ void GHtml::ParseTag()
 		while(m_pDoc[m_nPos] != '=' && m_pDoc[m_nPos] != '>' && m_nPos < m_nSize)
 			m_nPos++;
 		nParamLen = m_nPos - nParamStart;
-
-		// Find the open quote
-		while(m_pDoc[m_nPos] != '"' && m_pDoc[m_nPos] != '>' && m_nPos < m_nSize)
-			m_nPos++;
-		if(m_pDoc[m_nPos] != '"' || m_nPos >= m_nSize)
-			break;
 		m_nPos++;
-		nValueStart = m_nPos;
 
-		// Find the close quote
-		while(m_pDoc[m_nPos] != '"' && m_nPos < m_nSize)
+		// Eat whitespace
+		while(m_nPos < m_nSize && m_pDoc[m_nPos] <= ' ')
 			m_nPos++;
-		if(m_pDoc[m_nPos] != '"' || m_nPos >= m_nSize)
-			break;
-		nValueLen = m_nPos - nValueStart;
-		m_nPos++;
+
+		if(m_pDoc[m_nPos] == '"')
+		{
+			// Move past the '"'
+			m_nPos++;
+			nValueStart = m_nPos;
+
+			// Find the close quote
+			while(m_nPos < m_nSize && m_pDoc[m_nPos] != '"')
+				m_nPos++;
+			if(m_nPos >= m_nSize)
+				break;
+			nValueLen = m_nPos - nValueStart;
+			m_nPos++;
+		}
+		else
+		{
+			// Move until we hit whitespace again
+			nValueStart = m_nPos;
+			while(m_nPos < m_nSize && m_pDoc[m_nPos] > ' ' && m_pDoc[m_nPos] != '>')
+				m_nPos++;
+			nValueLen = m_nPos - nValueStart;
+		}
 
 		// Handle the parameter
 		OnTagParam(&m_pDoc[nTagStart], nTagNameLen, &m_pDoc[nParamStart], nParamLen, &m_pDoc[nValueStart], nValueLen);

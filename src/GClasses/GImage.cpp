@@ -2102,3 +2102,45 @@ void GImage::Blit(int x, int y, GImage* pSource, GRect* pSourceRect)
 		src += pSource->m_nWidth;
 	}
 }
+
+void GImage::AlphaBlit(int x, int y, GImage* pSource, GRect* pSourceRect)
+{
+	int sx = pSourceRect->x;
+	int sy = pSourceRect->y;
+	int sw = pSourceRect->w;
+	int sh = pSourceRect->h;
+	if(x < 0)
+	{
+		sx -= x;
+		sw += x;
+		x = 0;
+	}
+	if(x + sw > m_nWidth)
+		sw = m_nWidth - x;
+	if(y < 0)
+	{
+		sy -= y;
+		sh += y;
+		y = 0;
+	}
+	if(y + sh > m_nHeight)
+		sh = m_nHeight - y;
+	int dst = y * m_nWidth + x;
+	int src = sy * pSource->m_nWidth + sx;
+	int xx, a;
+	GColor pix, pixOld;
+	for( ; sh > 0; sh--)
+	{
+		for(xx = 0; xx < sw; xx++)
+		{
+			pix = pSource->m_pPixels[src + xx];
+			a = gAlpha(pix);
+			pixOld = m_pPixels[dst + xx];
+			m_pPixels[dst + xx] = gRGB((a * gRed(pix) + (256 - a) * gRed(pixOld)) >> 8,
+										(a * gGreen(pix) + (256 - a) * gGreen(pixOld)) >> 8,
+										(a * gBlue(pix) + (256 - a) * gBlue(pixOld)) >> 8);
+		}
+		dst += m_nWidth;
+		src += pSource->m_nWidth;
+	}
+}
