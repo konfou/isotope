@@ -51,6 +51,7 @@ public:
 		SERVER,
 		CLIENT,
 		KEYPAIR,
+		PUZGEN,
 	};
 
 	enum ControlModes

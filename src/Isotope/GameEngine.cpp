@@ -41,6 +41,8 @@
 #include "AutoUpdate.h"
 #include "MStore.h"
 #include <stdarg.h>
+#include "VOgreBootstrap.h"
+#include "PuzzleGenerator.h"
 
 /*static*/ const char* GameEngine::s_szAppPath = NULL;
 /*static*/ const char* GameEngine::s_szCachePath = NULL;
@@ -352,6 +354,29 @@ void LaunchDaemon(DaemonMainFunc pDaemonMain, void* pArg)
 #endif // !WIN32
 }
 
+void PuzzleGenerator()
+{
+	time_t t;
+	srand(time(&t));
+	GPointerArray* pOrdered = PuzzleGenerator::LoadPieces("media\\puzzlegen\\ordered");
+	GPointerArray* pUnordered = PuzzleGenerator::LoadPieces("media\\puzzlegen\\unordered");
+	char szTmp[256];
+	while(true)
+	{
+		GImage* pImage = PuzzleGenerator::MakePuzzle(pOrdered, pUnordered);
+		pImage->SaveBMPFile("puzgen.bmp");
+#ifdef WIN32
+		ShellExecute(NULL, NULL, "puzgen.bmp", NULL, NULL, SW_SHOW);
+#else // WIN32
+		system("konqueror puzgen.bmp");
+#endif // !WIN32
+		delete(pImage);
+		printf("\nPress Enter for another puzzle\n");
+		gets(szTmp);
+	}
+	// todo: don't leak the piece sets here
+}
+
 void LaunchProgram(int argc, char *argv[])
 {
 	// Parse the runmode
@@ -379,6 +404,8 @@ void LaunchProgram(int argc, char *argv[])
 		bOK = true;
 		if(stricmp(argv[1], "client") == 0)
 			eRunMode = Controller::CLIENT;
+		else if(stricmp(argv[1], "puzgen") == 0)
+			eRunMode = Controller::PUZGEN;
 		else
 			bOK = false;
 	}
@@ -418,7 +445,9 @@ void LaunchProgram(int argc, char *argv[])
 	//if(!DoAutoUpdate())
 	//	return;
 
-	if(eRunMode == Controller::SERVER)
+	if(eRunMode == Controller::PUZGEN)
+		PuzzleGenerator();
+	else if(eRunMode == Controller::SERVER)
 		LaunchDaemon(DaemonMain, (void*)szArg);
 	else
 	{
@@ -565,7 +594,7 @@ void test()
 	m.Solve(vec);
 	printf("[%f, %f]\n", vec[0], vec[1]);
 */
-
+//	LaunchOgre();
 }
 
 #ifndef WIN32
@@ -596,7 +625,7 @@ void onSigAbrt(int n)
 
 #endif // !WIN32
 
-int main(int argc, char *argv[])
+int oldmain(int argc, char *argv[])
 {
 #ifndef WIN32
 	signal(SIGSEGV, onSigSegV);
@@ -659,3 +688,10 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+#ifndef OGRE
+int main(int argc, char *argv[])
+{
+	return oldmain(argc, argv);
+}
+#endif // !OGRE

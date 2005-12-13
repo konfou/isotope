@@ -1,9 +1,9 @@
 ################
 # Call child makefiles
 ################
-#SUBDIRS= GClasses MachineLearning Gash Isotope
+#SUBDIRS= GClasses MachineLearning Gasp Isotope
 
-SUBDIRS= _GClasses _Gash _Isotope
+SUBDIRS= _GClasses _Gasp _Isotope
 
 
 DBG_SUBDIRS= $(SUBDIRS:_%=DBG_%)
