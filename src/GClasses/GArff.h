@@ -57,8 +57,9 @@ public:
 	// Returns the attribute at the specified attribute index
 	GArffAttribute* GetAttribute(int nAttribute);
 
-	// Returns the total entropy in pData from all output attributes
-	double TotalEntropyOfAllOutputs(GArffData* pData);
+	// Returns the sum of entropy (for discreet attributes) and variance (for continuous
+	// attributes) for all output values in the data set
+	double MeasureTotalOutputInfo(GArffData* pData);
 
 	// Returns the name of the relation
 	const char* GetName() { return m_szName; }
@@ -71,6 +72,9 @@ public:
 	// the number of attributes in the relation, even though only the values corresponding
 	// to input attributes are actually used.)
 	double ComputeScaledInputDistanceSquared(double* pRow1, double* pRow2, double* pScales);
+
+	// Returns the number of continuous attributes in the relation
+	int CountContinuousAttributes();
 
 protected:
 	double* ParseDataRow(const char* szFile, int nLen);
@@ -194,8 +198,14 @@ public:
 	// Finds the min and the range of the values of the specified attribute
 	void GetMinAndRange(int nAttribute, double* pMin, double* pRange);
 
-	// Finds the means of all attributes
+	// Computes the arithmetic mean of a single attribute
+	double ComputeMean(int nAttribute);
+
+	// Finds the arithmetic means of all attributes
 	void GetMeans(double* pOutMeans, int nAttributes);
+
+	// Computes the average variance of a single attribute
+	double ComputeVariance(double dMean, int nAttribute);
 
 	// Finds the average variance of all the attributes
 	void GetVariance(double* pOutVariance, double* pMeans, int nAttributes);
@@ -234,6 +244,12 @@ public:
 
 	// Dump a representation of the data to stdout
 	void Print(int nAttributes);
+
+	// Computes the best pivot for minimizing the sum of the variance of each half
+	double ComputeMinimumVariancePivot(int nAttr);
+
+	// Computes the best pivot for minimizing the sum output info
+	double ComputeMinimumInfoPivot(GArffRelation* pRelation, int nAttr, double* pOutputInfo);
 };
 
 

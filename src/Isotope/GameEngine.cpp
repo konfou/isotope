@@ -30,18 +30,17 @@
 #include "MScriptEngine.h"
 #include <wchar.h>
 #ifdef WIN32
-#include <io.h>
-#include <direct.h>
+#	include <io.h>
+#	include <direct.h>
 #else
-#include <unistd.h>
-#include <signal.h>
+#	include <unistd.h>
+#	include <signal.h>
 #endif // WIN32
 #include "MObject.h"
 #include <string.h>
 #include "AutoUpdate.h"
 #include "MStore.h"
 #include <stdarg.h>
-#include "VOgreBootstrap.h"
 #include "PuzzleGenerator.h"
 
 /*static*/ const char* GameEngine::s_szAppPath = NULL;
@@ -360,7 +359,6 @@ void PuzzleGenerator()
 	srand(time(&t));
 	GPointerArray* pOrdered = PuzzleGenerator::LoadPieces("media\\puzzlegen\\ordered");
 	GPointerArray* pUnordered = PuzzleGenerator::LoadPieces("media\\puzzlegen\\unordered");
-	char szTmp[256];
 	while(true)
 	{
 		GImage* pImage = PuzzleGenerator::MakePuzzle(pOrdered, pUnordered);
@@ -372,7 +370,7 @@ void PuzzleGenerator()
 #endif // !WIN32
 		delete(pImage);
 		printf("\nPress Enter for another puzzle\n");
-		gets(szTmp);
+		getchar();
 	}
 	// todo: don't leak the piece sets here
 }
@@ -484,6 +482,29 @@ protected:
 		fprintf(stderr, szLine);
 	}
 };
+
+
+void MungeImages()
+{
+	// Munge Image
+	GImage image;
+	image.SetSize(1280, 512);
+	GImage imageIn;
+	imageIn.LoadBMPFile("mungeme.bmp");
+	int i, j;
+	GRect r;
+	r.Set(0, 0, 128, 128);
+	for(j = 0; j < 4; j++)
+	{
+		for(i = 0; i < 10; i++)
+		{
+			GImage* pImageOut = imageIn.Munge(j, ((float)1 - (float)i / 9) / 1);
+			image.Blit(i * 128, j * 128, pImageOut, &r);
+			delete(pImageOut);
+		}
+	}
+	image.SaveBMPFile("munged.bmp");
+}
 
 
 void test()
@@ -680,18 +701,49 @@ int oldmain(int argc, char *argv[])
 #endif // WIN32
 	}
 
-	// Shutdown SDL subsystems
-    SDL_Quit();
-
 	// Check for memory leaks
 	GAssert(AllocCounter::s_allocs == AllocCounter::s_deallocs, "memory leak");
 
 	return 0;
 }
 
-#ifndef OGRE
+#ifdef OGRE
+
+#	ifdef WIN32
+
+// OGRE on Win32
+INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT )
+{
+	AllocConsole();
+
+	printf("Running...\n");
+	fprintf(stderr, "Running...\n");
+	char* szArgs = "";
+	return oldmain(1, &szArgs);
+}
+#	else
+
+// OGRE on Linux
 int main(int argc, char *argv[])
 {
 	return oldmain(argc, argv);
+}
+#	endif
+#else // OGRE
+
+
+
+
+int playOgg(); // todo: remove this line
+
+
+// No Ogre
+int main(int argc, char *argv[])
+{
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) 
+		GameEngine::ThrowError("Unable to initialize SDL: %s", SDL_GetError());
+	int nRet = oldmain(argc, argv);
+	SDL_Quit();
+	return nRet;
 }
 #endif // !OGRE

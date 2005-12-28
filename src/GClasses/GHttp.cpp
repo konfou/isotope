@@ -79,7 +79,7 @@ GHttpClient::GHttpClient()
 	strcpy(m_szServer, "\0");
 	m_szRedirect = NULL;
 	m_dLastReceiveTime = 0;
-//g_pFile = fopen("c:\\tmp.txt", "w");
+//g_pFile = fopen("tmp.txt", "w");
 }
 
 GHttpClient::~GHttpClient()
@@ -161,12 +161,14 @@ bool GHttpClient::Get(const char* szUrl, int nPort)
 	s.Add(szServer);
 	s.Add(L":");
 	s.Add(nPort);
-	s.Add(L"\r\nUser-Agent: GHttpClient/1.0\r\nKeep-Alive: 60\r\nConnection: keep-alive\r\n\r\n");
+// todo: undo the next line
+	s.Add(L"\r\nUser-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.12) Gecko/20051010 Firefox/1.0.7 (Ubuntu package 1.0.7)\r\nAccept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5\r\nAccept-Language: en-us,en;q=0.5\r\nAccept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\nKeep-Alive: 300\r\nConnection: keep-alive\r\n\r\n");
+//	s.Add(L"\r\nUser-Agent: GHttpClient/1.0\r\nKeep-Alive: 60\r\nConnection: keep-alive\r\n\r\n");
 	char* szRequest = (char*)alloca(s.GetLength() + 1);
 	s.GetAnsi(szRequest);
+//printf("### Sending Request:\n%s\n###\n", szRequest);
 	if(!m_pSocket->Send((unsigned char*)szRequest, s.GetLength()))
 		return false;
-//m_pSocket->Send("\r\n\r\n", 4);
 
 	// Update status
 	m_nContentSize = 0;
@@ -317,13 +319,15 @@ void GHttpClient::ProcessChunkBody(const unsigned char* szData, int nSize)
 		{
 			// Read the chunk size
 			int n;
-			for(n = 0; szData[n] <= ' ' && n < nSize; n++)
+			for(n = 0; (szData[n] < '0' || szData[n] > 'f') && n < nSize; n++)
 			{
 			}
 			int nHexStart = n;
 			for( ; szData[n] >= '0' && szData[n] <= 'f' && n < nSize; n++)
 			{
 			}
+			if(n >= nSize)
+				break;
 
 			// Convert it from hex to an integer
 			int nPow = 1;
@@ -375,8 +379,51 @@ void GHttpClient::ProcessChunkBody(const unsigned char* szData, int nSize)
 	}
 }
 
+// todo: this is a hack--fix it properly
+void GHttpClient::GimmeWhatYouGot()
+{
+	if(m_bChunked)
+	{
+		m_nContentSize = m_pChunkQueue->GetSize();
+		if(m_nContentSize > 64)
+		{
+			delete(m_pData);
+			m_pData = (unsigned char*)m_pChunkQueue->DumpToString();
+			m_bChunked = false;
+			m_bPastHeader = false;
+			if(m_status == Downloading)
+				m_status = Done;
+		}
+	}
+	else if(m_nContentSize > 0)
+	{
+		if(m_nDataPos > 64)
+		{
+			if(m_status == Downloading)
+				m_status = Done;
+			m_pData[m_nDataPos] = '\0';
+			m_bPastHeader = false;
+			m_nContentSize = m_nDataPos;
+		}
+	}
+	else
+	{
+		if(m_pChunkQueue && m_pChunkQueue->GetSize() > 64)
+		{
+			if(m_status == Downloading)
+				m_status = Done;
+			m_nContentSize = m_pChunkQueue->GetSize();
+			delete(m_pData);
+			m_pData = (unsigned char*)m_pChunkQueue->DumpToString();
+			m_bPastHeader = false;
+		}
+	}
+}
+
 unsigned char* GHttpClient::GetData(int* pnSize)
 {
+	if(m_status != Done)
+		GimmeWhatYouGot();
 	if(m_status != Done)
 	{
 		*pnSize = 0;
@@ -434,6 +481,7 @@ GHttpServer::GHttpServer(int nPort)
 	if(!m_pSocket)
 		throw("failed to open port");
 	m_pQ = new GQueue();
+	SetContentType("text/html");
 }
 
 GHttpServer::~GHttpServer()
@@ -519,6 +567,11 @@ void GHttpServer::ProcessLine(int nConnection, GHttpServerBuffer* pClient, const
 		pClient->m_nContentLength = atoi(szLine + 16);
 }
 
+void GHttpServer::SetContentType(const char* szContentType)
+{
+	GString::StrCpy(m_szContentType, szContentType, 64);
+}
+
 void GHttpServer::MakeResponse(int nConnection, GHttpServerBuffer* pClient)
 {
 	if(pClient->m_eRequestType == GHttpServerBuffer::None)
@@ -531,20 +584,24 @@ void GHttpServer::MakeResponse(int nConnection, GHttpServerBuffer* pClient)
 	char szPayloadSize[32];
 	int nPayloadSize = m_pQ->GetSize();
 	itoa(nPayloadSize, szPayloadSize, 10);
-	Holder<char*> hPayload(m_pQ->DumpToString());
-	const char* szPayload = hPayload.Get();
 
+	// Send the header
 	GQueue q;
 	q.Push("HTTP/1.1 200 OK\r\nContent-Type: ");
-	q.Push("text/html");
+	q.Push(m_szContentType);
 	q.Push("\r\nContent-Length: ");
 	q.Push(szPayloadSize);
 	q.Push("\r\n\r\n");
-	q.Push((unsigned char*)szPayload, nPayloadSize);
-	q.Push("\r\n\r\n");
-	char* szLine = q.DumpToString();
-	m_pSocket->Send(szLine, strlen(szLine), nConnection);
-	delete(szLine);
+	int nHeaderSize = q.GetSize();
+	char* szHeader = q.DumpToString();
+	Holder<char*> hHeader(szHeader);
+	m_pSocket->Send(szHeader, nHeaderSize, nConnection);
+
+	// Send the payload
+	m_pQ->Push("\r\n\r\n");
+	char* szPayload = m_pQ->DumpToString();
+	Holder<char*> hPayload(szPayload);
+	m_pSocket->Send(szPayload, nPayloadSize + 4, nConnection);
 }
 
 /*static*/ void GHttpServer::UnescapeUrl(char* szOut, const char* szIn)

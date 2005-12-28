@@ -716,6 +716,12 @@
 				RelativePath="GKNN.h">
 			</File>
 			<File
+				RelativePath=".\GLearner.cpp">
+			</File>
+			<File
+				RelativePath=".\GLearner.h">
+			</File>
+			<File
 				RelativePath="GLList.cpp">
 				<FileConfiguration
 					Name="Release|Win32">

@@ -94,17 +94,20 @@ public:
 	GImage();
 	virtual ~GImage();
 
-	// Load the image froma PNG file
-	bool LoadPNGFile(const unsigned char* pBuffer, int nBytes);
+	// Load the image from a PNG as raw data
+	bool LoadPNGFile(const unsigned char* pRawData, int nBytes);
+
+	// Load the image from a PNG file
+	bool LoadPNGFile(const char* szFilename);
 
 	// Load the image from a BMP file
 	bool LoadBMPFile(const char* szFilename);
 
-	// Load the image from a BMP file
+	// Load the image from a BMP stream
 	bool LoadBMPFile(FILE* pFile);
 
-	// Load the image from a BMP file
-	bool LoadBMPFile(const unsigned char* pFile, int nLen);
+	// Load the image from a BMP raw data
+	bool LoadBMPFile(const unsigned char* pRawData, int nLen);
 
 	// Save the image to a BMP file
 	bool SaveBMPFile(const char* szFilename);
@@ -129,6 +132,12 @@ public:
 
 	// Save the image to a PGM file
 	bool SavePGMFile(const char* szFilename);
+
+	// Save the image as a PNG to a stream
+	bool GImage::SavePNGFile(FILE* pFile);
+
+	// Save the image as a PNG to a file
+	bool GImage::SavePNGFile(const char* szFilename);
 
 	// Drawing Primitives
 	inline void SetPixel(int nX, int nY, GColor color)
@@ -188,6 +197,9 @@ public:
 
 	// Determines how many pixels of width are required to print a line of text
 	int MeasureHardTextWidth(int height, const char* szText, float width);
+
+	// Counts the number of characters that can be printed in the given horizArea
+	int CountHardTextChars(int horizArea, int height, const char* szText, float width);
 
 	// Draws some text (using a built-in hard-coded font)
 	void DrawHardText(GRect* pRect, const char* szText, GColor col, float width);
@@ -270,6 +282,12 @@ public:
 
 	// Analysis Tools
 	void CreateBrightnessHistogram(GImage* pOutImage);
+
+	// Munges the image. nStyle should be 0, 1, 2, or 3. Each value munges a different way.
+	// fExtent should be between 0 and 1, where 0 doesn't change much and 1 totally munges it.
+	// You're responsible to delete the munged image this returns
+	GImage* Munge(int nStyle, float fExtent);
+
 };
 
 #endif // __GIMAGE_H__

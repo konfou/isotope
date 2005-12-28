@@ -513,7 +513,8 @@ GBezier* GNurbs::GetBezier(int nInterval)
 void GNurbs::GetNewKnotPeriodic(struct GBezierPoint* pA, struct GBezierPoint* pB, int n, int nControlPoint, double dRatio)
 {
 	double dSum = 0;
-	double dMin, dMax;
+	double dMin = 0;
+	double dMax = 0;
 	int i;
 	nControlPoint -= ((m_nDegree - 1) >> 1);
 	for(i = 0; i < m_nDegree; i++)

@@ -110,7 +110,7 @@ void GXMLParser::EatWhitespace()
 
 GXMLTag* GXMLParser::Parse(const char** pszErrorMessage, int* pnErrorOffset, int* pnErrorLine, int* pnErrorColumn)
 {
-	GXMLTag* pRoot;
+	GXMLTag* pRoot = NULL;
 	m_szErrorMessage = s_szCommentError;
 	while(m_szErrorMessage == s_szCommentError)
 	{
@@ -794,7 +794,10 @@ char* GXMLTag::ToString(const char* szLineStart, const char* szLineEnd, bool bEs
 	int nSize = ToString(NULL, 0, szLineStart, szLineEnd, bEscapeQuotes);
 	char* pBuffer = new char[nSize + 1];
 	int nSize2 = ToString(pBuffer, 0, szLineStart, szLineEnd, bEscapeQuotes);
-	GAssert(nSize2 == nSize, "size changed");
+	if(nSize != nSize2)
+	{
+		GAssert(false, "size changed");
+	}
 	pBuffer[nSize] = '\0';
 	return pBuffer;
 }

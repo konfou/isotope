@@ -35,6 +35,8 @@ public:
 	// pBuf should be at least GetLength() + 1 bytes in size	
 	void GetAnsi(char* pBuf);
 
+	void GetAnsi(char* pBuf, int nBufSize);
+
 	// returns the Unicode character at the specified position
 	wchar_t GetWChar(int nPos);
 

@@ -79,6 +79,7 @@ bool LoadPng(GImage* pImage, const unsigned char* pData, int nDataSize)
 	int depth, color;
 	unsigned long width, height;
 	png_get_IHDR(reader.m_pReadStruct, reader.m_pInfoStruct, &width, &height, &depth, &color, NULL, NULL, NULL);
+GAssert(depth == 8, "todo: remove this line");
 	pImage->SetSize(width, height);
 
 	// Set gamma correction
@@ -141,6 +142,107 @@ bool LoadPng(GImage* pImage, const unsigned char* pData, int nDataSize)
 
 	// Check for additional tags
 	png_read_end(reader.m_pReadStruct, reader.m_pEndInfoStruct);
+
+	return true;
+}
+
+// -----------------------------------------------------------------------
+
+class GPNGWriter
+{
+public:
+	png_structp m_pWriteStruct;
+	png_infop m_pInfoStruct;
+
+	GPNGWriter()
+	{
+		m_pWriteStruct = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		if(m_pWriteStruct == NULL)
+		{
+			GAssert(false, "Failed to create write struct. Out of mem?");
+			return;
+		}
+		m_pInfoStruct = png_create_info_struct(m_pWriteStruct);
+		if(m_pInfoStruct == NULL)
+		{
+			GAssert(false, "Failed to create info struct. Out of mem?");
+			return;
+		}
+	}
+
+	~GPNGWriter()
+	{
+		png_destroy_write_struct(&m_pWriteStruct, &m_pInfoStruct);
+	}
+};
+
+
+bool SavePng(GImage* pImage, FILE* pFile, bool bIncludeAlphaChannel)
+{
+	GPNGWriter writer;
+
+	// Allocate the row pointers
+	unsigned long width = pImage->GetWidth();
+	unsigned long height = pImage->GetHeight();
+	unsigned long channels = bIncludeAlphaChannel ? 4 : 3;
+	unsigned long rowbytes = width * channels;
+	Holder<unsigned char*> hData(new unsigned char[rowbytes * height]);
+	png_bytep pRawData = (png_bytep)hData.Get();
+	unsigned int i;
+	Holder<unsigned char*> hRows(new unsigned char[sizeof(png_bytep) * height]);
+	png_bytep* pRows = (png_bytep*)hRows.Get();
+	for(i = 0; i < height; i++)
+		pRows[i] = pRawData + i * rowbytes;
+
+	// Copy to the GImage
+	unsigned long nPixels = width * height;
+	GColor* pRGBQuads = pImage->GetRGBQuads();
+	GColor col;
+	unsigned char *pBytes = pRawData;
+	if(channels > 3)
+	{
+		GAssert(channels == 4, "unexpected number of channels");
+		for(i = 0; i < nPixels; i++)
+		{
+			col = *(pRGBQuads++);
+			*(pBytes++) = gRed(col);
+			*(pBytes++) = gGreen(col);
+			*(pBytes++) = gBlue(col);
+			*(pBytes++) = gAlpha(col);
+		}
+	}
+	else
+	{
+		GAssert(channels == 3, "unexpected number of channels");
+		for(i = 0; i < nPixels; i++)
+		{
+			col = *(pRGBQuads++);
+			*(pBytes++) = gRed(col);
+			*(pBytes++) = gGreen(col);
+			*(pBytes++) = gBlue(col);
+		}
+	}
+
+	// Set the jump value
+	if(setjmp(png_jmpbuf(writer.m_pWriteStruct)))
+	{
+		GAssert(false, "Failed to set the jump value for writing");
+		return false;
+	}
+
+	// Init the IO
+	png_init_io(writer.m_pWriteStruct, pFile);
+
+	// Write image stats and settings
+	png_set_IHDR(writer.m_pWriteStruct, writer.m_pInfoStruct,
+			width, height, 8,
+			bIncludeAlphaChannel ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB,
+			PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	png_write_info(writer.m_pWriteStruct, writer.m_pInfoStruct);
+
+	// Write the image data
+	png_write_image(writer.m_pWriteStruct, pRows);
+	png_write_end(writer.m_pWriteStruct, writer.m_pInfoStruct);
 
 	return true;
 }

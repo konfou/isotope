@@ -54,7 +54,6 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	int n;
 	for(n = 0; n < SDLK_LAST; n++)
 		m_keyboard[n] = 0;
-	m_nTypeBufferPos = 0;
 	LoadKeyControlValues();
 
 	// Init the mouse
@@ -313,10 +312,14 @@ void Controller::LoadKeyControlValues()
 	GXMLTag* pThirdPersonTag = pKeyMappingsTag->GetChildTag("ThirdPerson");
 	if(!pThirdPersonTag)
 		GameEngine::ThrowError("Expected a 'ThirdPerson' tag in the config file");
-	m_ktpYawRight = GetAttrValue(&ht, pThirdPersonTag, "yawright");
-	m_ktpYawLeft = GetAttrValue(&ht, pThirdPersonTag, "yawleft");
-	m_ktpZoomIn = GetAttrValue(&ht, pThirdPersonTag, "zoomin");
-	m_ktpZoomOut = GetAttrValue(&ht, pThirdPersonTag, "zoomout");
+	m_ktpYawRight1 = GetAttrValue(&ht, pThirdPersonTag, "yawright1");
+	m_ktpYawRight2 = GetAttrValue(&ht, pThirdPersonTag, "yawright2");
+	m_ktpYawLeft1 = GetAttrValue(&ht, pThirdPersonTag, "yawleft1");
+	m_ktpYawLeft2 = GetAttrValue(&ht, pThirdPersonTag, "yawleft2");
+	m_ktpZoomIn1 = GetAttrValue(&ht, pThirdPersonTag, "zoomin1");
+	m_ktpZoomIn2 = GetAttrValue(&ht, pThirdPersonTag, "zoomin2");
+	m_ktpZoomOut1 = GetAttrValue(&ht, pThirdPersonTag, "zoomout1");
+	m_ktpZoomOut2 = GetAttrValue(&ht, pThirdPersonTag, "zoomout2");
 	m_ktpPitchUp = GetAttrValue(&ht, pThirdPersonTag, "pitchup");
 	m_ktpPitchDown = GetAttrValue(&ht, pThirdPersonTag, "pitchdown");
 	m_bFpsControls = false;
@@ -334,10 +337,14 @@ void Controller::LoadKeyControlValues()
 	m_kfpZoomOut = GetAttrValue(&ht, pFirstPersonTag, "zoomout");
 	m_kfpPitchUp = GetAttrValue(&ht, pFirstPersonTag, "pitchup");
 	m_kfpPitchDown = GetAttrValue(&ht, pFirstPersonTag, "pitchdown");
-	m_kfpTrackRight = GetAttrValue(&ht, pFirstPersonTag, "trackright");
-	m_kfpTrackLeft = GetAttrValue(&ht, pFirstPersonTag, "trackleft");
-	m_kfpTrackUp = GetAttrValue(&ht, pFirstPersonTag, "trackup");
-	m_kfpTrackDown = GetAttrValue(&ht, pFirstPersonTag, "trackdown");
+	m_kfpTrackRight1 = GetAttrValue(&ht, pFirstPersonTag, "trackright1");
+	m_kfpTrackRight2 = GetAttrValue(&ht, pFirstPersonTag, "trackright2");
+	m_kfpTrackLeft1 = GetAttrValue(&ht, pFirstPersonTag, "trackleft1");
+	m_kfpTrackLeft2 = GetAttrValue(&ht, pFirstPersonTag, "trackleft2");
+	m_kfpTrackUp1 = GetAttrValue(&ht, pFirstPersonTag, "trackup1");
+	m_kfpTrackUp2 = GetAttrValue(&ht, pFirstPersonTag, "trackup2");
+	m_kfpTrackDown1 = GetAttrValue(&ht, pFirstPersonTag, "trackdown1");
+	m_kfpTrackDown2 = GetAttrValue(&ht, pFirstPersonTag, "trackdown2");
 }
 
 void Controller::Run()
@@ -398,10 +405,12 @@ void Controller::Update(double dTimeDelta)
 				m_mouse[event.button.button] = 1;
 				m_mouseDownX = event.button.x;
 				m_mouseDownY = event.button.y;
+				m_pView->OnMouseDown(m_mouseDownX, m_mouseDownY);
 				break;
 
 			case SDL_MOUSEBUTTONUP:
 				mouseButtonClearers[event.button.button] = 0;
+				m_pView->OnMouseUp(event.button.x, event.button.y);
 				//m_mouse[event.button.button] = 0;
 				break;
 
@@ -460,52 +469,26 @@ void Controller::OnKeyDown(SDLKey key, SDLMod mod)
 {
 	if(key > SDLK_z)
 		return;
-	else if(key < SDLK_SPACE)
+	if(key == SDLK_ESCAPE)
 	{
-		if(key == SDLK_BACKSPACE)
-		{
-			if(m_nTypeBufferPos > 0)
-			{
-				m_szTypeBuffer[--m_nTypeBufferPos] = '\0';
-				return;
-			}
-		}
-		else if(key == SDLK_RETURN)
-		{
-			if(m_mode == THIRDPERSON)
-			{
-				// Make the chat cloud
-				if(m_nTypeBufferPos <= 0)
-					return;
-				if(!m_pGameClient)
-					return;
-				m_pGameClient->MakeChatCloud(m_szTypeBuffer);
-				ClearTypeBuffer();
-			}
-		}
-		else if(key == SDLK_ESCAPE)
-			ShutDown();
+		ShutDown();
 		return;
 	}
 	char c = (char)key;
 	if(c > 126)
-		return;
-	if(m_nTypeBufferPos >= TYPE_BUFFER_SIZE - 1)
 		return;
 
 	// Capitalize if shift is down
 	if(mod & KMOD_SHIFT)
 		c = GSDL::ShiftKey(c);
 
-	// Record the key
-	m_szTypeBuffer[m_nTypeBufferPos++] = c;
-	m_szTypeBuffer[m_nTypeBufferPos] = '\0';
+	m_pView->OnChar(c);
 }
 
-void Controller::ClearTypeBuffer()
+void Controller::MakeChatCloud(const wchar_t* wszText)
 {
-	m_nTypeBufferPos = 0;
-	m_szTypeBuffer[0] = '\0';
+	ConvertUnicodeToAnsi(wszText, szText);
+	m_pGameClient->MakeChatCloud(szText);
 }
 
 inline int CalculateSignVector(float x, float y)
@@ -626,19 +609,22 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	{
 		m_mouse[1] = 0;
 		float mapX, mapY;
-		bool bSky;
-		m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseDownX, m_mouseDownY);
-		if(bSky)
+		bool bSky, bPanel;
+		m_pGameView->ScreenToMap(&mapX, &mapY, &bPanel, &bSky, m_mouseDownX, m_mouseDownY);
+		if(!bPanel)
 		{
-			int nSafety = 50;
-			while(bSky && nSafety--)
+			if(bSky)
 			{
-				m_mouseDownY += 4;
-				m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseDownX, m_mouseDownY);
+				int nSafety = 50;
+				while(bSky && nSafety--)
+				{
+					m_mouseDownY += 4;
+					m_pGameView->ScreenToMap(&mapX, &mapY, &bPanel, &bSky, m_mouseDownX, m_mouseDownY);
+				}
 			}
+			if(!bSky)
+				SetGoalSpot(mapX, mapY);
 		}
-		if(!bSky)
-			SetGoalSpot(mapX, mapY);
 	}
 	if(m_keyboard[m_keyAction1] | m_keyboard[m_keyAction2])
 	{
@@ -663,7 +649,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	}
 
 	// Camera Yaw
-	float dx = (float)(m_keyboard[m_ktpYawLeft] - m_keyboard[m_ktpYawRight]);
+	float dx = (float)(m_keyboard[m_ktpYawLeft1] + m_keyboard[m_ktpYawLeft2] - (m_keyboard[m_ktpYawRight1] + m_keyboard[m_ktpYawRight2]));
 	if(dx != 0)
 	{
 		dx *= (float)dTimeDelta * 3;
@@ -673,7 +659,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 	}
 
 	// Zoom
-	float dy = (float)(m_keyboard[m_ktpZoomOut] - m_keyboard[m_ktpZoomIn]);
+	float dy = (float)(m_keyboard[m_ktpZoomOut1] + m_keyboard[m_ktpZoomOut2] - (m_keyboard[m_ktpZoomIn1] + m_keyboard[m_ktpZoomIn2]));
 	if(dy != 0)
 	{
 		dy *= (float)dTimeDelta;
@@ -703,10 +689,10 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 	if(m_mouse[1]) // left button
 	{
 		// Calculate the selection rect so the view can draw it
-		bool bSky;
+		bool bSky, bPanel;
 		float mapX, mapY;
-		m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseX, m_mouseY);
-		if(!bSky)
+		m_pGameView->ScreenToMap(&mapX, &mapY, &bPanel, &bSky, m_mouseX, m_mouseY);
+		if(!bPanel && !bSky)
 		{
 			if(!m_bMouseDown)
 			{
@@ -724,10 +710,10 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 		m_pGameView->SetSelectionRect(0, 0, 0, 0);
 
 		// Calculate map position
-		bool bSky;
+		bool bSky, bPanel;
 		float mapX, mapY;
-		m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseX, m_mouseY);
-		if(!bSky)
+		m_pGameView->ScreenToMap(&mapX, &mapY, &bPanel, &bSky, m_mouseX, m_mouseY);
+		if(!bPanel && !bSky)
 		{
 			// Select the objects
 			m_pGameClient->SelectObjects(m_goalX, m_goalY, mapX, mapY);
@@ -739,10 +725,10 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 		m_mouse[3] = 0;
 		m_keyboard[m_keyAction1] = 0;
 		m_keyboard[m_keyAction2] = 0;
-		bool bSky;
+		bool bSky, bPanel;
 		float mapX, mapY;
-		m_pGameView->ScreenToMap(&mapX, &mapY, &bSky, m_mouseX, m_mouseY);
-		if(!bSky)
+		m_pGameView->ScreenToMap(&mapX, &mapY, &bPanel, &bSky, m_mouseX, m_mouseY);
+		if(!bPanel && !bSky)
 			m_pGameClient->DoActionOnSelectedObjects(mapX, mapY);
 	}
 
@@ -775,8 +761,8 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 	}
 
 	// Arrow Keys
-	dx = (float)(m_keyboard[m_kfpTrackRight] - m_keyboard[m_kfpTrackLeft]) * 1500 * (float)dTimeDelta;
-	dy = (float)(m_keyboard[m_kfpTrackUp] - m_keyboard[m_kfpTrackDown]) * 1500 * (float)dTimeDelta;
+	dx = (float)(m_keyboard[m_kfpTrackRight1] + m_keyboard[m_kfpTrackRight2] - (m_keyboard[m_kfpTrackLeft1] + m_keyboard[m_kfpTrackLeft2])) * 1500 * (float)dTimeDelta;
+	dy = (float)(m_keyboard[m_kfpTrackUp1] + m_keyboard[m_kfpTrackUp2] - (m_keyboard[m_kfpTrackDown1] + m_keyboard[m_kfpTrackDown2])) * 1500 * (float)dTimeDelta;
 	pCamera->Move(dx, dy);
 
 	// Menu Key
@@ -872,7 +858,7 @@ void Controller::ControlMainMenu(double dTimeDelta)
 			SlideMenu(0);
 		}
 	}
-
+/*
 	if(m_mouse[1]) // left button
 	{
 		if(!m_bMouseDown)
@@ -889,13 +875,14 @@ void Controller::ControlMainMenu(double dTimeDelta)
 			m_bMouseDown = false;
 		}
 	}
-
+*/
 	// Give the view mouse tracking information so it can do the scroll bars properly
 	m_pMainMenu->OnMousePos(m_mouseX, m_mouseY);
 }
 
 void Controller::ControlCharSelect(double dTimeDelta)
 {
+/*
 	if(m_mouse[1]) // left button
 	{
 		if(!m_bMouseDown)
@@ -912,15 +899,18 @@ void Controller::ControlCharSelect(double dTimeDelta)
 			m_bMouseDown = false;
 		}
 	}
+*/
+	m_pCharSelect->OnMousePos(m_mouseX, m_mouseY);
 }
 
 void Controller::ControlMakeNewChar(double dTimeDelta)
 {
+/*
 	if(m_mouse[1]) // left button
 	{
 		if(!m_bMouseDown)
 		{
-			m_pMakeNewChar->OnMouseDown(this, m_mouseX, m_mouseY);
+			m_pMakeNewChar->OnMouseDown(m_mouseX, m_mouseY);
 			m_bMouseDown = true;
 		}
 	}
@@ -928,10 +918,11 @@ void Controller::ControlMakeNewChar(double dTimeDelta)
 	{
 		if(m_bMouseDown)
 		{
-			m_pMakeNewChar->OnMouseUp(this, m_mouseX, m_mouseY);
+			m_pMakeNewChar->OnMouseUp(m_mouseX, m_mouseY);
 			m_bMouseDown = false;
 		}
 	}
+*/
 }
 
 void Controller::ToggleTerrain()
@@ -941,14 +932,14 @@ void Controller::ToggleTerrain()
 
 void Controller::MakeScreenSmaller()
 {
-	m_pView->MakeScreenSmaller();
-	m_pGameView->SetRect(m_pView->GetScreenRect());
+//	m_pView->MakeScreenSmaller();
+//	m_pGameView->SetRect(m_pView->GetScreenRect());
 }
 
 void Controller::MakeScreenBigger()
 {
-	m_pView->MakeScreenBigger();
-	m_pGameView->SetRect(m_pView->GetScreenRect());
+//	m_pView->MakeScreenBigger();
+//	m_pGameView->SetRect(m_pView->GetScreenRect());
 }
 
 void Controller::ViewScript()
@@ -1117,6 +1108,16 @@ void Controller::GoToRealm(const char* szUrl)
 	Holder<MSoundStore*> hSoundStore(new MSoundStore());
 	hSoundStore.Get()->FromXml(this, m_pGameClient->GetRemoteFolder(), pSounds);
 
+	// Load the background music
+	Holder<char*> hMusicFilename(NULL);
+	GXMLTag* pSoundsTag = pMap->GetChildTag("Sounds");
+	if(pSoundsTag)
+	{
+		GXMLAttribute* pBackgroundAttr = pSoundsTag->GetAttribute("background");
+		if(pBackgroundAttr)
+			hMusicFilename.Set(LoadFileFromUrl(m_pGameClient->GetRemoteFolder(), pBackgroundAttr->GetValue(), NULL));
+	}
+
 	// Load the spot store
 	GXMLTag* pSpots = pMap->GetChildTag("Spots");
 	if(!pSpots)
@@ -1125,7 +1126,7 @@ void Controller::GoToRealm(const char* szUrl)
 	hSpotStore.Get()->FromXml(pSpots);
 
 	// Load realm phase 2
-	m_pGameClient->LoadRealmPhase2(szUrl, szScript, pScriptEngine, GameEngine::GetTime(), m_pView->GetScreenRect()->h / 2 - 75, hImageStore.Drop(), hAnimationStore.Drop(), hSoundStore.Drop(), hSpotStore.Drop());
+	m_pGameClient->LoadRealmPhase2(szUrl, szScript, pScriptEngine, GameEngine::GetTime(), m_pView->GetScreenRect()->h / 2 - 75, hImageStore.Drop(), hAnimationStore.Drop(), hSoundStore.Drop(), hSpotStore.Drop(), hMusicFilename.Get());
 	if(m_pGameClient->IsFirstPerson())
 		SetMode(Controller::FIRSTPERSON);
 	else
@@ -1165,8 +1166,15 @@ void Controller::GoToRealm(const char* szUrl)
 	delete(pViewPort);
 	m_pLoadingView = NULL;
 	GAssert(!m_pGameView, "The game view already exists");
-	m_pGameView = new VGame(m_pView->GetScreenRect(), m_pGameClient, &pSkyImage->m_value, &pGroundImage->m_value);
+	m_pGameView = new VGame(m_pView->GetScreenRect(), m_pGameClient, &pSkyImage->m_value, &pGroundImage->m_value, this);
 	m_pView->PushViewPort(m_pGameView);
+	char* szCondensedUrl = (char*)alloca(strlen(szUrl) + 1);
+	strcpy(szCondensedUrl, szUrl);
+	CondensePath(szCondensedUrl);
+	m_pGameView->SetUrl(szCondensedUrl);
+
+	// Make sure the mouse isn't down
+	m_mouse[1] = 0;
 }
 
 void Controller::SetSkyImage(GString* pID)
@@ -1204,17 +1212,16 @@ void Controller::MakeEntropyCollectorView()
 
 void Controller::MakeCharSelectView()
 {
-	m_pCharSelect = new VCharSelect(m_pView->GetScreenRect(), m_szTypeBuffer, this);
+	m_pCharSelect = new VCharSelect(m_pView->GetScreenRect(), this);
 	m_pView->PushViewPort(m_pCharSelect);
 	SetMode(SELECTCHAR);
 }
 
 void Controller::MakeNewCharView()
 {
-	m_pMakeNewChar = new VCharMake(m_pView->GetScreenRect(), m_szTypeBuffer, this);
+	m_pMakeNewChar = new VCharMake(m_pView->GetScreenRect(), this);
 	m_pView->PushViewPort(m_pMakeNewChar);
 	SetMode(MAKENEWCHAR);
-	ClearTypeBuffer();
 }
 
 void Controller::CancelMakeNewChar()
@@ -1227,11 +1234,9 @@ void Controller::CancelMakeNewChar()
 	m_pCharSelect->ReloadAccounts();
 }
 
-void Controller::CreateNewCharacter(const char* szAvatarID, const char* szPassword)
+void Controller::CreateNewCharacter(const char* szAvatarID, const char* szUsername, const char* szPassword)
 {
 	// Make the account file
-	char szUsername[64];
-	itoa(rand(), szUsername, 10); // todo: use the username instead of a random number
 	const char* szAppPath = GameEngine::GetAppPath();
 	char* szAccountFilename = (char*)alloca(strlen(szAppPath) + 50 + strlen(szUsername));
 	strcpy(szAccountFilename, szAppPath);
@@ -1258,6 +1263,7 @@ void Controller::CreateNewCharacter(const char* szAvatarID, const char* szPasswo
 	GXMLTag* pNewAccountTag = new GXMLTag("Account");
 	pAccountsTag->AddChildTag(pNewAccountTag);
 	pNewAccountTag->AddAttribute(new GXMLAttribute("Anim", szAvatarID));
+	pNewAccountTag->AddAttribute(new GXMLAttribute("Username", szUsername));
 	char szPasswordHash[2 * SHA512_DIGEST_LENGTH + 1];
 	GameEngine::MakePasswordHash(szPasswordHash, szPassword);
 	pNewAccountTag->AddAttribute(new GXMLAttribute("Password", szPasswordHash));
@@ -1265,6 +1271,32 @@ void Controller::CreateNewCharacter(const char* szAvatarID, const char* szPasswo
 	GameEngine::SaveConfig();
 
 	CancelMakeNewChar();
+}
+
+void Controller::RemoveAccount(const char* szUsername, const char* szPassword)
+{
+	GXMLTag* pConfigTag = GameEngine::GetConfig();
+	GXMLTag* pAccountsTag = pConfigTag->GetChildTag("Accounts");
+	if(!pAccountsTag)
+		return;
+	GXMLTag* pTag;
+	GXMLTag* pPrev = NULL;
+	for(pTag = pAccountsTag->GetFirstChildTag(); pTag; pTag = pAccountsTag->GetNextChildTag(pTag))
+	{
+		GXMLAttribute* pUsernameAttr = pTag->GetAttribute("Username");
+		GXMLAttribute* pPasswordAttr = pTag->GetAttribute("Password");
+		if(pUsernameAttr && pPasswordAttr &&
+			stricmp(pUsernameAttr->GetValue(), szUsername) == 0 &&
+			strcmp(pPasswordAttr->GetValue(), szPassword) == 0
+			)
+		{
+			pAccountsTag->DeleteChildTag(pPrev);
+			break;
+		}
+		pPrev = pTag;
+	}
+	m_pCharSelect->ReloadAccounts();
+	GameEngine::SaveConfig();
 }
 
 void Controller::LogIn(GXMLTag* pAccountRefTag, const char* szPassword)
@@ -1552,6 +1584,39 @@ char* Controller::DownloadAndCacheFile(const char* szUrl, int* pnSize, char* szC
 		char* szFilename = new char[strlen(szCacheName) + 1];
 		strcpy(szFilename, szCacheName);
 		return szFilename;
+	}
+}
+
+// Remove extra ".." folders in the path
+void CondensePath(char* szPath)
+{
+	bool bGotOne = true;
+	while(bGotOne)
+	{
+		bGotOne = false;
+		int nPrevSlash = -1;
+		int nPrevPrevSlash = -1;
+		int n;
+		for(n = 0; szPath[n] != '\0'; n++)
+		{
+			if(szPath[n] == '/')
+			{
+				nPrevPrevSlash = nPrevSlash;
+				nPrevSlash = n;
+				if(nPrevPrevSlash >= 0 && strncmp(szPath + n, "/../", 4) == 0)
+				{
+					bGotOne = true;
+					int nDelSize = n - nPrevPrevSlash + 3;
+					int i;
+					for(i = nPrevPrevSlash; ; i++)
+					{
+						szPath[i] = szPath[i + nDelSize];
+						if(szPath[i] == '\0')
+							break;
+					}
+				}
+			}
+		}
 	}
 }
 

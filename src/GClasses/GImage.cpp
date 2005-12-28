@@ -19,6 +19,8 @@
 #include "GRayTrace.h"
 #include "GHardFont.h"
 #include "GPNG.h"
+#include "GBits.h"
+#include "GFile.h"
 
 #ifdef WIN32
 #include <windows.h>
@@ -1292,9 +1294,19 @@ void GImage::PasteImage(int nX, int nY, GImage* pSourceImage)
 	}
 }
 
-bool GImage::LoadPNGFile(const unsigned char* pBuffer, int nBytes)
+bool GImage::LoadPNGFile(const unsigned char* pRawData, int nBytes)
 {
-	return LoadPng(this, pBuffer, nBytes);
+	return LoadPng(this, pRawData, nBytes);
+}
+
+bool GImage::LoadPNGFile(const char* szFilename)
+{
+	int nSize;
+	char* pRawData = GFile::LoadFileToBuffer(szFilename, &nSize);
+	if(!pRawData)
+		return false;
+	Holder<char*> hRawData(pRawData);
+	return LoadPng(this, (const unsigned char*)pRawData, nSize);
 }
 
 bool GImage::SavePIGFile(FILE* pFile)
@@ -1345,6 +1357,21 @@ bool GImage::SavePIGFile(const char* szFilename)
 	if(!pFile)
 		return false;
 	bool bOK = SavePIGFile(pFile);
+	fclose(pFile);
+	return bOK;
+}
+
+bool GImage::SavePNGFile(FILE* pFile)
+{
+	return SavePng(this, pFile, true);
+}
+
+bool GImage::SavePNGFile(const char* szFilename)
+{
+	FILE* pFile = fopen(szFilename, "wb");
+	if(!pFile)
+		return false;
+	bool bOK = SavePNGFile(pFile);
 	fclose(pFile);
 	return bOK;
 }
@@ -1519,11 +1546,11 @@ bool GImage::LoadBMPFile(FILE* pFile)
 	return true;
 }
 
-bool GImage::LoadBMPFile(const unsigned char* pFile, int nLen)
+bool GImage::LoadBMPFile(const unsigned char* pRawData, int nLen)
 {
 	if(nLen < (int)(sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)))
 		return false;
-	BITMAPFILEHEADER* h1 = (BITMAPFILEHEADER*)pFile;
+	BITMAPFILEHEADER* h1 = (BITMAPFILEHEADER*)pRawData;
 	BITMAPINFOHEADER* h2 = (BITMAPINFOHEADER*)((char*)h1 + sizeof(BITMAPFILEHEADER));
 	const unsigned char* pData = (const unsigned char*)((char*)h2 + sizeof(BITMAPINFOHEADER));
 	if(h2->biBitCount != 24)
@@ -2013,6 +2040,37 @@ int GImage::MeasureHardTextWidth(int height, const char* szText, float width)
 	return x;
 }
 
+int GImage::CountHardTextChars(int horizArea, int height, const char* szText, float width)
+{
+	bool bBig = (height > 24);
+	int sx, sy, sw, sh;
+	int x = 0;
+	int nCharWidth;
+	int nChars = 0;
+	while(true)
+	{
+		char c = *szText;
+		if(c == '\0')
+			break;
+		if(bBig)
+		{
+			GHardFont_GetCharCoords(c, &sx, &sy, &sw, &sh);
+			nCharWidth = (int)(sw * height * width) / sh;
+		}
+		else
+		{
+			GSmallHardFont_GetCharCoords(c, &sx, &sy, &sw, &sh);
+			nCharWidth = sw;
+		}
+		x += nCharWidth;
+		szText++;
+		if(x > horizArea)
+			break;
+		nChars++;
+	}
+	return nChars;
+}
+
 void GImage::DrawHardText(GRect* pRect, const char* szText, GColor col, float width)
 {
 	bool bBig = (pRect->h > 24);
@@ -2144,3 +2202,108 @@ void GImage::AlphaBlit(int x, int y, GImage* pSource, GRect* pSourceRect)
 		src += pSource->m_nWidth;
 	}
 }
+
+GImage* GImage::Munge(int nStyle, float fExtent)
+{
+	GImage* pMunged = new GImage();
+	pMunged->SetSize(m_nWidth, m_nHeight);
+	int x, y;
+	GColor col;
+	double d;
+	switch(nStyle)
+	{
+		case 0: // particle-blur (pick a random pixel in the proximity)
+			for(y = 0; y < m_nHeight; y++)
+			{
+				for(x = 0; x < m_nWidth; x++)
+				{
+					col = SafeGetPixel(
+										(int)(x + fExtent * m_nWidth * (GBits::GetRandomDouble() - .5)),
+										(int)(y + fExtent * m_nHeight * (GBits::GetRandomDouble() - .5))
+									);
+					pMunged->SetPixel(x, y, col);
+				}
+			}
+			break;
+
+		case 1: // shadow threshold (throw out all pixels below a certain percent of the total brighness)
+			{
+				fExtent = 1 - fExtent;
+				fExtent *= fExtent;
+				fExtent *= fExtent;
+				fExtent = 1 - fExtent;
+
+				// Create the histogram data
+				unsigned int pnHistData[256];
+				int n;
+				for(n = 0; n < 256; n++)
+					pnHistData[n] = 0;
+				unsigned int nSize = m_nWidth * m_nHeight;
+				unsigned int nPos;
+				unsigned int nGray;
+				for(nPos = 0; nPos < nSize; nPos++)
+				{
+					nGray = ColorToGrayScale(m_pPixels[nPos]);
+					pnHistData[gGreen(nGray)]++;
+				}
+
+				// Turn it into cumulative histogram data
+				for(n = 1; n < 256; n++)
+					pnHistData[n] += pnHistData[n - 1];
+
+				// Find the cut-off
+				unsigned int nCutOff = (unsigned int)(fExtent * pnHistData[255]);
+				for(n = 0; n < 256 && pnHistData[n] < nCutOff; n++)
+				{
+				}
+
+				// Copy all the data above the threshold
+				for(y = 0; y < m_nHeight; y++)
+				{
+					for(x = 0; x < m_nWidth; x++)
+					{
+						col = GetPixel(x, y);
+						nGray = gGreen(ColorToGrayScale(col));
+						if(nGray > (unsigned int)n)
+							pMunged->SetPixel(x, y, col);
+					}
+				}
+			}
+			break;
+
+		case 2: // waves
+			for(y = 0; y < m_nHeight; y++)
+			{
+				for(x = 0; x < m_nWidth; x++)
+				{
+					col = SafeGetPixel(
+										(int)(x + fExtent * (m_nWidth / 2) * cos((double)x * 16 / m_nWidth)),
+										(int)(y + fExtent * (m_nHeight / 2) * sin((double)y * 16 / m_nHeight))
+									);
+					pMunged->SetPixel(x, y, col);
+				}
+			}
+			break;
+
+		case 3: // waved in or out of the middle
+				fExtent = 1 - fExtent;
+				fExtent *= fExtent;
+				fExtent = 1 - fExtent;
+			for(y = 0; y < m_nHeight; y++)
+			{
+				for(x = 0; x < m_nWidth; x++)
+				{
+					d = atan2((double)(y - m_nHeight / 2), (double)(x - m_nWidth / 2));
+					d = fExtent * cos(d * 5);
+					col = SafeGetPixel(
+										(int)((1 - d) * x + d * (m_nWidth / 2)),
+										(int)((1 - d) * y + d * (m_nHeight / 2))
+									);
+					pMunged->SetPixel(x, y, col);
+				}
+			}
+			break;
+	}
+	return pMunged;
+}
+

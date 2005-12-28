@@ -15,7 +15,8 @@
 GSmallArray::GSmallArray(int nCellSize, int nGrowBy)
 {
 	GAssert(nCellSize > 0, "invalid cell size");
-	GAssert(nGrowBy > 0, "invalid grow-by");
+	if(nGrowBy < 8)
+		nGrowBy = 8;
 	m_nCellSize = nCellSize;
 	m_nGrowBy = nGrowBy;
 	m_nCellCount = 0;

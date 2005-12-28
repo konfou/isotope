@@ -1329,8 +1329,36 @@ int CONamedConst::ToString(char* pBuf)
 
 /*virtual*/ COType* COOperator::GetType(COProject* pCOProject)
 {
-	if(m_eOperator == OP_DOT)
-		return m_pExpression2->GetType(pCOProject);
+	switch(m_eOperator)
+	{
+		case COOperator::OP_POUND:
+		case COOperator::OP_COLON:
+			GAssert(false, "unhandled case");
+			break;
+		case COOperator::OP_DOT:
+		case COOperator::OP_TIMES:
+		case COOperator::OP_DIVIDE:
+		case COOperator::OP_PLUS:
+		case COOperator::OP_MINUS:
+			return m_pExpression2->GetType(pCOProject);
+		case COOperator::OP_MODULUS:
+		case COOperator::OP_XOR:
+		case COOperator::OP_AND:
+		case COOperator::OP_OR:
+		case COOperator::OP_MAX:
+		case COOperator::OP_MIN:
+		case COOperator::OP_VAR_EQUALS:
+		case COOperator::OP_VAR_NOT_EQUALS:
+		case COOperator::OP_OBJ_EQUALS:
+		case COOperator::OP_OBJ_NOT_EQUALS:
+		case COOperator::OP_OBJ_LESS_THAN:
+		case COOperator::OP_OBJ_LESS_THAN_OR_EQUAL:
+		case COOperator::OP_OBJ_GREATER_THAN:
+		case COOperator::OP_OBJ_GREATER_THAN_OR_EQUAL:
+			return pCOProject->m_pInteger;
+		default:
+			GAssert(false, "unexpected case");
+	}
 	return pCOProject->m_pInteger;
 }
 

@@ -5,8 +5,8 @@
 #include "GVector.h"
 
 GKNN::GKNN(GArffRelation* pRelation, int nNeighbors)
+ : GSupervisedLearner(pRelation)
 {
-	m_pRelation = pRelation;
 	m_nNeighbors = nNeighbors;
 	m_pRows = new GPointerArray(256);
 	int nAttributes = m_pRelation->GetAttributeCount();

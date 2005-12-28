@@ -25,6 +25,7 @@
 #include "../../GClasses/GArray.h"
 #include "../../GClasses/GFile.h"
 #include "../../GClasses/GHashTable.h"
+#include <wchar.h>
 #ifndef WIN32
 #include <unistd.h>
 #endif // !WIN32
@@ -106,7 +107,7 @@ public:
 	virtual void Update()
 	{
 		m_pListBox->Clear();
-		new GWidgetListBoxItem(m_pListBox, "Confirm");
+		new GWidgetListBoxItem(m_pListBox, L"Confirm");
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -130,7 +131,7 @@ class EditorListEnterName : public EditorList
 {
 protected:
 	EditorList* m_pList;
-	char m_szName[MAX_NAME_LEN];
+	wchar_t m_wszName[MAX_NAME_LEN];
 	int m_nLen;
 
 public:
@@ -139,7 +140,7 @@ public:
 	{
 		m_pList = pList;
 		m_pListBox->SetBaseColor(GWidgetListBox::yellow);
-		strcpy(m_szName, "");
+		wcscpy(m_wszName, L"");
 		m_nLen = 0;
 		Update();
 	}
@@ -147,7 +148,7 @@ public:
 	virtual void Update()
 	{
 		m_pListBox->Clear();
-		new GWidgetListBoxItem(m_pListBox, m_szName);
+		new GWidgetListBoxItem(m_pListBox, m_wszName);
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -159,8 +160,8 @@ public:
 	{
 		if(m_nLen >= MAX_NAME_LEN - 1)
 			return false;
-		m_szName[m_nLen++] = c;
-		m_szName[m_nLen] = '\0';
+		m_wszName[m_nLen++] = (wchar_t)c;
+		m_wszName[m_nLen] = L'\0';
 		Update();
 		return true;
 	}
@@ -199,13 +200,15 @@ public:
 		m_pListBox->Clear();
 		int nCount = m_pCall->GetParamCount();
 		GQueue q;
+		GString s;
 		int n;
 		for(n = 0; n < nCount; n++)
 		{
 			COExpression* pParam = m_pCall->GetParam(n);
 			pParam->SaveToClassicSyntax(&q);
 			Holder<char*> hParam(q.DumpToString());
-			new GWidgetListBoxItem(m_pListBox, hParam.Get());
+			s.Copy(hParam.Get());
+			new GWidgetListBoxItem(m_pListBox, s.GetString());
 		}
 	}
 
@@ -236,10 +239,12 @@ public:
 		COProject* pProject = m_pController->GetProject();
 		int nCount = pProject->CountTypes();
 		int n;
+		GString s;
 		for(n = 0; n < nCount; n++)
 		{
 			COType* pType = pProject->GetType(n);
-			new GWidgetListBoxItem(m_pListBox, pType->GetName());
+			s.Copy(pType->GetName());
+			new GWidgetListBoxItem(m_pListBox, s.GetString());
 		}
 	}
 
@@ -254,13 +259,13 @@ public:
 
 
 
-const char* g_editorListInstructionItems[] =
+const wchar_t* g_editorListInstructionItems[] =
 {
-	"Arguments",
-	"Add Method Call",
-	"Add Proc Call",
-	"Add Block",
-	"Delete",
+	L"Arguments",
+	L"Add Method Call",
+	L"Add Proc Call",
+	L"Add Block",
+	L"Delete",
 };
 
 class EditorListInstruction : public EditorList
@@ -349,12 +354,12 @@ public:
 
 
 
-const char* g_editorListVariableItems[] =
+const wchar_t* g_editorListVariableItems[] =
 {
-	"Change Type",
-	"Change Name",
-	"Jump to type",
-	"Add",
+	L"Change Type",
+	L"Change Name",
+	L"Jump to type",
+	L"Add",
 };
 
 class EditorListVariable : public EditorList
@@ -433,12 +438,14 @@ public:
 		int nCount = m_pMethod->GetParameterCount();
 		GQueue q;
 		int n;
+		GString s;
 		for(n = 0; n < nCount; n++)
 		{
 			COVariable* pVar = m_pMethod->GetParameter(n);
 			pVar->SaveToClassicSyntax(&q);
 			Holder<char*> hVar(q.DumpToString());
-			new GWidgetListBoxItem(m_pListBox, hVar.Get());
+			s.Copy(hVar.Get());
+			new GWidgetListBoxItem(m_pListBox, s.GetString());
 		}
 	}
 
@@ -483,6 +490,7 @@ public:
 		int nCount = m_pInstructions->GetInstrCount();
 		int n;
 		GQueue q;
+		GString s;
 		for(n = 0; n < nCount; n++)
 		{
 			m_pInstrMap[m_pListBox->GetSize()] = n;
@@ -494,20 +502,22 @@ public:
 						COCall* pCall = (COCall*)pInstr;
 						pCall->SaveToClassicSyntax(&q, 0, true);
 						Holder<char*> hInstr(q.DumpToString());
-						new GWidgetListBoxItem(m_pListBox, hInstr.Get());
+						s.Copy(hInstr.Get());
+						new GWidgetListBoxItem(m_pListBox, s.GetString());
 						if(pCall->CanHaveChildren())
-							new GWidgetListBoxItem(m_pListBox, "    { ... }");
+							new GWidgetListBoxItem(m_pListBox, L"    { ... }");
 					}
 					break;
 
 				case COInstruction::IT_BLOCK:
-					new GWidgetListBoxItem(m_pListBox, ((COBlock*)pInstr)->GetComment());
-					new GWidgetListBoxItem(m_pListBox, "    { ... }");
+					s.Copy(((COBlock*)pInstr)->GetComment());
+					new GWidgetListBoxItem(m_pListBox, s.GetString());
+					new GWidgetListBoxItem(m_pListBox, L"    { ... }");
 					break;
 			}
 		}
 		m_pInstrMap[m_pListBox->GetSize()] = n;
-		new GWidgetListBoxItem(m_pListBox, "");
+		new GWidgetListBoxItem(m_pListBox, L"");
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -543,12 +553,12 @@ public:
 
 
 
-const char* g_editorListMethodItems[] =
+const wchar_t* g_editorListMethodItems[] =
 {
-	"Instructions",
-	"Parameters",
-	"Name",
-	"Add",
+	L"Instructions",
+	L"Parameters",
+	L"Name",
+	L"Add",
 };
 
 class EditorListMethod : public EditorList
@@ -620,10 +630,14 @@ public:
 	{
 		m_pListBox->Clear();
 		int nCount = GetCount();
+		GString s;
 		int n;
 		for(n = 0; n < nCount; n++)
-			new GWidgetListBoxItem(m_pListBox, GetPartName(n));
-		new GWidgetListBoxItem(m_pListBox, "");
+		{
+			s.Copy(GetPartName(n));
+			new GWidgetListBoxItem(m_pListBox, s.GetString());
+		}
+		new GWidgetListBoxItem(m_pListBox, L"");
 	}
 
 	virtual EditorList* MakeChildList(int n)
@@ -683,16 +697,16 @@ protected:
 
 
 
-const char* g_editorListClassItems[] =
+const wchar_t* g_editorListClassItems[] =
 {
-	"Methods",
-	"Procs",
-	"Variables (Extended)",
-	"Interfaces",
-	"Constants",
-	"Name",
-	"Parent",
-	"Add",
+	L"Methods",
+	L"Procs",
+	L"Variables (Extended)",
+	L"Interfaces",
+	L"Constants",
+	L"Name",
+	L"Parent",
+	L"Add",
 };
 
 class EditorListClass : public EditorList
@@ -782,11 +796,11 @@ public:
 
 
 
-const char* g_editorListInterfaceItems[] =
+const wchar_t* g_editorListInterfaceItems[] =
 {
-	"Methods",
-	"Add",
-	"Delete",
+	L"Methods",
+	L"Add",
+	L"Delete",
 };
 
 class EditorListInterface : public EditorList
@@ -848,6 +862,7 @@ public:
 		m_pListBox->Clear();
 		int nFileCount = m_pFileSet->GetFileCount();
 		int n;
+		GString s;
 		for(n = 0; n < nFileCount; n++)
 		{
 			COFile* pFile = m_pFileSet->GetFile(n);
@@ -858,9 +873,10 @@ public:
 			for(i = 0; i < nClassCount; i++)
 			{
 				COClass* pClass = pFile->GetClass(i);
-				new GWidgetListBoxItem(m_pListBox, pClass->GetName());
+				s.Copy(pClass->GetName());
+				new GWidgetListBoxItem(m_pListBox, s.GetString());
 			}
-			new GWidgetListBoxItem(m_pListBox, "");
+			new GWidgetListBoxItem(m_pListBox, L"");
 		}
 	}
 
@@ -928,6 +944,7 @@ public:
 		m_pListBox->Clear();
 		int nFileCount = m_pFileSet->GetFileCount();
 		int n;
+		GString s;
 		for(n = 0; n < nFileCount; n++)
 		{
 			COFile* pFile = m_pFileSet->GetFile(n);
@@ -938,7 +955,8 @@ public:
 			for(i = 0; i < nInterfaceCount; i++)
 			{
 				COInterface* pInterface = pFile->GetInterface(i);
-				new GWidgetListBoxItem(m_pListBox, pInterface->GetName());
+				s.Copy(pInterface->GetName());
+				new GWidgetListBoxItem(m_pListBox, s.GetString());
 			}			
 		}
 	}
@@ -991,6 +1009,7 @@ public:
 		m_pListBox->Clear();
 		int nFileCount = m_pFileSet->GetFileCount();
 		int n;
+		GString s;
 		for(n = 0; n < nFileCount; n++)
 		{
 			COFile* pFile = m_pFileSet->GetFile(n);
@@ -1001,7 +1020,8 @@ public:
 			for(i = 0; i < nInterfaceCount; i++)
 			{
 				COMachineClass* pInterface = pFile->GetMachineClass(i);
-				new GWidgetListBoxItem(m_pListBox, pInterface->GetName());
+				s.Copy(pInterface->GetName());
+				new GWidgetListBoxItem(m_pListBox, s.GetString());
 			}			
 		}
 	}
@@ -1036,11 +1056,11 @@ protected:
 
 
 
-const char* g_editorListProjectItems[] =
+const wchar_t* g_editorListProjectItems[] =
 {
-	"Classes",
-	"Interfaces",
-	"MachineClasses",
+	L"Classes",
+	L"Interfaces",
+	L"MachineClasses",
 };
 
 class EditorListProject : public EditorList

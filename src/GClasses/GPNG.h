@@ -12,8 +12,13 @@
 #ifndef __GPNG_H__
 #define __GPNG_H__
 
+#include <stdio.h>
+
 class GImage;
 
 bool LoadPng(GImage* pImage, const unsigned char* pData, int nDataSize);
+
+// pFile should already be opened for writing binary data
+bool SavePng(GImage* pImage, FILE* pFile, bool bIncludeAlphaChannel);
 
 #endif // __GPNG_H__

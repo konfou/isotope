@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="test" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="Isotope" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Console Application" 0x0103
 
-CFG=test - Win32 Debug
+CFG=Isotope - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "test.mak".
+!MESSAGE NMAKE /f "Isotope.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "test.mak" CFG="test - Win32 Debug"
+!MESSAGE NMAKE /f "Isotope.mak" CFG="Isotope - Win32 Debug"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "test - Win32 Release" (based on "Win32 (x86) Console Application")
-!MESSAGE "test - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "Isotope - Win32 Release" (based on "Win32 (x86) Console Application")
+!MESSAGE "Isotope - Win32 Debug" (based on "Win32 (x86) Console Application")
 !MESSAGE 
 
 # Begin Project
@@ -28,7 +28,7 @@ CFG=test - Win32 Debug
 CPP=cl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "test - Win32 Release"
+!IF  "$(CFG)" == "Isotope - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -53,7 +53,7 @@ LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\..\lib\SDL.lib ..\..\lib\sdlmain.lib ..\..\lib\libz.lib ..\..\lib\libpng.lib wsock32.lib /nologo /subsystem:console /machine:I386 /nodefaultlib:"libc.lib" /nodefaultlib:"libcd.lib" /out:"../../bin/Isotope.exe"
 
-!ELSEIF  "$(CFG)" == "test - Win32 Debug"
+!ELSEIF  "$(CFG)" == "Isotope - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -82,8 +82,8 @@ LINK32=link.exe
 
 # Begin Target
 
-# Name "test - Win32 Release"
-# Name "test - Win32 Debug"
+# Name "Isotope - Win32 Release"
+# Name "Isotope - Win32 Debug"
 # Begin Source File
 
 SOURCE=.\AutoUpdate.cpp
@@ -119,6 +119,14 @@ SOURCE=.\MAnimation.cpp
 # Begin Source File
 
 SOURCE=.\MAnimation.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\MCollisionMap.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\MCollisionMap.h
 # End Source File
 # Begin Source File
 
@@ -195,6 +203,14 @@ SOURCE=.\MSpot.cpp
 # Begin Source File
 
 SOURCE=.\MSpot.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\MStatCollector.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\MStatCollector.h
 # End Source File
 # Begin Source File
 

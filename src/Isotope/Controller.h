@@ -76,8 +76,6 @@ protected:
 	View* m_pView;
 	Model* m_pModel;
 	int m_keyboard[SDLK_LAST];
-	char m_szTypeBuffer[TYPE_BUFFER_SIZE];
-	int m_nTypeBufferPos;
 	int m_mouse[8];
 	int m_mouseX;
 	int m_mouseY;
@@ -88,8 +86,8 @@ protected:
 
 	// Keyboard Controls
 	int m_keyMenu1, m_keyMenu2, m_keyAction1, m_keyAction2;
-	int m_ktpYawRight, m_ktpYawLeft, m_ktpZoomIn, m_ktpZoomOut, m_ktpPitchUp, m_ktpPitchDown;
-	int m_kfpYawRight, m_kfpYawLeft, m_kfpZoomIn, m_kfpZoomOut, m_kfpPitchUp, m_kfpPitchDown, m_kfpTrackRight, m_kfpTrackLeft, m_kfpTrackUp, m_kfpTrackDown;
+	int m_ktpYawRight1, m_ktpYawRight2, m_ktpYawLeft1, m_ktpYawLeft2, m_ktpZoomIn1, m_ktpZoomIn2, m_ktpZoomOut1, m_ktpZoomOut2, m_ktpPitchUp, m_ktpPitchDown;
+	int m_kfpYawRight, m_kfpYawLeft, m_kfpZoomIn, m_kfpZoomOut, m_kfpPitchUp, m_kfpPitchDown, m_kfpTrackRight1, m_kfpTrackRight2, m_kfpTrackLeft1, m_kfpTrackLeft2, m_kfpTrackUp1, m_kfpTrackUp2, m_kfpTrackDown1, m_kfpTrackDown2;
 	bool m_bFpsControls;
 
 	ControlModes m_mode; // Tells what you are currently controlling
@@ -156,8 +154,8 @@ public:
 	void MakeNewCharView();
 	void CancelMakeNewChar();
 	void AddObject(const char* szFilename);
-	void ClearTypeBuffer();
-	void CreateNewCharacter(const char* szAvatarID, const char* szPassword);
+	void CreateNewCharacter(const char* szAvatarID, const char* szUsername, const char* szPassword);
+	void RemoveAccount(const char* szUsername, const char* szPassword);
 	void LogIn(GXMLTag* pAccountRefTag, const char* szPassword);
 	void SendToClient(GObject* pObj, int nConnection);
 	void SendToServer(GObject* pObj);
@@ -165,6 +163,7 @@ public:
 	void OnDownloadFileProgress(float fProgress);
 	void SetSkyImage(GString* pID);
 	void SetGroundImage(GString* pID);
+	void MakeChatCloud(const wchar_t* wszText);
 
 protected:
 	//void GetArrowKeyVector(float* pdx, float* pdy);
@@ -201,5 +200,7 @@ protected:
 	void ShutDown();
 	void ReduceImageFootprint(MImageStore* pImages, MAnimationStore* pAnimations, int nAcceptableFootprint);
 };
+
+void CondensePath(char* szPath);
 
 #endif // __CONTROLLER_H__

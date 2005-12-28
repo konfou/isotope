@@ -12,19 +12,18 @@
 #ifndef __GNEURALNET_H__
 #define __GNEURALNET_H__
 
-class GArffRelation;
-class GArffData;
+#include "GLearner.h"
+
 class GPointerArray;
 class GNeuralNet;
 
 typedef double (*CriticFunc)(void* pThis, GNeuralNet* pNeuralNet);
 
 // An artificial neural network
-class GNeuralNet
+class GNeuralNet : public GSupervisedLearner
 {
 protected:
 	GArffRelation* m_pInternalRelation;
-	GArffRelation* m_pExternalRelation;
 	GPointerArray* m_pNeurons;
 	double* m_pBestSet;
 	int m_nWeightCount;
@@ -43,10 +42,11 @@ protected:
 	double m_dLearningDecay;
 	double m_dMomentum;
 	double m_dAcceptableMeanSquareError;
+	double m_dTrainingPortion;
 
 public:
 	GNeuralNet(GArffRelation* pRelation);
-	~GNeuralNet();
+	virtual ~GNeuralNet();
 
 	// Adds a layer to the network.  (The input and output layers
 	// are implicit, so you only need to add the hidden layers
@@ -56,6 +56,10 @@ public:
 	// more than two hidden layers because that results in large
 	// training times.
 	void AddLayer(int nNodes);
+
+	// Set the portion of the data that will be used for training. The rest
+	// will be used for validation.
+	void SetTrainingPortion(double d) { m_dTrainingPortion = d; }
 
 	// Returns the number of weights in the network
 	int GetWeightCount();
@@ -98,6 +102,10 @@ public:
 	// getting better.
 	void SetAcceptableMeanSquareError(double d) { m_dAcceptableMeanSquareError = d; }
 
+	// Splits the provided data into a training and validation set and trains
+	// the network. To set the ratio, use SetTrainingPortion.
+	virtual void Train(GArffData* pData);
+
 	// Train the network until the termination condition is met.
 	// Returns the number of epochs required to train it.  This is sort
 	// of an all-in-one method that calls TrainInit, followed by several
@@ -117,8 +125,9 @@ public:
 	// Measures the mean squared error against the internal validation set
 	double TrainValidate();
 
-	// Reads the input values in pRow and sets the output values
-	void Eval(double* pRow);
+	// Evaluates the input values in the provided row and
+	// deduce the output values
+	virtual void Eval(double* pRow);
 
 	// Returns the Relation corresponding to the internal data. This
 	// relation will contain all continuous attributes and the inputs

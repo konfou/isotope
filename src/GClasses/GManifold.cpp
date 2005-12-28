@@ -286,7 +286,7 @@ int GSquisher::AjustDataPoint(unsigned char* pDataPoint, int nTargetDimensions, 
 	bool bMadeProgress = true;
 	double* pValues = (double*)(pDataPoint + m_nValueIndex);
 	double dErrorBase = CalculateDataPointError(pDataPoint);
-	double dError;
+	double dError = 0;
 	int n, nSteps;
 	for(nSteps = 0; bMadeProgress; nSteps++)
 	{
@@ -389,7 +389,8 @@ double GSquisher::SquishPass(int nSeedDataPoint)
 
 	// Do the squishing
 	squisher.SquishBegin(nTargetDimensions);
-	double d, dBestError;
+	double d;
+	double dBestError = 0;
 	int n;
 	for(n = 0; n < nPreludeIterations; n++)
 		dBestError = squisher.SquishPass(rand() % nDataPoints);
@@ -717,7 +718,7 @@ m.PrintCorners(2);
 	// Compute the transformed data by dividing the eigen vectors by the square root of the eigen values
 	double d;
 	int nColumns = nInputs;
-	GAssert(nColumns < nRowCount, "Not enough data to compute values");
+	//GAssert(nColumns < nRowCount, "Not enough data to compute values");
 	int nEigen = 1;//nRowCount - 2;
 	double* pInputRow;
 	double* pOutputRow;

@@ -90,19 +90,39 @@ public:
 
 	GXMLTag* FindChildWithAttribute(const char* szAttrName, const char* szAttrValue);
 
+	// Sets the name of the tag
 	void SetName(const char* szName);
+
+	// Add a child tag to this XML tag
 	void AddChildTag(GXMLTag* pChild) { GAssert(pChild, "Null parameter"); if(!pChild) return; pChild->m_pParent = this; m_pChildren->Link(pChild); }
+	
+	// Add an attribute to this XML tag
 	void AddAttribute(GXMLAttribute* pAttribute);
+
+	// Set the line number for this XML tag
 	void SetLineNumber(int nLineNumber) { m_nLineNumber = nLineNumber; }
 
-	char* ToString(); // you must "delete" the string it returns
-	static GXMLTag* FromString(const char* pBuffer, int nSize, const char** pszErrorMessage = NULL, int* pnErrorOffset = NULL, int* pnErrorLine = NULL, int* pnErrorColumn = NULL); // You must delete the tag it returns
-	bool ToFile(const char* szFilename);
-	bool ToFile(FILE* pFile);
-	bool ToCppFile(const char* szFilename, const char* szVarName, const char* szHeader);
-	static GXMLTag* FromFile(const char* szFilename, const char** pszErrorMessage = NULL, int* pnErrorOffset = NULL, int* pnErrorLine = NULL, int* pnErrorColumn = NULL); // You must delete the tag it returns
+	// Convert the entire XML tree to a string. You are responsible to delete the string this returns
+	char* ToString();
 
+	// You are responsible to delete the tag this returns
+	static GXMLTag* FromString(const char* pBuffer, int nSize, const char** pszErrorMessage = NULL, int* pnErrorOffset = NULL, int* pnErrorLine = NULL, int* pnErrorColumn = NULL);
+
+	// Save the XML tree to the specified file
+	bool ToFile(const char* szFilename);
+
+	// Save the XML tree to the specified stream
+	bool ToFile(FILE* pFile);
+
+	// Save the XML tree to a text file with C++ syntax so you can embed the XML in a .CPP file
+	bool ToCppFile(const char* szFilename, const char* szVarName, const char* szHeader);
+
+	// Parse an XML file and return the root tag. You are responsible to delete the tag this returns
+	static GXMLTag* FromFile(const char* szFilename, const char** pszErrorMessage = NULL, int* pnErrorOffset = NULL, int* pnErrorLine = NULL, int* pnErrorColumn = NULL);
+
+	// Make a deep copy of this tag
 	GXMLTag* Copy();
+
 	virtual int Compare(GBucket* pBucket);
 	void DeleteChildTag(GXMLTag* pPreviousChildTag) { m_pChildren->DeleteBucket(pPreviousChildTag); }
 	GXMLTag* UnlinkChildTag(GXMLTag* pPreviousChildTag) { return (GXMLTag*)m_pChildren->Unlink(pPreviousChildTag); }

@@ -12,6 +12,8 @@
 #ifndef __GAVLTREE_H__
 #define __GAVLTREE_H__
 
+#include <stdio.h>
+
 class GAVLTree;
 class GAVLNode;
 class GAVLEnumerator;

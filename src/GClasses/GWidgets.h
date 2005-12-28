@@ -28,6 +28,7 @@ class GWidgetGroupWithCanvas;
 class GWidgetTextLabel;
 class GWidgetFileSystemBrowser;
 class GWidgetSliderTab;
+class GWidgetTextBox;
 
 
 
@@ -128,9 +129,11 @@ public:
 	virtual void Draw(GWidgetGroupWithCanvas* pTarget);
 	virtual void OnChar(char c);
 	virtual void OnMouseMove(int dx, int dy);
+	virtual void OnGetFocus() {}
+	virtual void OnLoseFocus() {}
 
 protected:
-	virtual void Grab() = 0;
+	virtual void Grab(int x, int y) = 0;
 	virtual void Release() = 0;
 };
 
@@ -158,6 +161,12 @@ public:
 	virtual void OnDestroyWidget(GWidget* pWidget);
 	int GetChildWidgetCount();
 	GWidget* GetChildWidget(int n);
+
+	virtual void OnPushTextButton(GWidgetTextButton* pButton)
+	{
+		if(m_pParent)
+			m_pParent->OnReleaseTextButton(pButton);
+	}
 
 	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
 	{
@@ -199,6 +208,18 @@ public:
 	{
 		if(m_pParent)
 			m_pParent->OnChangeListSelection(pListBox);
+	}
+
+	virtual void OnTextBoxTextChanged(GWidgetTextBox* pTextBox)
+	{
+		if(m_pParent)
+			m_pParent->OnTextBoxTextChanged(pTextBox);
+	}
+
+	virtual void OnTextBoxPressEnter(GWidgetTextBox* pTextBox)
+	{
+		if(m_pParent)
+			m_pParent->OnTextBoxPressEnter(pTextBox);
 	}
 
 	virtual void OnChar(char c)
@@ -300,7 +321,7 @@ public:
 
 protected:
 	void Update();
-	virtual void Grab();
+	virtual void Grab(int x, int y);
 	virtual void Release();
 };
 
@@ -317,6 +338,7 @@ protected:
 	bool m_alignLeft;
 	bool m_bBright;
 	bool m_dirty;
+	bool m_bOpaqueBackground;
 
 public:
 	GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText, bool bBright);
@@ -328,11 +350,12 @@ public:
 	GString* GetText() { return &m_text; }
 	void SetText(GString* pText);
 	void SetText(const char* szText);
+	void SetOpaqueBackground() { m_bOpaqueBackground = true; }
 	void SetAlignLeft(bool bAlignLeft) { m_alignLeft = bAlignLeft; m_dirty = true; }
 
 protected:
 	void Update();
-	virtual void Grab();
+	virtual void Grab(int x, int y);
 	virtual void Release();
 };
 
@@ -370,7 +393,7 @@ public:
 
 protected:
 	void Update();
-	virtual void Grab();
+	virtual void Grab(int x, int y);
 	virtual void Release();
 	void DrawIcon(int nHorizOfs, int nVertOfs);
 };
@@ -399,7 +422,7 @@ public:
 
 protected:
 	void Update();
-	virtual void Grab();
+	virtual void Grab(int x, int y);
 	virtual void Release();
 };
 
@@ -427,7 +450,7 @@ public:
 
 protected:
 	void Update();
-	virtual void Grab();
+	virtual void Grab(int x, int y);
 	virtual void Release();
 };
 
@@ -458,7 +481,7 @@ public:
 
 protected:
 	void Update();
-	virtual void Grab();
+	virtual void Grab(int x, int y);
 	virtual void Release();
 };
 
@@ -553,6 +576,8 @@ protected:
 	GImage m_image;
 	GString m_text;
 	bool m_dirty;
+	bool m_bGotFocus;
+	bool m_bPassword;
 
 public:
 	GWidgetTextBox(GWidgetGroup* pParent, int x, int y, int w, int h);
@@ -563,11 +588,14 @@ public:
 	GString* GetText() { return &m_text; }
 	void SetText(const char* szText);
 	virtual void OnChar(char c);
+	void SetPassword() { m_bPassword = true; }
 
 protected:
 	void Update();
-	virtual void Grab() {}
-	virtual void Release() {}
+	virtual void Grab(int x, int y);
+	virtual void Release();
+	virtual void OnGetFocus();
+	virtual void OnLoseFocus();
 };
 
 
@@ -580,20 +608,20 @@ protected:
 class GWidgetListBoxItem : public GWidgetAtomic
 {
 protected:
-	char* m_szText;
+	GString* m_sText;
 	int m_nIndex;
 
 public:
-	GWidgetListBoxItem(GWidgetListBox* pParent, const char* szText);
+	GWidgetListBoxItem(GWidgetListBox* pParent, const wchar_t* wszText);
 	virtual ~GWidgetListBoxItem();
 
 	virtual WidgetType GetType() { return ListBoxItem; }
 	virtual GImage* GetImage(GRect* pOutRect) { return NULL; }
 	virtual void Draw(GWidgetGroupWithCanvas* pTarget);
-	const char* GetText() { return m_szText; }
+	GString* GetText() { return m_sText; }
 
 protected:
-	virtual void Grab();
+	virtual void Grab(int x, int y);
 
 	virtual void Release()
 	{

@@ -301,6 +301,8 @@ public:
 		return pNewString;
 	}
 
+	wchar_t* Add(const wchar_t* wszString);
+
 	// Allocate space big enough to hold the contents of the queue and
 	// dump the queue into the space.  Returns a pointer to the buffer.
 	char* Add(GQueue* pQ);

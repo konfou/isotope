@@ -292,9 +292,9 @@ protected:
 // ----------------------------------------------------------------------
 
 GNeuralNet::GNeuralNet(GArffRelation* pRelation)
+: GSupervisedLearner(pRelation)
 {
 	m_pInternalRelation = NULL;
-	m_pExternalRelation = pRelation;
 	m_pNeurons = new GPointerArray(64);
 	m_pBestSet = NULL;
 	m_nWeightCount = 0;
@@ -312,6 +312,7 @@ GNeuralNet::GNeuralNet(GArffRelation* pRelation)
 	m_nMaximumEpochs = 50000;
 	m_nEpochsPerValidationCheck = 5;
 	m_dAcceptableMeanSquareError = 0.000001;
+	m_dTrainingPortion = .65;
 
 	// Step training
 	m_pTrainingDataInternal = NULL;
@@ -349,11 +350,11 @@ void GNeuralNet::MakeInternalRelationAndOutputLayer()
 	// Add the internal input nodes
 	GArffAttribute* pAttr;
 	int nValueCount;
-	int nInputCount = m_pExternalRelation->GetInputCount();
+	int nInputCount = m_pRelation->GetInputCount();
 	int n, i;
 	for(n = 0; n < nInputCount; n++)
 	{
-		pAttr = m_pExternalRelation->GetAttribute(m_pExternalRelation->GetInputIndex(n));
+		pAttr = m_pRelation->GetAttribute(m_pRelation->GetInputIndex(n));
 		if(pAttr->IsContinuous())
 			m_pInternalRelation->AddAttribute(new GArffAttribute(true, 0, NULL));
 		else
@@ -370,10 +371,10 @@ void GNeuralNet::MakeInternalRelationAndOutputLayer()
 	}
 
 	// Add the internal output nodes
-	int nOutputCount = m_pExternalRelation->GetOutputCount();
+	int nOutputCount = m_pRelation->GetOutputCount();
 	for(n = 0; n < nOutputCount; n++)
 	{
-		pAttr = m_pExternalRelation->GetAttribute(m_pExternalRelation->GetOutputIndex(n));
+		pAttr = m_pRelation->GetAttribute(m_pRelation->GetOutputIndex(n));
 		if(pAttr->IsContinuous())
 			m_pInternalRelation->AddAttribute(new GArffAttribute(false, 0, NULL));
 		else
@@ -405,13 +406,13 @@ void GNeuralNet::InputsToInternal(double* pExternal, double* pInternal)
 	GAssert(m_pMinAndRanges, "min and ranges not calculated yet");
 	GArffAttribute* pAttr;
 	int nValueCount;
-	int nInputCount = m_pExternalRelation->GetInputCount();
+	int nInputCount = m_pRelation->GetInputCount();
 	int nInternalIndex = 0;
 	int n, i, nExternalIndex;
 	for(n = 0; n < nInputCount; n++)
 	{
-		nExternalIndex = m_pExternalRelation->GetInputIndex(n);
-		pAttr = m_pExternalRelation->GetAttribute(nExternalIndex);
+		nExternalIndex = m_pRelation->GetInputIndex(n);
+		pAttr = m_pRelation->GetAttribute(nExternalIndex);
 		if(pAttr->IsContinuous())
 			pInternal[nInternalIndex++] = GArffData::Normalize(pExternal[nExternalIndex], m_pMinAndRanges[nExternalIndex + nExternalIndex], m_pMinAndRanges[nExternalIndex + nExternalIndex + 1], INPUT_MIN, INPUT_RANGE);
 		else
@@ -437,13 +438,13 @@ void GNeuralNet::OutputsToInternal(double* pExternal, double* pInternal)
 	GAssert(m_pMinAndRanges, "min and ranges not calculated yet");
 	GArffAttribute* pAttr;
 	int nValueCount;
-	int nOutputCount = m_pExternalRelation->GetOutputCount();
+	int nOutputCount = m_pRelation->GetOutputCount();
 	int nInternalIndex = m_pInternalRelation->GetOutputIndex(0);
 	int n, i, nExternalIndex;
 	for(n = 0; n < nOutputCount; n++)
 	{
-		nExternalIndex = m_pExternalRelation->GetOutputIndex(n);
-		pAttr = m_pExternalRelation->GetAttribute(nExternalIndex);
+		nExternalIndex = m_pRelation->GetOutputIndex(n);
+		pAttr = m_pRelation->GetAttribute(nExternalIndex);
 		if(pAttr->IsContinuous())
 			pInternal[nInternalIndex++] = GArffData::Normalize(pExternal[nExternalIndex], m_pMinAndRanges[nExternalIndex + nExternalIndex], m_pMinAndRanges[nExternalIndex + nExternalIndex + 1], OUTPUT_MIN, OUTPUT_RANGE);
 		else
@@ -469,14 +470,14 @@ void GNeuralNet::OutputsToExternal(double* pInternal, double* pExternal)
 	GAssert(m_pMinAndRanges, "min and ranges not calculated yet");
 	GArffAttribute* pAttr;
 	int nValueCount;
-	int nOutputCount = m_pExternalRelation->GetOutputCount();
+	int nOutputCount = m_pRelation->GetOutputCount();
 	int nInternalIndex = m_pInternalRelation->GetOutputIndex(0);
 	int n, i, nExternalIndex;
 	double dVal, dHighestVal;
 	for(n = 0; n < nOutputCount; n++)
 	{
-		nExternalIndex = m_pExternalRelation->GetOutputIndex(n);
-		pAttr = m_pExternalRelation->GetAttribute(nExternalIndex);
+		nExternalIndex = m_pRelation->GetOutputIndex(n);
+		pAttr = m_pRelation->GetAttribute(nExternalIndex);
 		if(pAttr->IsContinuous())
 			pExternal[nExternalIndex] = GArffData::Normalize(pInternal[nInternalIndex++], OUTPUT_MIN, OUTPUT_RANGE, m_pMinAndRanges[nExternalIndex + nExternalIndex], m_pMinAndRanges[nExternalIndex + nExternalIndex + 1]);
 		else
@@ -637,7 +638,7 @@ void GNeuralNet::Eval(double* pRow)
 void GNeuralNet::Criticize(double* pModel)
 {
 	// Calculate the error on all output nodes
-	GNeuron* pNeuron;
+	GNeuron* pNeuron = NULL;
 	int n;
 	double dOutput;
 	int nOutputs = m_pInternalRelation->GetOutputCount();
@@ -664,14 +665,14 @@ void GNeuralNet::Criticize(double* pModel)
 
 void GNeuralNet::MeasureMinAndRanges(GArffData* pTrainingData)
 {
-	int nAttrCount = m_pExternalRelation->GetAttributeCount();
+	int nAttrCount = m_pRelation->GetAttributeCount();
 	delete(m_pMinAndRanges);
 	m_pMinAndRanges = new double[2 * nAttrCount];
 	GArffAttribute* pAttr;
 	int n;
 	for(n = 0; n < nAttrCount; n++)
 	{
-		pAttr = m_pExternalRelation->GetAttribute(n);
+		pAttr = m_pRelation->GetAttribute(n);
 		if(pAttr->IsContinuous())
 		{
 			pTrainingData->GetMinAndRange(n, &m_pMinAndRanges[2 * n], &m_pMinAndRanges[2 * n + 1]);
@@ -741,6 +742,13 @@ void GNeuralNet::PrintNeurons()
 		pNeuron->Print();
 	}
 	printf("-----------------\n");
+}
+
+void GNeuralNet::Train(GArffData* pData)
+{
+	int nTrainRows = (int)(m_dTrainingPortion * pData->GetRowCount());
+	GArffData* pValidateData = pData->SplitBySize(nTrainRows);
+	Train(pData, pValidateData);
 }
 
 int GNeuralNet::Train(GArffData* pTrainingData, GArffData* pValidationData)

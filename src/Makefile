@@ -32,3 +32,6 @@ main: foo
 ################
 clean:
 	$(MAKE) -C Isotope clean
+	$(MAKE) -C Gasp clean
+	$(MAKE) -C GClasses clean
+

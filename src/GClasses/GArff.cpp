@@ -52,6 +52,20 @@ GArffRelation* ParseError(int nLine, const char* szProblem)
 	return NULL;
 }
 
+int GArffRelation::CountContinuousAttributes()
+{
+	int n;
+	int nAttributes = GetAttributeCount();
+	int nCount = 0;
+	for(n = 0; n < nAttributes; n++)
+	{
+		GArffAttribute* pAttr = GetAttribute(n);
+		if(pAttr->IsContinuous())
+			nCount++;
+	}
+	return nCount;
+}
+
 /*static*/ GArffRelation* GArffRelation::ParseFile(GArffData** ppOutData, const char* szFile, int nLen)
 {
 	// Parse the relation name
@@ -332,14 +346,22 @@ int GArffRelation::GetOutputIndex(int n)
 	return m_pOutputIndexes[n];
 }
 
-double GArffRelation::TotalEntropyOfAllOutputs(GArffData* pData)
+double GArffRelation::MeasureTotalOutputInfo(GArffData* pData)
 {
-	double dEntropy = 0;
+	double dInfo = 0;
 	int nOutputs = GetOutputCount();
-	int n;
+	int n, nIndex;
+	GArffAttribute* pAttr;
 	for(n = 0; n < nOutputs; n++)
-		dEntropy += pData->MeasureEntropy(this, GetOutputIndex(n));
-	return dEntropy;
+	{
+		nIndex = GetOutputIndex(n);
+		pAttr = GetAttribute(nIndex);
+		if(pAttr->IsContinuous())
+			dInfo += pData->ComputeVariance(pData->ComputeMean(nIndex), nIndex);
+		else
+			dInfo += pData->MeasureEntropy(this, nIndex);
+	}
+	return dInfo;
 }
 
 double GArffRelation::ComputeInputDistanceSquared(double* pRow1, double* pRow2)
@@ -719,38 +741,13 @@ GArffData** GArffData::SplitByAttribute(GArffRelation* pRelation, int nAttribute
 	GArffAttribute* pAttr = pRelation->GetAttribute(nAttribute);
 	GAssert(pAttr->IsInput(), "Expected an input");
 	int nCount = pAttr->GetValueCount();
-	if(nCount > 0)
-	{
-		// Split by each discreet attribute value
-		GArffData** ppParts = new GArffData*[nCount];
-		int n;
-		for(n = 0; n < nCount; n++)
-			ppParts[n] = SplitByPivot(nAttribute, (double)n);
-		GAssert(GetRowCount() == 0, "some data out of range");
-		return ppParts;
-	}
-	else
-	{
-		// Find the median
-		GPointerArray arr(GetRowCount());
-		int nRows = GetRowCount();
-		int n;
-		for(n = 0; n < nRows; n++)
-		{
-			double* pRow = GetRow(n);
-			arr.AddPointer(&pRow[nAttribute]);
-		}
-		arr.Sort(DoubleRefComparer, NULL);
-		double dMedian = *(double*)arr.GetPointer(nRows / 2);
-
-		// Split the data
-		GArffData** ppParts = new GArffData*[2];
-		ppParts[0] = SplitByPivot(nAttribute, dMedian);
-		ppParts[1] = new GArffData(MAX(8, GetRowCount()));
-		while(GetRowCount() > 0)
-			ppParts[1]->AddRow(DropRow(0));
-		return ppParts;
-	}
+	GAssert(nCount > 0, "Only discreet values are supported");
+	GArffData** ppParts = new GArffData*[nCount];
+	int n;
+	for(n = 0; n < nCount; n++)
+		ppParts[n] = SplitByPivot(nAttribute, (double)n);
+	GAssert(GetRowCount() == 0, "some data out of range");
+	return ppParts;
 }
 
 GArffData* GArffData::SplitBySize(int nRows)
@@ -794,6 +791,20 @@ void GArffData::DiscretizeNonContinuousOutputs(GArffRelation* pRelation)
 	}
 }
 
+double GArffData::ComputeMean(int nAttribute)
+{
+	double dMean = 0;
+	int nRowCount = GetRowCount();
+	double* pRow;
+	int i;
+	for(i = 0; i < nRowCount; i++)
+	{
+		pRow = GetRow(i);
+		dMean += pRow[nAttribute];
+	}
+	return dMean / nRowCount;
+}
+
 void GArffData::GetMeans(double* pOutMeans, int nAttributes)
 {
 	int n;
@@ -810,6 +821,22 @@ void GArffData::GetMeans(double* pOutMeans, int nAttributes)
 	}
 	for(n = 0; n < nAttributes; n++)
 		pOutMeans[n] /= nRowCount;
+}
+
+double GArffData::ComputeVariance(double dMean, int nAttribute)
+{
+	double dVariance = 0;
+	double* pRow;
+	double d;
+	int i;
+	int nRowCount = GetRowCount();
+	for(i = 0; i < nRowCount; i++)
+	{
+		pRow = GetRow(i);
+		d = pRow[nAttribute] - dMean;
+		dVariance += (d * d);
+	}
+	return dVariance / nRowCount;
 }
 
 void GArffData::GetVariance(double* pOutVariance, double* pMeans, int nAttributes)
@@ -1094,6 +1121,8 @@ void GArffData::RandomlyReplaceMissingData(GArffRelation* pRelation)
 void GArffData::ReplaceMissingAttributeWithMostCommonValue(GArffRelation* pRelation, int nAttribute)
 {
 	GArffAttribute* pAttr = pRelation->GetAttribute(nAttribute);
+	if(pAttr->IsContinuous())
+		return; // missing values are currently only supported for discreet values
 	int nValues = pAttr->GetValueCount();
 	int* pCounts = (int*)alloca(sizeof(int) * nValues);
 	memset(pCounts, '\0', sizeof(int) * nValues);
@@ -1139,6 +1168,129 @@ void GArffData::Print(int nAttributes)
 			printf("\t%f", pRow[i]);
 		printf("\n");
 	}
+}
+
+int ComputeMinimumVariancePivotComparer(void* pThis, void* pA, void* pB)
+{
+	int nAttr = (int)pThis;
+	double* pdA = (double*)pA;
+	double* pdB = (double*)pB;
+	if(pdA[nAttr] > pdB[nAttr])
+		return 1;
+	else
+		return -1;
+}
+
+double GArffData::ComputeMinimumVariancePivot(int nAttr)
+{
+	int nRows = GetRowCount();
+	GPointerArray arr(nRows);
+	int n;
+	for(n = 0; n < nRows; n++)
+		arr.AddPointer(GetRow(n));
+	arr.Sort(ComputeMinimumVariancePivotComparer, (void*)nAttr);
+	double dBestPivotScore = 1e100;
+	double dBestPivot = 0;
+	double dPivot, d;
+	double* pRow1;
+	double* pRow2;
+	double dMean1, dMean2, dVar1, dVar2;
+	int nCount1, nCount2, i;
+	for(n = nRows - 2; n >= 0; n--)
+	{
+		// Try a pivot
+		pRow1 = (double*)arr.GetPointer(n);
+		pRow2 = (double*)arr.GetPointer(n + 1);
+		dPivot = (pRow1[nAttr] + pRow2[nAttr]) / 2;
+
+		// Compute the mean of each half
+		dMean1 = 0;
+		dMean2 = 0;
+		nCount1 = 0;
+		nCount2 = 0;
+		for(i = 0; i < nRows; i++)
+		{
+			pRow1 = GetRow(i);
+			if(pRow1[nAttr] < dPivot)
+			{
+				nCount1++;
+				dMean1 += pRow1[nAttr];
+			}
+			else
+			{
+				nCount2++;
+				dMean2 += pRow1[nAttr];
+			}
+		}
+		dMean1 /= nCount1;
+		dMean2 /= nCount2;
+
+		// Compute the variance of each half
+		dVar1 = 0;
+		dVar2 = 0;
+		for(i = 0; i < nRows; i++)
+		{
+			pRow1 = GetRow(i);
+			if(pRow1[nAttr] < dPivot)
+			{
+				d = pRow1[nAttr] - dMean1;
+				dVar1 += (d * d);
+			}
+			else
+			{
+				d = pRow2[nAttr] - dMean2;
+				dVar2 += (d * d);
+			}
+		}
+		dVar1 /= nCount1;
+		dVar2 /= nCount2;
+		d = dVar1 + dVar2;
+		
+		// See if we've got a new best score
+		if(d < dBestPivotScore)
+		{
+			dBestPivotScore = d;
+			dBestPivot = dPivot;
+		}
+	}
+	return dBestPivot;
+}
+
+double GArffData::ComputeMinimumInfoPivot(GArffRelation* pRelation, int nAttr, double* pOutputInfo)
+{
+	int nRows = GetRowCount();
+	GPointerArray arr(nRows);
+	int n;
+	for(n = 0; n < nRows; n++)
+		arr.AddPointer(GetRow(n));
+	arr.Sort(ComputeMinimumVariancePivotComparer, (void*)nAttr);
+	double dBestPivotScore = 1e100;
+	double dBestPivot = 0;
+	double dPivot, d;
+	double* pRow1;
+	double* pRow2;
+	for(n = nRows - 2; n >= 0; n--)
+	{
+		// Try a pivot
+		pRow1 = (double*)arr.GetPointer(n);
+		pRow2 = (double*)arr.GetPointer(n + 1);
+		dPivot = (pRow1[nAttr] + pRow2[nAttr]) / 2;
+
+		// Split at the pivot and measure the sum info
+		GArffData* pData2 = SplitByPivot(nAttr, dPivot);
+		d = pRelation->MeasureTotalOutputInfo(this) + pRelation->MeasureTotalOutputInfo(pData2);
+		Merge(pData2);
+		delete(pData2);
+
+		// See if we've got a new best score
+		if(d < dBestPivotScore)
+		{
+			dBestPivotScore = d;
+			dBestPivot = dPivot;
+		}
+	}
+	*pOutputInfo = dBestPivotScore;
+	return dBestPivot;
 }
 
 void GArffData::ComputeCovarianceMatrix(GMatrix* pOutMatrix, GArffRelation* pRelation)

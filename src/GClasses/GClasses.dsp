@@ -339,6 +339,14 @@ SOURCE=.\GKNN.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GLearner.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GLearner.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GLList.cpp
 # End Source File
 # Begin Source File

@@ -27,7 +27,7 @@ GWidgetStyle::GWidgetStyle()
 	m_nLabelFontSize = 14;
 	m_fButtonFontWidth = (float).8;
 	m_fLabelFontWidth = (float)1;
-	m_cButtonTextColor = 0;
+	m_cButtonTextColor = 0xff000000;
 	m_cLabelTextColor = 0xff8888ff;
 	m_cButtonPressedTextColor = gRGB(255, 255, 255);
 	m_cTextBoxBorderColor = gRGB(255, 255, 255);
@@ -200,7 +200,7 @@ void GWidgetAtomic::Draw(GWidgetGroupWithCanvas* pTarget)
 	{
 		pCanvas = pGroup->GetImage(&rTmp);
 		if(pCanvas)
-			pCanvas->Blit(x, y, pSrcImage, &r);
+			pCanvas->AlphaBlit(x, y, pSrcImage, &r);
 		if(pGroup == pTarget)
 			break;
 		x += pGroup->m_rect.x;
@@ -242,6 +242,7 @@ void GWidgetGroup::AddWidget(GWidget* pWidget)
 {
 	m_pWidgets->AddPointer(pWidget);
 	pWidget->m_nID = m_pWidgets->GetSize() - 1;
+	m_dirty = true;
 }
 
 // todo: use a divide-and-conquer technique to improve performance
@@ -373,11 +374,28 @@ void GWidgetDialog::GrabWidget(GWidgetAtomic* pWidget, int mouseX, int mouseY)
 {
 	ReleaseWidget();
 	m_pGrabbedWidget = pWidget;
-	m_pFocusWidget = pWidget;
+	if(m_pFocusWidget != pWidget)
+	{
+		if(m_pFocusWidget)
+			m_pFocusWidget->OnLoseFocus();
+		m_pFocusWidget = pWidget;
+		if(pWidget)
+		pWidget->OnGetFocus();
+	}
 	m_prevMouseX = mouseX;
 	m_prevMouseY = mouseY;
 	if(pWidget)
-		pWidget->Grab();
+	{
+		GWidget* pTmp;
+		GRect* pRect;
+		for(pTmp = pWidget; pTmp; pTmp = pWidget->GetParent())
+		{
+			pRect = pWidget->GetRect();
+			mouseX -= pRect->x;
+			mouseY -= pRect->y;
+		}
+		pWidget->Grab(mouseX, mouseY);
+	}
 }
 
 void GWidgetDialog::ReleaseWidget()
@@ -434,10 +452,11 @@ GWidgetTextButton::GWidgetTextButton(GWidgetGroup* pParent, int x, int y, int w,
 {
 }
 
-/*virtual*/ void GWidgetTextButton::Grab()
+/*virtual*/ void GWidgetTextButton::Grab(int x, int y)
 {
 	m_pressed = true;
 	Draw(NULL);
+	m_pParent->OnPushTextButton(this);
 }
 
 /*virtual*/ void GWidgetTextButton::Release()
@@ -508,6 +527,7 @@ GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, i
 	m_text.Copy(pText);
 	m_alignLeft = true;
 	m_bBright = bBright;
+	m_bOpaqueBackground = false;
 	m_dirty = true;
 }
 
@@ -515,7 +535,7 @@ GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, i
 {
 }
 
-/*virtual*/ void GWidgetTextLabel::Grab()
+/*virtual*/ void GWidgetTextLabel::Grab(int x, int y)
 {
 	m_pParent->OnClickTextLabel(this);
 }
@@ -527,7 +547,7 @@ GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, i
 void GWidgetTextLabel::Update()
 {
 	m_dirty = false;
-	m_image.Clear(0);
+	m_image.Clear(m_bOpaqueBackground ? 0xff000000 : 0x00000000);
 	m_pStyle->DrawLabelText(&m_image, 0, 0, m_image.GetWidth(), m_image.GetHeight(), &m_text, m_alignLeft, m_bBright);
 }
 
@@ -579,7 +599,7 @@ GWidgetVCRButton::GWidgetVCRButton(GWidgetGroup* pParent, int x, int y, int w, i
 {
 }
 
-/*virtual*/ void GWidgetVCRButton::Grab()
+/*virtual*/ void GWidgetVCRButton::Grab(int x, int y)
 {
 	m_pressed = true;
 	Draw(NULL);
@@ -704,7 +724,7 @@ GWidgetProgressBar::GWidgetProgressBar(GWidgetGroup* pParent, int x, int y, int 
 {
 }
 
-/*virtual*/ void GWidgetProgressBar::Grab()
+/*virtual*/ void GWidgetProgressBar::Grab(int x, int y)
 {
 }
 
@@ -715,9 +735,7 @@ GWidgetProgressBar::GWidgetProgressBar(GWidgetGroup* pParent, int x, int y, int 
 void GWidgetProgressBar::Update()
 {
 	m_dirty = false;
-
-	// Draw the non-pressed image
-	m_image.Clear(0);
+	m_image.Clear(0xff000000);
 	int w = m_image.GetWidth();
 	int h = m_image.GetHeight();
 	if(m_fProgress > 0)
@@ -765,7 +783,7 @@ GWidgetCheckBox::GWidgetCheckBox(GWidgetGroup* pParent, int x, int y, int w, int
 {
 }
 
-/*virtual*/ void GWidgetCheckBox::Grab()
+/*virtual*/ void GWidgetCheckBox::Grab(int x, int y)
 {
 	// todo: gray the box?
 }
@@ -840,7 +858,7 @@ GWidgetSliderTab::GWidgetSliderTab(GWidgetGroup* pParent, int x, int y, int w, i
 {
 }
 
-/*virtual*/ void GWidgetSliderTab::Grab()
+/*virtual*/ void GWidgetSliderTab::Grab(int x, int y)
 {
 	m_pParent->OnClickTab(this);
 }
@@ -1063,6 +1081,8 @@ void GWidgetVertScrollBar::SetSize(int w, int h)
 	m_dirty = false;
 
 	// Calculations
+	if(m_nModelSize < m_nViewSize)
+		m_nModelSize = m_nViewSize;
 	int wid = m_image.GetWidth();
 	int hgt = m_image.GetHeight();
 	int nButtonSize = GetButtonHeight();
@@ -1072,6 +1092,8 @@ void GWidgetVertScrollBar::SetSize(int w, int h)
 		nTabSize = wid;
 	if(nTabSize > nSlideAreaSize)
 		nTabSize = nSlideAreaSize;
+	if(m_nPos < 0)
+		m_nPos = 0;
 	int nTabPos = m_nPos * nSlideAreaSize / m_nModelSize;
 	if(nTabPos > nSlideAreaSize - nTabSize)
 		nTabPos = nSlideAreaSize - nTabSize;
@@ -1157,6 +1179,8 @@ GWidgetTextBox::GWidgetTextBox(GWidgetGroup* pParent, int x, int y, int w, int h
 {
 	m_image.SetSize(w, h);
 	m_dirty = true;
+	m_bGotFocus = false;
+	m_bPassword = false;
 }
 
 /*virtual*/ GWidgetTextBox::~GWidgetTextBox()
@@ -1191,7 +1215,7 @@ void GWidgetTextBox::Update()
 
 	// Draw the background area
 	m_pStyle->DrawVertCurvedInSurface(&m_image, 0, 0, w, h);
-	m_image.DrawBox(0, 0, w - 1, h - 1, m_pStyle->GetTextBoxBorderColor(), false);
+	m_image.DrawBox(0, 0, w - 1, h - 1, m_bGotFocus ? m_pStyle->GetTextBoxBorderColor() : m_pStyle->GetTextBoxSelectedTextColor(), false);
 
 	// Draw the text
 	char* szText = (char*)alloca(m_text.GetLength() + 1);
@@ -1201,42 +1225,77 @@ void GWidgetTextBox::Update()
 		nCursorPos = w - 3;
 	GRect r;
 	r.x = 1;
-	r.y = 1;
+	r.y = 3;
 	r.w = w - 2;
-	r.h = h - 2;
+	r.h = h - 4;
+	if(m_bPassword)
+	{
+		int i;
+		for(i = 0; szText[i] != '\0'; i++)
+			szText[i] = '#';
+	}
 	m_image.DrawHardText(&r, szText, m_pStyle->GetTextBoxTextColor(), 1);
 
 	// Draw the cursor
-	m_pStyle->DrawCursor(&m_image, nCursorPos, 2, 2, h - 5);
+	if(m_bGotFocus)
+		m_pStyle->DrawCursor(&m_image, nCursorPos, 2, 2, h - 5);
 }
 
 /*virtual*/ void GWidgetTextBox::OnChar(char c)
 {
 	if(c == '\b')
 		m_text.RemoveLastChar();
+	else if(c == '\r')
+	{
+		m_pParent->OnTextBoxPressEnter(this);
+		return;
+	}
 	else
 		m_text.Add(c);
+	m_pParent->OnTextBoxTextChanged(this);
+	m_dirty = true;
+	Draw(NULL);
+}
+
+/*virtual*/ void GWidgetTextBox::Grab(int x, int y)
+{
+}
+
+/*virtual*/ void GWidgetTextBox::Release()
+{
+}
+
+/*virtual*/ void GWidgetTextBox::OnGetFocus()
+{
+	m_bGotFocus = true;
+	m_dirty = true;
+	Draw(NULL);
+}
+
+/*virtual*/ void GWidgetTextBox::OnLoseFocus()
+{
+	m_bGotFocus = false;
 	m_dirty = true;
 	Draw(NULL);
 }
 
 // ----------------------------------------------------------------------
 
-GWidgetListBoxItem::GWidgetListBoxItem(GWidgetListBox* pParent, const char* szText)
+GWidgetListBoxItem::GWidgetListBoxItem(GWidgetListBox* pParent, const wchar_t* wszText)
 	: GWidgetAtomic((GWidgetGroup*)pParent, 0, 0, 0, 0)
 {
+	m_sText = new GString();
+	m_sText->Copy(wszText);
 	m_nIndex = pParent->GetSize() - 1;
 	pParent->SetItemRect(&m_rect, m_nIndex);
-	m_szText = new char[strlen(szText) + 1];
-	strcpy(m_szText, szText);
 }
 
 /*virtual*/ GWidgetListBoxItem::~GWidgetListBoxItem()
 {
-	delete(m_szText);
+	delete(m_sText);
 }
 
-/*virtual*/ void GWidgetListBoxItem::Grab()
+/*virtual*/ void GWidgetListBoxItem::Grab(int x, int y)
 {
 	((GWidgetListBox*)m_pParent)->OnGrabItem(m_nIndex);
 }
@@ -1319,22 +1378,24 @@ void GWidgetListBox::SetSize(int w, int h)
 	}
 
 	// Draw the items
+	char szAnsi[256];
 	GWidgetListBoxItem* pItem;
-	const char* szLine;
 	int nCount = m_pWidgets->GetSize();
 	int n;
+	GString* pText;
 	for(n = 0; n < nCount; n++)
 	{
 		if(r.y >= h)
 			break;
 		pItem = GetItem(n);
-		szLine = pItem->GetText();
+		pText = pItem->GetText();
+		pText->GetAnsi(szAnsi, 256);
 		if(n == m_nSelectedIndex)
 		{
 			m_pStyle->DrawVertCurvedOutSurface(&m_image, r.x, r.y, r.w, r.h);
 			r.y += 2;
 			r.h -= 2;
-			m_image.DrawHardText(&r, szLine, m_pStyle->GetTextBoxSelectedTextColor(), 1);
+			m_image.DrawHardText(&r, szAnsi, m_pStyle->GetTextBoxSelectedTextColor(), 1);
 			r.y -= 2;
 			r.h += 2;
 		}
@@ -1342,7 +1403,7 @@ void GWidgetListBox::SetSize(int w, int h)
 		{
 			r.y += 2;
 			r.h -= 2;
-			m_image.DrawHardText(&r, szLine, m_pStyle->GetTextBoxTextColor(), 1);
+			m_image.DrawHardText(&r, szAnsi, m_pStyle->GetTextBoxTextColor(), 1);
 			r.y -= 2;
 			r.h += 2;
 		}

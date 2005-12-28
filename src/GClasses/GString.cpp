@@ -282,6 +282,17 @@ void GString::GetAnsi(char* pBuf)
 	pBuf[n] = '\0';
 }
 
+void GString::GetAnsi(char* pBuf, int nBufSize)
+{
+	if(m_pQueue)
+		FlushQueue();
+	nBufSize--;
+	int n;
+	for(n = 0; n < m_nStringLength && n < nBufSize; n++)
+		pBuf[n] = (char)m_pBuffer[n];
+	pBuf[n] = '\0';
+}
+
 int GString::CompareTo(GString* pString)
 {
 	return CompareTo(pString->GetString());
@@ -310,23 +321,6 @@ inline wchar_t WCToLower(wchar_t wc)
 		return wc + L'a'- L'A';
 	return wc;
 }
-
-#ifndef WIN32
-int wcsicmp(const wchar_t* pA, const wchar_t* pB)
-{
-	while(true)
-	{
-		if(*pA < *pB)
-			return -1;
-		else if(*pA > *pB)
-			return 1;
-		else if(*pA == L'\0')
-			return 0;
-		pA++;
-		pB++;
-	}
-}
-#endif // !WIN32
 
 int GString::CompareIgnoringCase(const wchar_t* wszString)
 {
@@ -431,13 +425,13 @@ void GString::Format(const wchar_t* wszFormat, ...)
 
 /*static*/ void GString::StrCpy(char* szDest, const char* szSrc, int nMaxSize)
 {
-   nMaxSize--;
-   if(nMaxSize < 0)
-      return;
-   int n;
-   for(n = 0; szSrc[n] != '\0' && n < nMaxSize; n++)
-      szDest[n] = szSrc[n];
-   szDest[n] = '\0';
+	nMaxSize--;
+	if(nMaxSize < 0)
+		return;
+	int n;
+	for(n = 0; szSrc[n] != '\0' && n < nMaxSize; n++)
+		szDest[n] = szSrc[n];
+	szDest[n] = '\0';
 }
 
 /*static*/ void GString::StrIns(char* szString, const char* szInsertMe)

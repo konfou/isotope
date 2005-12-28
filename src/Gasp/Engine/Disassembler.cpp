@@ -195,7 +195,24 @@ void Disassembler::InstructionToText(EInstrArray* pEInstrArray, int nInstr)
 	// Show Parameters
 	char szTmp[64];
 	int nParamCount = pInstr->nParamCount;
-	if(pInstr->pMethod != Instr_StartScope && pInstr->pMethod != Instr_EndScope)
+	if(pInstr->pMethod == Instr_StartScope || pInstr->pMethod == Instr_EndScope)
+	{
+	}
+	else if(pInstr->pMethod == Instr_SetFloatWithConst)
+	{
+		GAssert(nParamCount == 3, "unexpected number of parameters");
+		Add("(", &nPos);
+		itoa(pInstruction->GetParam(0), szTmp, 10);
+		Add(szTmp, &nPos);
+		Add(", ", &nPos);
+		double dTmp = 0;
+		((unsigned int*)&dTmp)[0] = pInstruction->GetParam(1);
+		((unsigned int*)&dTmp)[1] = pInstruction->GetParam(2);
+		sprintf(szTmp, "%f", dTmp);
+		Add(szTmp, &nPos);
+		Add(")", &nPos);
+	}
+	else
 	{
 		Add("(", &nPos);
 		int n;

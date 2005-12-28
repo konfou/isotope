@@ -8,6 +8,7 @@
 		<Image id="av3action" File="anim/fox3action.png" />
 		<Image id="cloud" File="obj/empty.png" />
 		<Image id="flag" File="obj/flag.png" />
+		<Image id="selection" File="obj/selection.png" />
 		<Image id="loading" File="bkg/loading.png" />
 	</Images>
 	<Animations>

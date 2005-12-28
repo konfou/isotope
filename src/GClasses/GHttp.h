@@ -79,6 +79,8 @@ protected:
 	void ProcessHeader(const unsigned char* szData, int nSize);
 	void ProcessBody(const unsigned char* szData, int nSize);
 	void ProcessChunkBody(const unsigned char* szData, int nSize);
+	void GimmeWhatYouGot();
+
 };
 
 
@@ -94,6 +96,7 @@ protected:
 	GEZSocketServer* m_pSocket;
 	GPointerArray* m_pBuffers;
 	GQueue* m_pQ;
+	char m_szContentType[64];
 
 public:
 	GHttpServer(int nPort);
@@ -107,6 +110,8 @@ public:
 
 	// Parses the parameters in a URL and puts them in a table
 	static void ParseParams(GStringHeap* pStringHeap, GConstStringHashTable* pTable, const char* szParams);
+
+	void SetContentType(const char* szContentType);
 
 protected:
 	virtual void OnProcessLine(int nConnection, const char* szLine) {}

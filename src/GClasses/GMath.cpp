@@ -21,7 +21,8 @@
 /*static*/ double GMath::gamma(double x)
 {
     int i, k, m;
-    double ga, gr, r, z;
+    double ga, gr, z;
+    double r = 0;
 
     static double g[] =
 	{

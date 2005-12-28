@@ -52,6 +52,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GImage.cpp\
                    $(GCLASSES_PATH)/GKeyPair.cpp\
                    $(GCLASSES_PATH)/GKNN.cpp\
+                   $(GCLASSES_PATH)/GLearner.cpp\
                    $(GCLASSES_PATH)/GLList.cpp\
                    $(GCLASSES_PATH)/GManifold.cpp\
                    $(GCLASSES_PATH)/GMath.cpp\
@@ -116,6 +117,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GImage.h\
                    $(GCLASSES_PATH)/GKeyPair.h\
                    $(GCLASSES_PATH)/GKNN.h\
+                   $(GCLASSES_PATH)/GLearner.h\
                    $(GCLASSES_PATH)/GLList.h\
                    $(GCLASSES_PATH)/GMacros.h\
                    $(GCLASSES_PATH)/GManifold.h\

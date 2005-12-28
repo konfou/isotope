@@ -11,12 +11,14 @@ struct GNaiveBayesInputAttr
 	int m_nValues;
 	int* m_pValueCounts;
 
-	GNaiveBayesInputAttr(GArffRelation* pRelation, int nInput)
+	GNaiveBayesInputAttr(GArffRelation* pRelation, int nInput, int nDiscretizeBuckets)
 	{
 		m_nIndex = pRelation->GetInputIndex(nInput);
 		GArffAttribute* pAttrInput = pRelation->GetAttribute(m_nIndex);
-		GAssert(!pAttrInput->IsContinuous(), "only discreet values are supported");
-		m_nValues = pAttrInput->GetValueCount();
+		if(pAttrInput->IsContinuous())
+			m_nValues = nDiscretizeBuckets;
+		else
+			m_nValues = pAttrInput->GetValueCount();
 		m_pValueCounts = new int[m_nValues];
 		memset(m_pValueCounts, '\0', sizeof(int) * m_nValues);
 	}
@@ -46,14 +48,17 @@ struct GNaiveBayesInputAttr
 	void AddTrainingSample(double* pRow)
 	{
 		int nValue = (int)pRow[m_nIndex];
-		if(nValue >= 0)
+		if(nValue >= 0 && nValue < m_nValues)
 			m_pValueCounts[nValue]++;
 	}
 
 	int Eval(double* pRow)
 	{
 		int nValue = (int)pRow[m_nIndex];
-		return m_pValueCounts[nValue];
+		if(nValue >= 0 && nValue <= m_nValues)
+			return m_pValueCounts[nValue];
+		else
+			return 0;
 	}
 
 	GXMLTag* ToXml(const char* szName)
@@ -83,14 +88,14 @@ struct GNaiveBayesOutputValue
 	int m_nInputs;
 	struct GNaiveBayesInputAttr** m_pInputs;
 
-	GNaiveBayesOutputValue(GArffRelation* pRelation, int nValue)
+	GNaiveBayesOutputValue(GArffRelation* pRelation, int nValue, int nDiscretizeBuckets)
 	{
 		m_nCount = 0;
 		m_nInputs = pRelation->GetInputCount();
 		m_pInputs = new struct GNaiveBayesInputAttr*[m_nInputs];
 		int n;
 		for(n = 0; n < m_nInputs; n++)
-			m_pInputs[n] = new struct GNaiveBayesInputAttr(pRelation, n);
+			m_pInputs[n] = new struct GNaiveBayesInputAttr(pRelation, n, nDiscretizeBuckets);
 	}
 
 	GNaiveBayesOutputValue(GXMLTag* pTag)
@@ -166,16 +171,18 @@ struct GNaiveBayesOutputAttr
 	int m_nValues;
 	struct GNaiveBayesOutputValue** m_pValues;
 
-	GNaiveBayesOutputAttr(GArffRelation* pRelation, int nOutput)
+	GNaiveBayesOutputAttr(GArffRelation* pRelation, int nOutput, int nDiscretizeBuckets)
 	{
 		m_nIndex = pRelation->GetOutputIndex(nOutput);
 		GArffAttribute* pAttrOutput = pRelation->GetAttribute(m_nIndex);
-		GAssert(!pAttrOutput->IsContinuous(), "only discreet values are supported");
-		m_nValues = pAttrOutput->GetValueCount();
+		if(pAttrOutput->IsContinuous())
+			m_nValues = nDiscretizeBuckets;
+		else
+			m_nValues = pAttrOutput->GetValueCount();
 		m_pValues = new struct GNaiveBayesOutputValue*[m_nValues];
 		int n;
 		for(n = 0; n < m_nValues; n++)
-			m_pValues[n] = new struct GNaiveBayesOutputValue(pRelation, n);
+			m_pValues[n] = new struct GNaiveBayesOutputValue(pRelation, n, nDiscretizeBuckets);
 	}
 
 	GNaiveBayesOutputAttr(GXMLTag* pTag)
@@ -203,7 +210,7 @@ struct GNaiveBayesOutputAttr
 	void AddTrainingSample(double* pRow)
 	{
 		int nValue = (int)pRow[m_nIndex];
-		if(nValue >= 0)
+		if(nValue >= 0 && nValue < m_nValues)
 			m_pValues[nValue]->AddTrainingSample(pRow);
 	}
 
@@ -244,28 +251,53 @@ struct GNaiveBayesOutputAttr
 // --------------------------------------------------------------------
 
 GNaiveBayes::GNaiveBayes(GArffRelation* pRelation)
+: GSupervisedLearner(pRelation)
 {
 	m_nEquivalentSampleSize = 3;
 	m_nSampleCount = 0;
 	m_nOutputs = pRelation->GetOutputCount();
 	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_nOutputs];
 	int n;
+	if(pRelation->CountContinuousAttributes() > 0)
+	{
+		int nAttributes = m_pRelation->GetAttributeCount();
+		m_pDiscretizeMins = new double[nAttributes];
+		m_pDiscretizeRanges = new double[nAttributes];
+		for(n = 0; n < nAttributes; n++)
+		{
+			m_pDiscretizeMins[n] = 0;
+			m_pDiscretizeRanges[n] = 1;
+		}
+		m_nDiscretizeBuckets = 10;
+	}
+	else
+	{
+		m_pDiscretizeMins = NULL;
+		m_pDiscretizeRanges = NULL;
+		m_nDiscretizeBuckets = 0;
+	}
 	for(n = 0; n < m_nOutputs; n++)
-		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(pRelation, n);
+		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(pRelation, n, m_nDiscretizeBuckets);
 }
 
 GNaiveBayes::GNaiveBayes(GXMLTag* pTag)
+: GSupervisedLearner(NULL)
 {
 	m_nEquivalentSampleSize = 3;
 	m_nSampleCount = atoi(pTag->GetAttribute("Samples")->GetValue());
 	m_nOutputs = pTag->GetChildTagCount();
 	m_pOutputs = new struct GNaiveBayesOutputAttr*[m_nOutputs];
 	GXMLTag* pChildTag = pTag->GetFirstChildTag();
+	m_pDiscretizeMins = NULL;
+	m_pDiscretizeRanges = NULL;
+	m_nDiscretizeBuckets = 0;
 	int n;
 	for(n = 0; n < m_nOutputs; n++)
 	{
 		m_pOutputs[n] = new struct GNaiveBayesOutputAttr(pChildTag);
 		pChildTag = pTag->GetNextChildTag(pChildTag);
+		m_pDiscretizeMins[n] = 0;
+		m_pDiscretizeRanges[n] = 1;
 	}
 }
 
@@ -275,18 +307,67 @@ GNaiveBayes::~GNaiveBayes()
 	for(n = 0; n < m_nOutputs; n++)
 		delete(m_pOutputs[n]);
 	delete(m_pOutputs);
+//	delete(m_pDiscretizeMins);
+//	delete(m_pDiscretizeRanges);
+}
+
+void GNaiveBayes::DiscretizeRow(double* pRow)
+{
+	int nAttributes = m_pRelation->GetAttributeCount();
+	int i;
+	GArffAttribute* pAttr;
+	for(i = 0; i < nAttributes; i++)
+	{
+		pAttr = m_pRelation->GetAttribute(i);
+		if(pAttr->IsContinuous())
+			pRow[i] = GArffData::Normalize(pRow[i], m_pDiscretizeMins[i], m_pDiscretizeRanges[i], .5, m_nDiscretizeBuckets); // the .5 is so that when we cast from double to int, it will round to the nearest discreet value
+	}
+}
+
+void GNaiveBayes::UndiscretizeRow(double* pRow)
+{
+	int nAttributes = m_pRelation->GetAttributeCount();
+	int i;
+	GArffAttribute* pAttr;
+	for(i = 0; i < nAttributes; i++)
+	{
+		pAttr = m_pRelation->GetAttribute(i);
+		if(pAttr->IsContinuous())
+			pRow[i] = GArffData::Normalize(pRow[i], .5, m_nDiscretizeBuckets, m_pDiscretizeMins[i], m_pDiscretizeRanges[i]);
+	}
 }
 
 void GNaiveBayes::AddTrainingSample(double* pRow)
 {
+	if(m_pDiscretizeMins)
+		DiscretizeRow(pRow);
 	int n;
 	for(n = 0; n < m_nOutputs; n++)
 		m_pOutputs[n]->AddTrainingSample(pRow);
 	m_nSampleCount++;
+	if(m_pDiscretizeMins)
+		UndiscretizeRow(pRow);
+}
+
+void GNaiveBayes::ComputeDiscretizeRanges(GArffData* pData)
+{
+	int i;
+	GArffAttribute* pAttr;
+	int nAttributes = m_pRelation->GetAttributeCount();
+	for(i = 0; i < nAttributes; i++)
+	{
+		pAttr = m_pRelation->GetAttribute(i);
+		if(pAttr->IsContinuous())
+			pData->GetMinAndRange(i, &m_pDiscretizeMins[i], &m_pDiscretizeRanges[i]);
+		if(m_pDiscretizeRanges[i] < .00001)
+			m_pDiscretizeRanges[i] = .00001;
+	}
 }
 
 void GNaiveBayes::Train(GArffData* pData)
 {
+	if(m_pDiscretizeMins)
+		ComputeDiscretizeRanges(pData);
 	int nCount = pData->GetRowCount();
 	int n;
 	double* pRow;
@@ -297,14 +378,23 @@ void GNaiveBayes::Train(GArffData* pData)
 	}
 }
 
-double GNaiveBayes::Eval(double* pRow)
+double GNaiveBayes::EvalWithConfidence(double* pRow)
 {
 	GAssert(m_nSampleCount > 0, "no data");
 	int n;
 	double dConfidence = 1;
+	if(m_pDiscretizeMins)
+		DiscretizeRow(pRow);
 	for(n = 0; n < m_nOutputs; n++)
 		dConfidence *= m_pOutputs[n]->Eval(pRow, m_nEquivalentSampleSize);
+	if(m_pDiscretizeMins)
+		UndiscretizeRow(pRow);
 	return dConfidence;
+}
+
+void GNaiveBayes::Eval(double* pRow)
+{
+	EvalWithConfidence(pRow);
 }
 
 GXMLTag* GNaiveBayes::ToXml(GPointerArray* pAttrNames)

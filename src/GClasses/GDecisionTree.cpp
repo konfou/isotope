@@ -39,6 +39,7 @@ protected:
 	int m_nSampleSize;
 	GDecisionTreeNode** m_ppChildren;
 	double* m_pOutputValues;
+	double m_dPivot;
 
 public:
 	GDecisionTreeNode()
@@ -48,6 +49,7 @@ public:
 		m_nSampleSize = 0;
 		m_ppChildren = NULL;
 		m_pOutputValues = NULL;
+		m_dPivot = 0;
 	}
 
 	~GDecisionTreeNode()
@@ -68,6 +70,7 @@ public:
 		pNewNode->m_nAttribute = m_nAttribute;
 		pNewNode->m_nChildren = m_nChildren;
 		pNewNode->m_nSampleSize = m_nSampleSize;
+		pNewNode->m_dPivot = m_dPivot;
 		if(m_ppChildren)
 		{
 			GAssert(!m_pOutputValues, "Can't have children and output values");
@@ -100,7 +103,10 @@ public:
 		if(m_ppChildren)
 		{
 			GArffAttribute* pAttr = pRelation->GetAttribute(m_nAttribute);
-			printf("%s -> %s?\n", szValue, pAttr->GetName());
+			if(pAttr->IsContinuous())
+				printf("%s -> %s (%f)?\n", szValue, pAttr->GetName(), m_dPivot);
+			else
+				printf("%s -> %s?\n", szValue, pAttr->GetName());
 			for(n = 0; n < m_nChildren; n++)
 				m_ppChildren[n]->Print(pRelation, nSpaces + 1, pAttr->GetValue(n));
 		}
@@ -119,6 +125,8 @@ public:
 		}
 	}
 
+	// Recursive function that counts the number of times a particular
+	// value is found in a particular output in this branch of the tree
 	void CountValues(int nOutput, int* pnCounts)
 	{
 		if(m_ppChildren)
@@ -168,7 +176,7 @@ public:
 				int* pnCounts = hCounts.Get();
 				memset(pnCounts, '\0', sizeof(int) * nValueCount);
 				CountValues(n, pnCounts);
-	
+
 				// Find the most frequent value
 				int i;
 				int nMax = 0;
@@ -191,9 +199,38 @@ public:
 
 // -----------------------------------------------------------------
 
-GDecisionTree::GDecisionTree(GArffRelation* pRelation, GArffData* pTrainingData)
+GDecisionTree::GDecisionTree(GArffRelation* pRelation)
+: GSupervisedLearner(pRelation)
 {
-	m_pRelation = pRelation;
+	m_pRoot = NULL;
+	m_dTrainingPortion = .65;
+}
+
+GDecisionTree::GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy)
+: GSupervisedLearner(pThat->m_pRelation)
+{
+	m_pRelation = pThat->m_pRelation;
+	m_pRoot = pThat->m_pRoot->DeepCopy(pThat->m_pRelation, pInterestingNode, ppOutInterestingCopy);
+}
+
+GDecisionTree::~GDecisionTree()
+{
+	delete(m_pRoot);
+}
+
+void GDecisionTree::Train(GArffData* pData)
+{
+	int nTrainRows = (int)(m_dTrainingPortion * pData->GetRowCount());
+	GArffData* pPruningData = pData->SplitBySize(nTrainRows);
+	TrainWithoutPruning(pData);
+	Prune(pPruningData);
+	pData->Merge(pPruningData);
+	delete(pPruningData);
+}
+
+void GDecisionTree::TrainWithoutPruning(GArffData* pTrainingData)
+{
+	delete(m_pRoot);
 	if(pTrainingData->GetRowCount() > 0)
 	{
 		m_pRoot = new GDecisionTreeNode();
@@ -209,23 +246,12 @@ GDecisionTree::GDecisionTree(GArffRelation* pRelation, GArffData* pTrainingData)
 		m_pRoot = NULL;
 }
 
-GDecisionTree::GDecisionTree(GDecisionTree* pThat, GDecisionTreeNode* pInterestingNode, GDecisionTreeNode** ppOutInterestingCopy)
-{
-	m_pRelation = pThat->m_pRelation;
-	m_pRoot = pThat->m_pRoot->DeepCopy(pThat->m_pRelation, pInterestingNode, ppOutInterestingCopy);
-}
-
-GDecisionTree::~GDecisionTree()
-{
-	delete(m_pRoot);
-}
-
 // This constructs the decision tree in a recursive depth-first manner
 void GDecisionTree::BuildNode(GDecisionTreeNode* pNode, GArffData* pData, bool* pUsedAttributes)
 {
-	// Log debug stuff
 	int n;
 #ifdef DEBUGLOG
+	// Log debug stuff
 	dbglog1("BuildNode from %d rows\n", pData->GetRowCount());
 	int nAttrCount = pRelation->GetAttributeCount();
 	for(n = 0; n < pData->GetRowCount(); n++)
@@ -244,12 +270,14 @@ void GDecisionTree::BuildNode(GDecisionTreeNode* pNode, GArffData* pData, bool* 
 
 	// Pick the best attribute to divide on
 	pNode->m_nSampleSize = pData->GetRowCount();
-	GAssert(pNode->m_nSampleSize > 0, "Can't work with no data");
-	double dBestGain = 0;
+	GAssert(pNode->m_nSampleSize > 0, "Can't work without data");
+	double dBestGain = -1e100;
+	double dBestPivot = 0;
 	int nBestAttribute = -1;
 	if(!pData->IsOutputHomogenous(m_pRelation))
 	{
 		double dGain;
+		double dPivot;
 		int nAttr;
 		int nInputCount = m_pRelation->GetInputCount();
 		for(n = 0; n < nInputCount; n++)
@@ -257,11 +285,12 @@ void GDecisionTree::BuildNode(GDecisionTreeNode* pNode, GArffData* pData, bool* 
 			nAttr = m_pRelation->GetInputIndex(n);
 			if(pUsedAttributes[nAttr])
 				continue;
-			dGain = MeasureInfoGain(pData, nAttr);
+			dGain = MeasureInfoGain(pData, nAttr, &dPivot);
 			if(nBestAttribute < 0 || dGain > dBestGain)
 			{
 				dBestGain = dGain;
 				nBestAttribute = nAttr;
+				dBestPivot = dPivot;
 			}
 		}
 	}
@@ -281,13 +310,25 @@ void GDecisionTree::BuildNode(GDecisionTreeNode* pNode, GArffData* pData, bool* 
 	// Create child nodes
 	pUsedAttributes[nBestAttribute] = true;
 	pNode->m_nAttribute = nBestAttribute;
+	pNode->m_dPivot = dBestPivot;
 	GArffAttribute* pAttr = m_pRelation->GetAttribute(nBestAttribute);
-	dbglog2("Pivot=%d (%s)\n", nBestAttribute, pAttr->GetName());
+	dbglog2("Attribute=%d (%s)\n", nBestAttribute, pAttr->GetName());
 	GAssert(pAttr->IsInput(), "Expected an input");
-	GArffData** ppParts = pData->SplitByAttribute(m_pRelation, nBestAttribute);
-	int nChildCount = pAttr->GetValueCount();
-	if(nChildCount == 0)
-		nChildCount = 2; // Real-valued attributes are split in half
+	GArffData** ppParts;
+	int nChildCount;
+	if(pAttr->IsContinuous())
+	{
+		ppParts = new GArffData*[2];
+		ppParts[0] = pData->SplitByPivot(nBestAttribute, dBestPivot);
+		ppParts[1] = new GArffData(pData->GetRowCount());
+		ppParts[1]->Merge(pData);
+		nChildCount = 2;
+	}
+	else
+	{
+		ppParts = pData->SplitByAttribute(m_pRelation, nBestAttribute);
+		nChildCount = pAttr->GetValueCount();
+	}
 	pNode->m_nChildren = nChildCount;
 	pNode->m_ppChildren = new GDecisionTreeNode*[nChildCount];
 	for(n = 0; n < nChildCount; n++)
@@ -301,7 +342,7 @@ void GDecisionTree::BuildNode(GDecisionTreeNode* pNode, GArffData* pData, bool* 
 		}
 		else
 		{
-			// There's no data for this child, so just guess the most common outputs of the parent
+			// There's no data for this child, so just use the most common outputs of the parent
 			pChildNode->m_nSampleSize = 0;
 			GAssert(hMostCommonOutputs.Get(), "no outputs");
 			pChildNode->m_pOutputValues = new double[m_pRelation->GetOutputCount()];
@@ -313,34 +354,43 @@ void GDecisionTree::BuildNode(GDecisionTreeNode* pNode, GArffData* pData, bool* 
 	pUsedAttributes[nBestAttribute] = false;
 }
 
-double GDecisionTree::MeasureInfoGain(GArffData* pData, int nAttribute)
+double GDecisionTree::MeasureInfoGain(GArffData* pData, int nAttribute, double* pPivot)
 {
-	// Measure initial entropy
-	double dGain = m_pRelation->TotalEntropyOfAllOutputs(pData);
+	// Measure initial output info
+	double dGain = m_pRelation->MeasureTotalOutputInfo(pData);
 	if(dGain == 0)
 		return 0;
 
-	// Seperate by attribute values and measure difference in entropy
+	// Seperate by attribute values and measure difference in output info
 	GArffAttribute* pAttr = m_pRelation->GetAttribute(nAttribute);
 	GAssert(pAttr->IsInput(), "expected an input attribute");
 	if(pAttr->IsContinuous())
-		return 0; // todo: support continuous values
-	int nRowCount = pData->GetRowCount();
-	GArffData** ppParts = pData->SplitByAttribute(m_pRelation, nAttribute);
-	int nCount = pAttr->GetValueCount();
-	int n;
-	for(n = 0; n < nCount; n++)
 	{
-		dGain -= ((double)ppParts[n]->GetRowCount() / nRowCount) * m_pRelation->TotalEntropyOfAllOutputs(ppParts[n]);
-		pData->Merge(ppParts[n]);
-		delete(ppParts[n]);
+		double dSumOutputInfo;
+		*pPivot = pData->ComputeMinimumInfoPivot(m_pRelation, nAttribute, &dSumOutputInfo);
+		dGain -= dSumOutputInfo;
+		return dGain;
 	}
-	delete(ppParts);
-	GAssert(pData->GetRowCount() == nRowCount, "Didn't reassemble data correctly");
-	return dGain;
+	else
+	{
+		*pPivot = 0;
+		int nRowCount = pData->GetRowCount();
+		GArffData** ppParts = pData->SplitByAttribute(m_pRelation, nAttribute);
+		int nCount = pAttr->GetValueCount();
+		int n;
+		for(n = 0; n < nCount; n++)
+		{
+			dGain -= ((double)ppParts[n]->GetRowCount() / nRowCount) * m_pRelation->MeasureTotalOutputInfo(ppParts[n]);
+			pData->Merge(ppParts[n]);
+			delete(ppParts[n]);
+		}
+		delete(ppParts);
+		GAssert(pData->GetRowCount() == nRowCount, "Didn't reassemble data correctly");
+		return dGain;
+	}
 }
 
-void GDecisionTree::Evaluate(double* pRow)
+void GDecisionTree::Eval(double* pRow)
 {
 	GAssert(m_pRoot, "No tree constructed");
 	GDecisionTreeNode* pNode = m_pRoot;
@@ -350,16 +400,28 @@ void GDecisionTree::Evaluate(double* pRow)
 	{
 		pAttr = m_pRelation->GetAttribute(pNode->m_nAttribute);
 		GAssert(pAttr->IsInput(), "expected an input");
-		nVal = (int)pRow[pNode->m_nAttribute];
-		if(nVal < 0)
+		if(pAttr->IsContinuous())
 		{
-			GAssert(nVal == -1, "out of range");
-			nVal = rand() % pAttr->GetValueCount();
+			if(pRow[pNode->m_nAttribute] <= pNode->m_dPivot)
+				pNode = pNode->m_ppChildren[0];
+			else
+				pNode = pNode->m_ppChildren[1];
 		}
-		GAssert(nVal < pAttr->GetValueCount(), "value out of range");
-		pNode = pNode->m_ppChildren[nVal];
+		else
+		{
+			nVal = (int)pRow[pNode->m_nAttribute];
+			if(nVal < 0)
+			{
+				GAssert(nVal == -1, "out of range");
+				nVal = rand() % pAttr->GetValueCount();
+			}
+			GAssert(nVal < pAttr->GetValueCount(), "value out of range");
+			pNode = pNode->m_ppChildren[nVal];
+		}
 	}
 	GAssert(pNode->m_pOutputValues, "Leaf node has no output values");
+	
+	// Copy the output values into the row
 	int n;
 	int nOutputCount = m_pRelation->GetOutputCount();
 	for(n = 0; n < nOutputCount; n++)
@@ -369,39 +431,6 @@ void GDecisionTree::Evaluate(double* pRow)
 void GDecisionTree::Print()
 {
 	m_pRoot->Print(m_pRelation, 0, "All");
-}
-
-int GDecisionTree::ValidateTree(GArffData* pValidationSet)
-{
-	double* pTest = (double*)alloca(sizeof(double) * m_pRelation->GetAttributeCount());
-	int nSuccesses = 0;
-	int n;
-	for(n = 0; n < pValidationSet->GetRowCount(); n++)
-	{
-		double* pRow = pValidationSet->GetRow(n);
-		int i;
-		int nCount = m_pRelation->GetInputCount();
-		for(i = 0; i < nCount; i++)
-		{
-			int nAttr = m_pRelation->GetInputIndex(i);
-			pTest[nAttr] = pRow[nAttr];
-		}
-		Evaluate(pTest);
-		nCount = m_pRelation->GetOutputCount();
-		bool bOK = true;
-		for(i = 0; i < nCount; i++)
-		{
-			int index = m_pRelation->GetOutputIndex(i);
-			if(pTest[index] != pRow[index])
-			{
-				bOK = false;
-				break;
-			}
-		}
-		if(bOK)
-			nSuccesses++;
-	}
-	return nSuccesses;
 }
 
 void GDecisionTree::DeepPruneNode(GDecisionTreeNode* pNode, GArffData* pValidationSet)
@@ -414,9 +443,9 @@ void GDecisionTree::DeepPruneNode(GDecisionTreeNode* pNode, GArffData* pValidati
 	GDecisionTreeNode* pNodeCopy;
 	GDecisionTree tmp(this, pNode, &pNodeCopy);
 	pNodeCopy->PruneChildren(m_pRelation);
-	int nOriginalScore = ValidateTree(pValidationSet);
-	int nPrunedScore = tmp.ValidateTree(pValidationSet);
-	if(nPrunedScore >= nOriginalScore)
+	double dOriginalScore = MeasurePredictiveAccuracy(pValidationSet);
+	double dPrunedScore = tmp.MeasurePredictiveAccuracy(pValidationSet);
+	if(dPrunedScore >= dOriginalScore)
 		pNode->PruneChildren(m_pRelation);
 }
 

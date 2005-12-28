@@ -123,7 +123,10 @@ public:
 			// Check if there's alreay a replacement for this blob
 			unsigned int replacement;
 			bool bOK = ht.Get((const char*)&pIn[n], (void**)&replacement);
-			GAssert(bOK, "problem with hash table");
+			if(!bOK)
+			{
+				GAssert(false, "problem with hash table");
+			}
 			if(replacement == 0)
 			{
 				// Find a new replacement for this blob
@@ -180,7 +183,10 @@ public:
 		{
 			unsigned int replacement;
 			bool bOK = ht.Get((const char*)&pIn[n], (void**)&replacement);
-			GAssert(bOK, "problem with hash table");
+			if(!bOK)
+			{
+				GAssert(false, "problem with hash table");
+			}
 			if(replacement != 0)
 			{
 				if(nOutPos + (int)sizeof(unsigned int) > nSize)

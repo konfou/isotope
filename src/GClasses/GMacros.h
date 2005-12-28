@@ -417,6 +417,22 @@ inline int stricmp(const char* szA, const char* szB)
 	return 0;
 }
 
+inline int wcsicmp(const wchar_t* wszA, const wchar_t* wszB)
+{
+	while(*wszA)
+	{
+		if((*wszA | 32) < (*wszB | 32))
+			return -1;
+		if((*wszA | 32) > (*wszB | 32))
+			return 1;
+		wszA++;
+		wszB++;
+	}
+	if(*wszB)
+		return -1;
+	return 0;
+}
+
 inline int strnicmp(const char* szA, const char* szB, int len)
 {
 	int n;

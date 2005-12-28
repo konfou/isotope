@@ -9,7 +9,13 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
-//#define OLD_NAME_RESOLUTION
+#ifdef WIN32
+// This next line is only needed because Visual Studio 6.0
+// comes with some really old libraries. If you have an updated
+// Platform SDK or Visual Studio 7.0 or later, you should comment
+// out the next line
+#define OLD_NAME_RESOLUTION
+#endif // WIN32
 
 #include "GSocket.h"
 #include <time.h>
@@ -101,7 +107,10 @@ void ThrowError(const wchar_t* wszFormat, ...)
 #else
 			int res = vswprintf(g_wszErrorMessage, nSize, wszFormat, args);
 #endif
-			GAssert(res >= 0, "Error formatting string");
+			if(res < 0)
+			{
+				GAssert(false, "Error formatting string");
+			}
 		}
 		va_end (args);
 	}

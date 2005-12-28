@@ -13,6 +13,7 @@
 #include "GHashTable.h"
 #include "GMacros.h"
 #include "GQueue.h"
+#include <wchar.h>
 
 struct HashBucket
 {
@@ -317,5 +318,12 @@ char* GStringHeap::Add(GQueue* pQ)
 	char* pNewString = Allocate(nLen + 1);
 	pQ->DumpToExistingBuffer(pNewString);
 	pNewString[nLen] = '\0';
+	return pNewString;
+}
+
+wchar_t* GStringHeap::Add(const wchar_t* wszString)
+{
+	wchar_t* pNewString = (wchar_t*)Allocate(sizeof(wchar_t) * (wcslen(wszString) + 1));
+	wcscpy(pNewString, wszString);
 	return pNewString;
 }
