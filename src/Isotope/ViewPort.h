@@ -40,6 +40,11 @@ public:
 	}
 
 	virtual void Draw(SDL_Surface *pScreen) = 0;
+	virtual void OnChar(char c) = 0;
+	virtual void OnMouseDown(int x, int y) = 0;
+	virtual void OnMouseUp(int x, int y) = 0;
+	virtual void OnMousePos(int x, int y) = 0;
+
 	int GetOpacity() { return m_nOpacity; }
 	void SetOpacity(int n) { GAssert(n >= 0 && n < 256, "out of range"); m_nOpacity = n; }
 	GRect* GetRect() { return &m_rect; }

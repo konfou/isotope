@@ -30,6 +30,7 @@ protected:
 	GRect m_screenRect;
 	GPointerArray* m_pViewPorts;
 	double m_dLastFullRefreshTime;
+	ViewPort* m_pTopView;
 
 public:
 	View();
@@ -40,7 +41,10 @@ public:
 	int GetViewPortCount();
 	ViewPort* PopViewPort();
 	GRect* GetScreenRect();
-
+	void OnChar(char c);
+	void OnMouseDown(int x, int y);
+	void OnMouseUp(int x, int y);
+	bool OnMousePos(int x, int y);
 	void SetScreenSize(int x, int y);
 	void MakeScreenBigger();
 	void MakeScreenSmaller();

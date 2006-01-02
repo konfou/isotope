@@ -23,6 +23,34 @@
 #include "../GClasses/sha2.h"
 
 #define BACKGROUND_COLOR 0x00000000
+#define ICON_AREA 130
+#define BOX_LEFT 50
+#define BOX_TOP 30
+#define BOX_WIDTH 300
+#define BOX_HEIGHT 450
+
+
+struct AvatarAccount
+{
+	GXMLTag* m_pTag;
+	MAnimation* m_pAnimation;
+	const char* m_pUsername;
+	const char* m_pPasswordHash;
+
+public:
+	AvatarAccount(GXMLTag* pTag, MAnimation* pAnimation, const char* pUsername, const char* pPasswordHash)
+	{
+		m_pTag = pTag;
+		m_pAnimation = pAnimation;
+		m_pUsername = pUsername;
+		m_pPasswordHash = pPasswordHash;
+	}
+};
+
+
+// --------------------------------------------------------------------
+
+
 
 class MCharSelectDialog : public GWidgetDialog
 {
@@ -30,25 +58,35 @@ protected:
 	Controller* m_pController;
 	VCharSelect* m_pView;
 	GWidgetTextButton* m_pNewCharButton;
+	GWidgetTextButton* m_pDeleteCharButton;
 	GWidgetTextButton* m_pOKButton;
-	const char* m_szTypeBuffer;
+	GWidgetVertScrollBar* m_pScrollBar;
 
 public:
-	MCharSelectDialog(VCharSelect* pView, Controller* pController, const char* szTypeBuffer, int w, int h)
+	MCharSelectDialog(VCharSelect* pView, Controller* pController, int w, int h, int nAccounts)
 		: GWidgetDialog(w, h, BACKGROUND_COLOR)
 	{
 		m_pView = pView;
 		m_pController = pController;
-		m_szTypeBuffer = szTypeBuffer;
 		GString s;
-		s.Copy(L"Make New Character");
-		m_pNewCharButton = new GWidgetTextButton(this, 10, 180, 150, 24, &s);
-		s.Copy(L"OK");
-		m_pOKButton = new GWidgetTextButton(this, 235, 390, 150, 24, &s);
+		s.Copy(L"Add");
+		m_pNewCharButton = new GWidgetTextButton(this, BOX_LEFT, BOX_TOP + BOX_HEIGHT + 5, 80, 24, &s);
+		s.Copy(L"Remove");
+		m_pDeleteCharButton = new GWidgetTextButton(this, BOX_LEFT + 100, BOX_TOP + BOX_HEIGHT + 5, 80, 24, &s);
+
+		m_pScrollBar = new GWidgetVertScrollBar(this, BOX_LEFT + BOX_WIDTH, BOX_TOP, 16, BOX_HEIGHT, BOX_HEIGHT, ICON_AREA * nAccounts);
+
+		s.Copy(L"Begin");
+		m_pOKButton = new GWidgetTextButton(this, 350, 540, 100, 24, &s);
 	}
 
 	virtual ~MCharSelectDialog()
 	{
+	}
+
+	void Reload(int nAccounts)
+	{
+		m_pScrollBar->SetModelSize(ICON_AREA * nAccounts);
 	}
 
 	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
@@ -57,18 +95,27 @@ public:
 			m_pController->MakeNewCharView();
 		else if(pButton == m_pOKButton)
 			AttemptLogin();
+		else if(pButton == m_pDeleteCharButton)
+		{
+			AvatarAccount* pAccount = m_pView->GetSelectedAccount();
+			if(pAccount)
+				m_pController->RemoveAccount(pAccount->m_pUsername, pAccount->m_pPasswordHash); // todo: check the password first
+		}
 		else
 			GAssert(false, "Unrecognized button");
 	}
 
 	void AttemptLogin()
 	{
-		if(!m_pView->GetSelectedAccount())
+		AvatarAccount* pAccount = m_pView->GetSelectedAccount();
+		if(!pAccount)
 			return;
-		if(m_pView->CheckPassword())
-			m_pController->LogIn(m_pView->GetSelectedAccountTag(), m_szTypeBuffer);
-		else
-			m_pController->ClearTypeBuffer();
+		m_pController->LogIn(pAccount->m_pTag, ""); // todo: check the password first
+	}
+
+	int GetScrollPos()
+	{
+		return m_pScrollBar->GetPos();
 	}
 };
 
@@ -79,43 +126,30 @@ public:
 
 
 
-#define GAP_BETWEEN_AVATARS 20
-#define PARADE_BOX_BORDER 50
-
-struct AvatarAccount
-{
-	GXMLTag* m_pTag;
-	MAnimation* m_pAnimation;
-	const char* m_pPasswordHash;
-
-public:
-	AvatarAccount(GXMLTag* pTag, MAnimation* pAnimation, const char* pPasswordHash)
-	{
-		m_pTag = pTag;
-		m_pAnimation = pAnimation;
-		m_pPasswordHash = pPasswordHash;
-	}
-};
-
-VCharSelect::VCharSelect(GRect* pRect, const char* szTypeBuffer, Controller* pController)
+VCharSelect::VCharSelect(GRect* pRect, Controller* pController)
 : ViewPort(pRect)
 {
 	m_pAvatarAnimations = new GPointerArray(32);
+	m_pDialog = new MCharSelectDialog(this, pController, 780, 580, m_pAvatarAnimations->GetSize());
 	ReloadAccounts();
 
-	GAssert(pRect->w >= 620 && pRect->h >= 460, "Screen not big enough to hold this view");
+	GAssert(pRect->w >= 780 && pRect->h >= 580, "Screen not big enough to hold this view");
+	m_nSelection = -1;
 
-	m_szTypeBuffer = szTypeBuffer;
-	m_pDialog = new MCharSelectDialog(this, pController, szTypeBuffer, 620, 460);
+	m_nLeft = (pRect->w - 780) / 2 + pRect->x;
+	m_nTop = (pRect->h - 580) / 2 + pRect->y;
+
 	m_dTime = GameEngine::GetTime();
 	m_fCameraDirection = 0;
-	m_nFirstAvatar = 0;
-	m_fParadePos = PARADE_BOX_BORDER;
 	m_eState = PickCharacter;
 	m_nClickX = -1;
-	m_pSelectedAccount = NULL;
 
 	RefreshEntireImage();
+
+	char szMusicPath[512];
+	strcpy(szMusicPath, GameEngine::GetAppPath());
+	strcat(szMusicPath, "/media/music/Hydrate-Kenny_Beltrey.ogg");
+	m_audioPlayer.PlayBackgroundMusic(szMusicPath);
 }
 
 /*virtual*/ VCharSelect::~VCharSelect()
@@ -123,6 +157,13 @@ VCharSelect::VCharSelect(GRect* pRect, const char* szTypeBuffer, Controller* pCo
 	delete(m_pDialog);
 	ClearAvatarAnimations();
 	delete(m_pAvatarAnimations);
+}
+
+AvatarAccount* VCharSelect::GetSelectedAccount()
+{
+	if(m_nSelection < 0 || m_nSelection >= m_pAvatarAnimations->GetSize())
+		return NULL;
+	return (AvatarAccount*)m_pAvatarAnimations->GetPointer(m_nSelection);
 }
 
 void VCharSelect::ClearAvatarAnimations()
@@ -158,7 +199,8 @@ void VCharSelect::ReloadAccounts()
 	for(pTag = pAccountsTag->GetFirstChildTag(); pTag; pTag = pAccountsTag->GetNextChildTag(pTag))
 	{
 		GXMLAttribute* pFileAttr = pTag->GetAttribute("File");
-		if(!pFileAttr || !CheckFile(pFileAttr->GetValue()))
+		GXMLAttribute* pUsernameAttr = pTag->GetAttribute("Username");
+		if(!pUsernameAttr || !pFileAttr || !CheckFile(pFileAttr->GetValue()))
 			continue;
 		GXMLAttribute* pAnimAttr = pTag->GetAttribute("Anim");
 		GXMLAttribute* pPasswordAttr = pTag->GetAttribute("Password");
@@ -168,8 +210,9 @@ void VCharSelect::ReloadAccounts()
 		if(index < 0)
 			GameEngine::ThrowError("The config.xml file refers to a global animation with ID: %s, but there is no global animation with that ID", pAnimAttr->GetValue());
 		VarHolder* pVH = pGlobalAnimationStore->GetVarHolder(index);
-		m_pAvatarAnimations->AddPointer(new AvatarAccount(pTag, (MAnimation*)pVH->GetGObject(), pPasswordAttr->GetValue()));
+		m_pAvatarAnimations->AddPointer(new AvatarAccount(pTag, (MAnimation*)pVH->GetGObject(), pUsernameAttr->GetValue(), pPasswordAttr->GetValue()));
 	}
+	m_pDialog->Reload(m_pAvatarAnimations->GetSize());
 }
 
 /*virtual*/ void VCharSelect::Draw(SDL_Surface *pScreen)
@@ -190,15 +233,6 @@ void VCharSelect::ReloadAccounts()
 	}
 	else if(m_eState == EnterPassword)
 	{
-		pCanvas->DrawBox(10, 290, 600, 315, 0x0099ff, true);
-		GRect r;
-		r.x = 10;
-		r.y = 290;
-		r.w = 600;
-		r.h = 25;
-		pCanvas->DrawHardText(&r, m_szTypeBuffer, 0x000000, 1);
-		int nWidth = pCanvas->MeasureHardTextWidth(r.h, m_szTypeBuffer, 1);
-		pCanvas->DrawBox(10 + nWidth, 292, 12 + nWidth, 312, 0x000000, true);
 	}
 	else if(m_eState == WrongPassword)
 	{
@@ -208,7 +242,7 @@ void VCharSelect::ReloadAccounts()
 			RefreshEntireImage();
 		}
 	}
-	BlitImage(pScreen, m_rect.x, m_rect.y, pCanvas);
+	BlitImage(pScreen, m_nLeft/*m_rect.x*/, m_nTop/*m_rect.y*/, pCanvas);
 }
 
 void VCharSelect::DrawAvatars()
@@ -218,60 +252,56 @@ void VCharSelect::DrawAvatars()
 	m_dTime = time;
 
 	// Move the parade forward
-	m_fCameraDirection += (float)(timeDelta / 2);
+	m_fCameraDirection += (float)(timeDelta * 6);
 	GRect r;
 	GImage* pCanvas = m_pDialog->GetImage(&r);
-	pCanvas->DrawBox(PARADE_BOX_BORDER, 50, 620 - PARADE_BOX_BORDER, 170, 0x330022, true);
+	pCanvas->DrawBox(BOX_LEFT, BOX_TOP, BOX_LEFT + BOX_WIDTH - 1, BOX_TOP + BOX_HEIGHT - 1, 0xff772244, true);
 	int nCount = m_pAvatarAnimations->GetSize();
-	if(nCount <= 0)
-		return;
-	m_fParadePos += (float)(timeDelta * 30);
-	int nNextOnStage = m_nFirstAvatar - 1;
-	if(nNextOnStage < 0)
-		nNextOnStage = nCount - 1;
-	AvatarAccount* pAccount = (AvatarAccount*)m_pAvatarAnimations->GetPointer(nNextOnStage);
-	GImage* pImage = pAccount->m_pAnimation->GetColumnFrame(&r, 0);
-	if(m_fParadePos - PARADE_BOX_BORDER > r.w + GAP_BETWEEN_AVATARS)
+	int x = BOX_LEFT;
+	AvatarAccount* pAccount;
+	GImage* pImage;
+	int y, yOrig;
+	int n;
+	for(n = 0; n < nCount; n++)
 	{
-		// Make the next avatar enter the stage
-		m_fParadePos -= (r.w + GAP_BETWEEN_AVATARS);
-		m_nFirstAvatar = nNextOnStage;
-	}
-
-	// Draw all the avatars
-	int nPos = (int)m_fParadePos;
-	int nAvatar = m_nFirstAvatar;
-	int nAdvancedFirst = 0;
-	bool bFoundClick = false;
-	while(true)
-	{
-		if(nPos > 520 - PARADE_BOX_BORDER)
+		y = BOX_TOP + ICON_AREA * n - m_pDialog->GetScrollPos();
+		yOrig = y;
+		if(y + ICON_AREA < BOX_TOP)
+			continue;
+		if(y >= BOX_TOP + BOX_HEIGHT)
 			break;
-		AvatarAccount* pAccount = (AvatarAccount*)m_pAvatarAnimations->GetPointer(nAvatar);
-		if(nAvatar == m_nFirstAvatar)
-			nAdvancedFirst++;
-		if(nAdvancedFirst < 2)
-			pAccount->m_pAnimation->AdvanceTime(timeDelta * 10);
-		pImage = pAccount->m_pAnimation->GetColumnFrame(&r, m_fCameraDirection + (float)nPos / 50);
-		if(m_eState == ShowCharacter)
+		pAccount = (AvatarAccount*)m_pAvatarAnimations->GetPointer(n);
+		pAccount->m_pAnimation->AdvanceTime(timeDelta * 2);
+		pImage = pAccount->m_pAnimation->GetColumnFrame(&r, m_fCameraDirection + (float)n * (float)1.57);
+
+		// Draw the avatar
+		if(y < BOX_TOP)
 		{
-			if(!bFoundClick && nPos + r.w + GAP_BETWEEN_AVATARS / 2 > m_nClickX)
-			{
-				bFoundClick = true;
-				m_pSelectedAccount = pAccount;
-				pCanvas->Blit(nPos, 60, pImage, &r);
-			}
+			r.y += (BOX_TOP - y);
+			r.h -= (BOX_TOP - y);
+			y = BOX_TOP;
 		}
-		else
-			pCanvas->Blit(nPos, 60, pImage, &r);
-		nPos += r.w;
-		nPos += GAP_BETWEEN_AVATARS;
-		nAvatar++;
-		if(nAvatar >= nCount)
-			nAvatar = 0;
+		if(y + r.h > BOX_TOP + BOX_HEIGHT)
+			r.h = BOX_TOP + BOX_HEIGHT - y;
+		pCanvas->AlphaBlit(x, y, pImage, &r);
+
+		// Draw the username
+		r.x = x + 100;
+		r.y = yOrig + 30;
+		r.w = BOX_LEFT + BOX_WIDTH - r.x;
+		r.h = 26;
+		if(r.y >= BOX_TOP && r.y + r.h <= BOX_TOP + BOX_HEIGHT)
+			pCanvas->DrawHardText(&r, pAccount->m_pUsername, (n == m_nSelection ? 0xffffffff : 0xff88ffcc), 1);
+
+		// Draw the selection box
+		if(n == m_nSelection)
+			pCanvas->DrawBox(BOX_LEFT, MIN(BOX_TOP + BOX_HEIGHT - 1, MAX(BOX_TOP, yOrig)),
+							BOX_LEFT + BOX_WIDTH - 1, MIN(BOX_TOP + BOX_HEIGHT - 1, MAX(BOX_TOP, yOrig + ICON_AREA - 1)),
+							0xffffffff, false);
+		{
+			
+		}
 	}
-	if(m_eState == ShowCharacter && !bFoundClick)
-		m_eState = PickCharacter;
 }
 
 void VCharSelect::RefreshEntireImage()
@@ -279,26 +309,19 @@ void VCharSelect::RefreshEntireImage()
 	GRect r;
 	m_pDialog->Update();
 	GImage* pCanvas = m_pDialog->GetImage(&r);
-
+/*
 	r.x = 10;
 	r.y = 10;
 	r.w = 600;
 	r.h = 25;
 	pCanvas->DrawHardText(&r, "Please select your character", 0x00ffff, 1);
-
-	//m_pImage->DrawBox(0, 0, m_pImage->GetWidth() - 1, m_pImage->GetHeight() - 1, 0xffffff, false);
-}
-
-GXMLTag* VCharSelect::GetSelectedAccountTag()
-{
-	GAssert(m_pSelectedAccount, "no account selected");
-	return m_pSelectedAccount->m_pTag;
+*/
+	pCanvas->DrawBox(0, 0, pCanvas->GetWidth() - 1, pCanvas->GetHeight() - 1, 0xffffff, false);
 }
 
 bool VCharSelect::CheckPassword()
 {
-	// Check the password
-	GAssert(m_pSelectedAccount, "no account selected");
+/*
 	char szPasswordHash[2 * SHA512_DIGEST_LENGTH + 1];
 	GameEngine::MakePasswordHash(szPasswordHash, m_szTypeBuffer);
 	if(stricmp(szPasswordHash, m_pSelectedAccount->m_pPasswordHash) == 0)
@@ -316,19 +339,19 @@ bool VCharSelect::CheckPassword()
 		m_eState = WrongPassword;
 		return false;
 	}
+*/
+	return true;
 }
 
-void VCharSelect::OnMouseDown(Controller* pController, int x, int y)
+void VCharSelect::OnMouseDown(int x, int y)
 {
-	x -= m_rect.x;
-	y -= m_rect.y;
+	x -= m_nLeft; //m_rect.x;
+	y -= m_nTop; //m_rect.y;
 
 	// Check for clicking on a character
-	if(m_eState == PickCharacter && y > 50 && y < 170 && m_pAvatarAnimations->GetSize() > 0)
+	if(x >= BOX_LEFT && y >= BOX_TOP && x < BOX_LEFT + BOX_WIDTH && y < BOX_TOP + BOX_HEIGHT)
 	{
-		m_nClickX = x;
-		m_eState = ShowCharacter;
-		pController->ClearTypeBuffer();
+		m_nSelection = ((y - BOX_TOP) + m_pDialog->GetScrollPos()) / ICON_AREA;
 		return;
 	}
 
@@ -337,7 +360,12 @@ void VCharSelect::OnMouseDown(Controller* pController, int x, int y)
 	m_pDialog->GrabWidget(pNewWidget, x, y);
 }
 
-void VCharSelect::OnMouseUp(Controller* pController, int x, int y)
+void VCharSelect::OnMouseUp(int x, int y)
 {
 	m_pDialog->ReleaseWidget();
+}
+
+void VCharSelect::OnMousePos(int x, int y)
+{
+	m_pDialog->HandleMousePos(x - m_nLeft/*m_rect.x*/, y - m_nTop/*m_rect.y*/);
 }

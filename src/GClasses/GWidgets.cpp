@@ -58,7 +58,7 @@ void GWidgetStyle::DrawButtonText(GImage* pImage, int x, int y, int w, int h, GS
 	pImage->DrawHardText(&r, szText, pressed ? m_cButtonPressedTextColor : m_cButtonTextColor, m_fButtonFontWidth);
 }
 
-void GWidgetStyle::DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft, bool bright)
+void GWidgetStyle::DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft, GColor c)
 {
 	char* szText = (char*)alloca(pString->GetLength() + 1);
 	pString->GetAnsi(szText);
@@ -80,7 +80,7 @@ void GWidgetStyle::DrawLabelText(GImage* pImage, int x, int y, int w, int h, GSt
 		r.y = y;
 	r.w = w - (r.x - x);
 	r.h = nLabelFontSize;
-	pImage->DrawHardText(&r, szText, bright ? 0xffffffff : m_cLabelTextColor, m_fLabelFontWidth);
+	pImage->DrawHardText(&r, szText, c, m_fLabelFontWidth);
 }
 
 void GWidgetStyle::DrawHorizCurvedOutSurface(GImage* pImage, int x, int y, int w, int h)
@@ -163,11 +163,19 @@ GWidget::GWidget(GWidgetGroup* pParent, int x, int y, int w, int h)
 
 /*virtual*/ GWidget::~GWidget()
 {
-GAssert(m_nDebugCheck == 0x600df00d, "corruption!");
+	GAssert(DebugCheck(), "corruption!");
 	//GAssert(m_pParent || GetType() == Dialog, "Unexpected root widget");
 	if(m_pParent)
 		m_pParent->OnDestroyWidget(this);
 }
+
+#ifdef _DEBUG
+bool GWidget::DebugCheck()
+{
+	GAssert(m_nDebugCheck == 0x600df00d, "corruption!");
+	return true;
+}
+#endif // _DEBUG
 
 void GWidget::SetPos(int x, int y)
 {
@@ -370,27 +378,32 @@ GWidgetDialog::GWidgetDialog(int w, int h, GColor cBackground)
 	}
 }
 
-void GWidgetDialog::GrabWidget(GWidgetAtomic* pWidget, int mouseX, int mouseY)
+void GWidgetDialog::SetFocusWidget(GWidgetAtomic* pWidget)
 {
-	ReleaseWidget();
-	m_pGrabbedWidget = pWidget;
 	if(m_pFocusWidget != pWidget)
 	{
 		if(m_pFocusWidget)
 			m_pFocusWidget->OnLoseFocus();
 		m_pFocusWidget = pWidget;
 		if(pWidget)
-		pWidget->OnGetFocus();
+			pWidget->OnGetFocus();
 	}
+}
+
+void GWidgetDialog::GrabWidget(GWidgetAtomic* pWidget, int mouseX, int mouseY)
+{
+	ReleaseWidget();
+	m_pGrabbedWidget = pWidget;
+	SetFocusWidget(pWidget);
 	m_prevMouseX = mouseX;
 	m_prevMouseY = mouseY;
 	if(pWidget)
 	{
 		GWidget* pTmp;
 		GRect* pRect;
-		for(pTmp = pWidget; pTmp; pTmp = pWidget->GetParent())
+		for(pTmp = pWidget; pTmp; pTmp = pTmp->GetParent())
 		{
-			pRect = pWidget->GetRect();
+			pRect = pTmp->GetRect();
 			mouseX -= pRect->x;
 			mouseY -= pRect->y;
 		}
@@ -520,14 +533,14 @@ void GWidgetTextButton::SetText(const char* szText)
 
 // ----------------------------------------------------------------------
 
-GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText, bool bBright)
+GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText, GColor c)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
 	m_image.SetSize(w, h);
 	m_text.Copy(pText);
 	m_alignLeft = true;
-	m_bBright = bBright;
-	m_bOpaqueBackground = false;
+	m_cForeground = c;
+	m_cBackground = 0x00000000; // transparent
 	m_dirty = true;
 }
 
@@ -547,8 +560,8 @@ GWidgetTextLabel::GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, i
 void GWidgetTextLabel::Update()
 {
 	m_dirty = false;
-	m_image.Clear(m_bOpaqueBackground ? 0xff000000 : 0x00000000);
-	m_pStyle->DrawLabelText(&m_image, 0, 0, m_image.GetWidth(), m_image.GetHeight(), &m_text, m_alignLeft, m_bBright);
+	m_image.Clear(m_cBackground);
+	m_pStyle->DrawLabelText(&m_image, 0, 0, m_image.GetWidth(), m_image.GetHeight(), &m_text, m_alignLeft, m_cForeground);
 }
 
 GImage* GWidgetTextLabel::GetImage(GRect* pOutRect)
@@ -1181,6 +1194,9 @@ GWidgetTextBox::GWidgetTextBox(GWidgetGroup* pParent, int x, int y, int w, int h
 	m_dirty = true;
 	m_bGotFocus = false;
 	m_bPassword = false;
+	m_nAnchorPos = 0;
+	m_nCursorPos = 0;
+	m_nMouseDelta = 0;
 }
 
 /*virtual*/ GWidgetTextBox::~GWidgetTextBox()
@@ -1190,6 +1206,8 @@ GWidgetTextBox::GWidgetTextBox(GWidgetGroup* pParent, int x, int y, int w, int h
 void GWidgetTextBox::SetText(const char* szText)
 {
 	m_text.Copy(szText);
+	m_nAnchorPos = m_text.GetLength();
+	m_nCursorPos = m_nAnchorPos;
 	m_dirty = true;
 	Draw(NULL);
 }
@@ -1209,20 +1227,15 @@ void GWidgetTextBox::Update()
 {
 	m_dirty = false;
 
-	// Calculations
+	// Draw the background area
 	int w = m_image.GetWidth();
 	int h = m_image.GetHeight();
-
-	// Draw the background area
 	m_pStyle->DrawVertCurvedInSurface(&m_image, 0, 0, w, h);
 	m_image.DrawBox(0, 0, w - 1, h - 1, m_bGotFocus ? m_pStyle->GetTextBoxBorderColor() : m_pStyle->GetTextBoxSelectedTextColor(), false);
 
 	// Draw the text
 	char* szText = (char*)alloca(m_text.GetLength() + 1);
 	m_text.GetAnsi(szText);
-	int nCursorPos = m_image.MeasureHardTextWidth(h - 2, szText, 1) + 2;
-	if(nCursorPos > w - 3)
-		nCursorPos = w - 3;
 	GRect r;
 	r.x = 1;
 	r.y = 3;
@@ -1236,22 +1249,77 @@ void GWidgetTextBox::Update()
 	}
 	m_image.DrawHardText(&r, szText, m_pStyle->GetTextBoxTextColor(), 1);
 
-	// Draw the cursor
-	if(m_bGotFocus)
-		m_pStyle->DrawCursor(&m_image, nCursorPos, 2, 2, h - 5);
+	// Draw the cursor or selection
+	if(!m_bGotFocus)
+		return; // don't waste time drawing the cursor for inactive text boxes
+	int nSelStart = m_nAnchorPos;
+	int nSelEnd = m_nCursorPos;
+	if(nSelEnd < nSelStart)
+	{
+		int nTmp = nSelEnd;
+		nSelEnd = nSelStart;
+		nSelStart = nTmp;
+	}
+	szText[nSelEnd] = '\0';
+	int nSelEndPos = m_image.MeasureHardTextWidth(r.h, szText, 1) + r.x;
+	if(nSelEndPos > w - 3)
+		nSelEndPos = w - 3;
+	if(nSelStart == nSelEnd)
+		m_pStyle->DrawCursor(&m_image, nSelEndPos, 2, 2, h - 5);
+	else
+	{
+		szText[nSelStart] = '\0';
+		int nSelStartPos = m_image.MeasureHardTextWidth(r.h, szText, 1) + r.x;
+		r.x = nSelStartPos;
+		r.w = nSelEndPos - nSelStartPos;
+		m_image.InvertRect(&r);
+	}
 }
 
 /*virtual*/ void GWidgetTextBox::OnChar(char c)
 {
 	if(c == '\b')
-		m_text.RemoveLastChar();
+	{
+		if(m_nAnchorPos == m_nCursorPos)
+		{
+			if(m_nAnchorPos <= 0)
+				return;
+			m_nAnchorPos--;
+		}
+		if(m_nCursorPos < m_nAnchorPos)
+		{
+			int nTmp = m_nCursorPos;
+			m_nCursorPos = m_nAnchorPos;
+			m_nAnchorPos = nTmp;
+		}
+		m_text.Remove(m_nAnchorPos, m_nCursorPos - m_nAnchorPos);
+		m_nCursorPos = m_nAnchorPos;
+	}
 	else if(c == '\r')
 	{
 		m_pParent->OnTextBoxPressEnter(this);
 		return;
 	}
 	else
-		m_text.Add(c);
+	{
+		if(m_nAnchorPos != m_nCursorPos)
+		{
+			if(m_nCursorPos < m_nAnchorPos)
+			{
+				int nTmp = m_nCursorPos;
+				m_nCursorPos = m_nAnchorPos;
+				m_nAnchorPos = nTmp;
+			}
+			m_text.Remove(m_nAnchorPos, m_nCursorPos - m_nAnchorPos);
+			m_nCursorPos = m_nAnchorPos;
+		}
+		if(m_nCursorPos >= m_text.GetLength())
+            m_text.Add(c);
+		else
+			m_text.InsertChar(m_nCursorPos, (wchar_t)c);
+		m_nCursorPos++;
+		m_nAnchorPos++;
+	}
 	m_pParent->OnTextBoxTextChanged(this);
 	m_dirty = true;
 	Draw(NULL);
@@ -1259,10 +1327,33 @@ void GWidgetTextBox::Update()
 
 /*virtual*/ void GWidgetTextBox::Grab(int x, int y)
 {
+	char* szText = (char*)alloca(m_text.GetLength() + 1);
+	m_text.GetAnsi(szText);
+	m_nMouseDelta = 0;
+	m_nAnchorPos = m_image.CountHardTextChars(x - 1 + 3, m_image.GetHeight() - 4, szText, 1);
+	m_nCursorPos = m_nAnchorPos;
+	m_dirty = true;
+	Draw(NULL);
 }
 
 /*virtual*/ void GWidgetTextBox::Release()
 {
+}
+
+/*virtual*/ void GWidgetTextBox::OnMouseMove(int dx, int dy)
+{
+	m_nMouseDelta += dx;
+	int nNewCursorPos = m_nAnchorPos + m_nMouseDelta / 6;
+	if(nNewCursorPos < 0)
+		nNewCursorPos = 0;
+	if(nNewCursorPos > m_text.GetLength())
+		nNewCursorPos = m_text.GetLength();
+	if(nNewCursorPos != m_nCursorPos)
+	{
+		m_nCursorPos = nNewCursorPos;
+		m_dirty = true;
+		Draw(NULL);
+	}
 }
 
 /*virtual*/ void GWidgetTextBox::OnGetFocus()
@@ -1790,7 +1881,8 @@ GWidgetFileSystemBrowser::GWidgetFileSystemBrowser(GWidgetGroup* pParent, int x,
 {
 	int nPathHeight = m_pStyle->GetListBoxLineHeight();
 	GString s;
-	m_pPath = new GWidgetTextLabel(this, 0, 0, w, nPathHeight, &s, true);
+	m_pPath = new GWidgetTextLabel(this, 0, 0, w, nPathHeight, &s, 0xff8888ff);
+	m_pPath->SetBackgroundColor(0xff000000);
 	m_pListItems = new GPointerArray(64);
 	m_pFiles = new GWidgetGrid(this, m_pListItems, 3, 0, nPathHeight, w, h - nPathHeight);
 
@@ -1842,7 +1934,7 @@ void GWidgetFileSystemBrowser::AddFilename(bool bDir, const char* szFilename)
 	m_pFiles->AddBlankRow();
 	GString s;
 	s.Copy(szFilename);
-	GWidgetTextLabel* pLabel = new GWidgetTextLabel(m_pFiles, 0, 0, 100, 20, &s, bDir);
+	GWidgetTextLabel* pLabel = new GWidgetTextLabel(m_pFiles, 0, 0, 100, 20, &s, bDir ? 0xffffffff : 0xff44ffaa);
 	m_pFiles->SetWidget(0, nRows, pLabel);
 }
 

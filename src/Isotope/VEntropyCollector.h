@@ -18,6 +18,10 @@ public:
 	virtual ~VEntropyCollector();
 
 	virtual void Draw(SDL_Surface *pScreen);
+	virtual void OnChar(char c) {}
+	virtual void OnMouseDown(int x, int y) {}
+	virtual void OnMouseUp(int x, int y) {}
+	virtual void OnMousePos(int x, int y) {}
 };
 
 #endif // __VENTROPYCOLLECTOR_H__

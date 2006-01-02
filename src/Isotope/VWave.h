@@ -12,15 +12,16 @@
 #ifndef __VWAVE_H__
 #define __VWAVE_H__
 
+#include "../SDL/SDL_mixer.h"
+
 class VWaveBuffer;
 
 // This class represents a wave sound
 class MSound
 {
-friend class VWavePlayer;
+friend class VAudioPlayer;
 protected:
-	unsigned char* m_pData;
-	unsigned int m_nSize;
+	Mix_Chunk m_mixChunk;
 
 public:
 	MSound(const char* szFilename);
@@ -28,41 +29,37 @@ public:
 	// Note that this takes ownership of pData (the destructor will delete it)
 	MSound(unsigned char* pData, unsigned int nSize)
 	{
-		m_pData = pData;
-		m_nSize = nSize;
+		m_mixChunk.allocated = 0; // 0 = sound memory not owned by the Mix_Chunk struct
+		m_mixChunk.abuf = pData;
+		m_mixChunk.alen = nSize;
+		m_mixChunk.volume = 128; // 0 = silent, 128 = max volume
 	}
 
 	~MSound()
 	{
-		delete(m_pData);
+		delete((unsigned char*)m_mixChunk.abuf);
 	}
 
-	int GetSize() { return m_nSize; }
+	int GetSize() { return m_mixChunk.alen; }
+
+	Mix_Chunk* GetMixChunk() { return &m_mixChunk; }
 };
 
 
 // This class plays wave sounds
-class VWavePlayer
+class VAudioPlayer
 {
 protected:
-	VWaveBuffer* m_pActive;
-	VWaveBuffer* m_pIdle;
+	bool m_bPlayingOgg;
+	Mix_Music* m_pOggMusic;
 
 public:
-	VWavePlayer();
-	~VWavePlayer();
+	VAudioPlayer();
+	~VAudioPlayer();
 
-	void Play(const MSound* pSound);
-	void MixWaves(unsigned char* stream, int len);
-
-	void StartAudio();
-	void FinishAudio();
-
-protected:
-	void LinkActive(VWaveBuffer* pBuf);
-	void UnLinkActive(VWaveBuffer* pBuf);
-	void LinkIdle(VWaveBuffer* pBuf);
-	void UnLinkIdle(VWaveBuffer* pBuf);
+	void Play(MSound* pSound);
+	void StopAudio();
+	void PlayBackgroundMusic(const char* szFilename);
 };
 
 #endif // __VWAVE_H__

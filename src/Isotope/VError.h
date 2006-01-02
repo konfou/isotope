@@ -9,29 +9,27 @@
 	see http://www.gnu.org/copyleft/gpl.html
 */
 
-#ifndef __VLOADING_H__
-#define __VLOADING_H__
+#ifndef __VERROR_H__
+#define __VERROR_H__
 
 #include "ViewPort.h"
 
-class MLoadingDialog;
+class VErrorDialog;
 
 struct GRect;
 
-class VLoading : public ViewPort
+class VError : public ViewPort
 {
 protected:
 	GImage* m_pImage;
 	int m_nLeft;
 	int m_nTop;
-	MLoadingDialog* m_pDialog;
+	VErrorDialog* m_pDialog;
 	bool m_dirty;
-	float m_fudgeFactor;
-	double m_dPrevProgressTime;
 
 public:
-	VLoading(GRect* pRect, const char* szUrl);
-	virtual ~VLoading();
+	VError(GRect* pRect, const char* szUrl);
+	virtual ~VError();
 
 	virtual void Draw(SDL_Surface *pScreen);
 	virtual void OnChar(char c) {}
@@ -39,11 +37,8 @@ public:
 	virtual void OnMouseUp(int x, int y) {}
 	virtual void OnMousePos(int x, int y) {}
 
-	void SetUrl(const char* szUrl);
-	void SetProgress(float f);
-
 protected:
 	void RefreshEntireImage();
 };
 
-#endif // __VLOADING_H__
+#endif // __VERROR_H__

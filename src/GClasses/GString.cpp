@@ -111,14 +111,20 @@ void GString::SetChar(int nPos, wchar_t wc)
 
 void GString::InsertChar(int nPos, wchar_t wc)
 {
+	if(nPos >= m_nStringLength)
+	{
+		Add(wc);
+		return;
+	}
 	if(m_pQueue)
 		FlushQueue();
-	if(m_nBufferSize >= m_nStringLength)
+	if(m_nBufferSize <= m_nStringLength + 1)
 		ResizeBuffer(MAX(m_nStringLength * 2, 16));
 	int n;
-	for(n = m_nStringLength + 1; n >= nPos; n--)
-		m_pBuffer[n + 1] = m_pBuffer[n];
+	for(n = m_nStringLength; n > nPos; n--)
+		m_pBuffer[n] = m_pBuffer[n - 1];
 	m_pBuffer[nPos] = wc;
+	m_nStringLength++;
 }
 
 void GString::RemoveLastChar()
@@ -126,10 +132,27 @@ void GString::RemoveLastChar()
 	if(m_pQueue)
 		FlushQueue();
 	if(m_nStringLength > 0)
+		m_pBuffer[--m_nStringLength] = L'\0';
+}
+
+void GString::Remove(int nPos, int nLen)
+{
+	if(m_pQueue)
+		FlushQueue();
+	if(nPos < 0)
 	{
-		m_pBuffer[m_nStringLength - 1] = L'\0';
-		m_nStringLength--;
+		nLen += nPos;
+		nPos = 0;
 	}
+	if(nLen < 0)
+		return;
+	if(nPos + nLen > m_nStringLength)
+		nLen = m_nStringLength - nPos;
+	int n;
+	for(n = nPos; n + nLen < m_nStringLength; n++)
+		m_pBuffer[n] = m_pBuffer[n + nLen];
+	m_pBuffer[n] = L'\0';
+	m_nStringLength = n;
 }
 
 void GString::Add(const wchar_t* wszString, int nLen)

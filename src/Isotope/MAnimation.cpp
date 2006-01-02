@@ -364,5 +364,6 @@ void MAnimation::advanceTime(Engine* pEngine, EVar* pOutLooped, EVar* pTime)
 void MAnimation::setTime(Engine* pEngine, EVar* pTime)
 {
 	m_time = 0;
+	m_nCurrentFrame = 0;
 	AdvanceTime(pTime->pFloatObject->m_value);
 }

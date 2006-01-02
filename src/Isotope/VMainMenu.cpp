@@ -114,7 +114,7 @@ public:
 				GString s;
 				GXMLAttribute* pAttrName = pItem->GetAttribute("Name");
 				s.Add(pAttrName ? pAttrName->GetValue() : "Mysterious Object");
-				GWidgetTextLabel* pNewLabel = new GWidgetTextLabel(m_pInventoryWidget, 0, 0, ITEM_NAME_WIDTH, 20, &s, false);
+				GWidgetTextLabel* pNewLabel = new GWidgetTextLabel(m_pInventoryWidget, 0, 0, ITEM_NAME_WIDTH, 20, &s, 0xff8888ff);
 				m_pInventoryWidget->SetWidget(1, y, pNewLabel);
 
 				// Add a button

@@ -175,6 +175,7 @@ protected:
 	void ControlCharSelect(double dTimeDelta);
 	void ControlMakeNewChar(double dTimeDelta);
 	void ControlEntropyCollector(double dTimeDelta);
+	void SafeGoToRealm(const char* szUrl);
 	void GoToRealm(const char* szUrl);
 	void PopAllViewPorts();
 	void LoadKeyControlValues();

@@ -32,11 +32,13 @@
 #include "VEntropyCollector.h"
 #include "View.h"
 #include "VServer.h"
+#include "VError.h"
 #include "MRealmServer.h"
 #include "MKeyPair.h"
 #include "VCharSelect.h"
 #include "VCharMake.h"
 #include "VLoading.h"
+#include "VPanel.h"
 #include "MGameImage.h"
 #include "MAnimation.h"
 #include "MStore.h"
@@ -377,7 +379,7 @@ void Controller::Update(double dTimeDelta)
 		GAssert(m_pGameClient, "Only the client should try to follow a URL");
 		char* szNewUrl = m_szNewUrl;
 		m_szNewUrl = NULL;
-		GoToRealm(szNewUrl);
+		SafeGoToRealm(szNewUrl);
 		delete(szNewUrl);
 	}
 
@@ -417,6 +419,7 @@ void Controller::Update(double dTimeDelta)
 			case SDL_MOUSEMOTION:
 				m_mouseX = event.motion.x;
 				m_mouseY = event.motion.y;
+				m_pView->OnMousePos(m_mouseX, m_mouseY);
 				break;
 
 			case SDL_QUIT:
@@ -469,7 +472,9 @@ void Controller::OnKeyDown(SDLKey key, SDLMod mod)
 {
 	if(key > SDLK_z)
 		return;
-	if(key == SDLK_ESCAPE)
+	if(key == SDLK_KP_ENTER)
+		key = SDLK_RETURN;
+	else if(key == SDLK_ESCAPE)
 	{
 		ShutDown();
 		return;
@@ -624,56 +629,61 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 			}
 			if(!bSky)
 				SetGoalSpot(mapX, mapY);
+			m_pGameClient->GetPanel()->SetFocusWidget(NULL);
 		}
 	}
-	if(m_keyboard[m_keyAction1] | m_keyboard[m_keyAction2])
+
+	if(!m_pGameClient->GetPanel()->GetFocusWidget())
 	{
-		// Find the nearest object and tell it to do its action
-		m_keyboard[m_keyAction1] = 0;
-		m_keyboard[m_keyAction2] = 0;
-		m_mouse[3] = 0;
-		MRealm* pRealm = m_pGameClient->GetCurrentRealm();
-		MObject* pNearestOb = pRealm->GetClosestObject();
-		if(pNearestOb)
+		// Action key
+		if(m_keyboard[m_keyAction1] | m_keyboard[m_keyAction2])
 		{
-			MObject* pAvatar = m_pGameClient->GetAvatar();
-			float avatarX, avatarY;
-			pAvatar->GetPos(&avatarX, &avatarY);
-			float distsquared = pAvatar->GetDistanceSquared(pNearestOb);
-			float reach = MScriptEngine::GetAvatarReach(pAvatar);
-			MScriptEngine* pScriptEngine = m_pGameClient->GetScriptEngine();
-			pScriptEngine->DoAvatarActionAnimation(pAvatar);
-			if(distsquared <= reach * reach)
-				pScriptEngine->CallDoAction(pNearestOb, avatarX, avatarY);
+			// Find the nearest object and tell it to do its action
+			m_keyboard[m_keyAction1] = 0;
+			m_keyboard[m_keyAction2] = 0;
+			m_mouse[3] = 0;
+			MRealm* pRealm = m_pGameClient->GetCurrentRealm();
+			MObject* pNearestOb = pRealm->GetClosestObject();
+			if(pNearestOb)
+			{
+				MObject* pAvatar = m_pGameClient->GetAvatar();
+				float avatarX, avatarY;
+				pAvatar->GetPos(&avatarX, &avatarY);
+				float distsquared = pAvatar->GetDistanceSquared(pNearestOb);
+				float reach = MScriptEngine::GetAvatarReach(pAvatar);
+				MScriptEngine* pScriptEngine = m_pGameClient->GetScriptEngine();
+				pScriptEngine->DoAvatarActionAnimation(pAvatar);
+				if(distsquared <= reach * reach)
+					pScriptEngine->CallDoAction(pNearestOb, avatarX, avatarY);
+			}
 		}
-	}
+		// Camera Yaw
+		float dx = (float)(m_keyboard[m_ktpYawLeft1] + m_keyboard[m_ktpYawLeft2] - (m_keyboard[m_ktpYawRight1] + m_keyboard[m_ktpYawRight2]));
+		if(dx != 0)
+		{
+			dx *= (float)dTimeDelta * 3;
+			float fDirection = pCamera->GetDirection();
+			fDirection += dx;
+			pCamera->SetDirection(fDirection);
+		}
 
-	// Camera Yaw
-	float dx = (float)(m_keyboard[m_ktpYawLeft1] + m_keyboard[m_ktpYawLeft2] - (m_keyboard[m_ktpYawRight1] + m_keyboard[m_ktpYawRight2]));
-	if(dx != 0)
-	{
-		dx *= (float)dTimeDelta * 3;
-		float fDirection = pCamera->GetDirection();
-		fDirection += dx;
-		pCamera->SetDirection(fDirection);
-	}
+		// Zoom
+		float dy = (float)(m_keyboard[m_ktpZoomOut1] + m_keyboard[m_ktpZoomOut2] - (m_keyboard[m_ktpZoomIn1] + m_keyboard[m_ktpZoomIn2]));
+		if(dy != 0)
+		{
+			dy *= (float)dTimeDelta;
+			dy = 1 - dy;
+			pCamera->AjustZoom(dy, m_pGameView->GetRect()->h / 2 - 75);
+		}
 
-	// Zoom
-	float dy = (float)(m_keyboard[m_ktpZoomOut1] + m_keyboard[m_ktpZoomOut2] - (m_keyboard[m_ktpZoomIn1] + m_keyboard[m_ktpZoomIn2]));
-	if(dy != 0)
-	{
-		dy *= (float)dTimeDelta;
-		dy = 1 - dy;
-		pCamera->AjustZoom(dy, m_pGameView->GetRect()->h / 2 - 75);
-	}
-
-	// Camera Pitch (sort of)
-	float dPitch = (float)(m_keyboard[m_ktpPitchUp] - m_keyboard[m_ktpPitchDown]);
-	if(dPitch != 0)
-	{
-		dPitch *= (float)dTimeDelta;
-		dPitch += 1;
-		pCamera->AjustHorizonHeight(dPitch, m_pGameView->GetRect()->h / 2 - 75);
+		// Camera Pitch (sort of)
+		float dPitch = (float)(m_keyboard[m_ktpPitchUp] - m_keyboard[m_ktpPitchDown]);
+		if(dPitch != 0)
+		{
+			dPitch *= (float)dTimeDelta;
+			dPitch += 1;
+			pCamera->AjustHorizonHeight(dPitch, m_pGameView->GetRect()->h / 2 - 75);
+		}
 	}
 
 	// Menu Key
@@ -701,6 +711,7 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 			}
 			m_bMouseDown = true;
 			m_pGameView->SetSelectionRect(m_goalX, m_goalY, mapX, mapY);
+			m_pGameClient->GetPanel()->SetFocusWidget(NULL);
 		}
 	}
 	else if(m_bMouseDown)
@@ -719,51 +730,56 @@ void Controller::ControlFirstPerson(double dTimeDelta)
 			m_pGameClient->SelectObjects(m_goalX, m_goalY, mapX, mapY);
 		}
 	}
-	if(m_mouse[3] | m_keyboard[m_keyAction1] | m_keyboard[m_keyAction2])
-	{
-		// Tell selected objects to do their action
-		m_mouse[3] = 0;
-		m_keyboard[m_keyAction1] = 0;
-		m_keyboard[m_keyAction2] = 0;
-		bool bSky, bPanel;
-		float mapX, mapY;
-		m_pGameView->ScreenToMap(&mapX, &mapY, &bPanel, &bSky, m_mouseX, m_mouseY);
-		if(!bPanel && !bSky)
-			m_pGameClient->DoActionOnSelectedObjects(mapX, mapY);
-	}
 
-	// Camera Yaw
-	float dx = (float)(m_keyboard[m_kfpYawLeft] - m_keyboard[m_kfpYawRight]);
-	if(dx != 0)
+	if(!m_pGameClient->GetPanel()->GetFocusWidget())
 	{
-		dx *= (float)dTimeDelta * 3;
-		float fDirection = pCamera->GetDirection();
-		fDirection += dx;
-		pCamera->SetDirection(fDirection);
-	}
+		// Action key
+		if(m_mouse[3] | m_keyboard[m_keyAction1] | m_keyboard[m_keyAction2])
+		{
+			// Tell selected objects to do their action
+			m_mouse[3] = 0;
+			m_keyboard[m_keyAction1] = 0;
+			m_keyboard[m_keyAction2] = 0;
+			bool bSky, bPanel;
+			float mapX, mapY;
+			m_pGameView->ScreenToMap(&mapX, &mapY, &bPanel, &bSky, m_mouseX, m_mouseY);
+			if(!bPanel && !bSky)
+				m_pGameClient->DoActionOnSelectedObjects(mapX, mapY);
+		}
 
-	// Zoom
-	float dy = (float)(m_keyboard[m_kfpZoomOut] - m_keyboard[m_kfpZoomIn]);
-	if(dy != 0)
-	{
-		dy *= (float)dTimeDelta;
-		dy = 1 - dy;
-		pCamera->AjustZoom(dy, m_pGameView->GetRect()->h / 2 - 75);
-	}
+		// Camera Yaw
+		float dx = (float)(m_keyboard[m_kfpYawLeft] - m_keyboard[m_kfpYawRight]);
+		if(dx != 0)
+		{
+			dx *= (float)dTimeDelta * 3;
+			float fDirection = pCamera->GetDirection();
+			fDirection += dx;
+			pCamera->SetDirection(fDirection);
+		}
 
-	// Camera Pitch (sort of)
-	float dPitch = (float)(m_keyboard[m_kfpPitchUp] - m_keyboard[m_kfpPitchDown]);
-	if(dPitch != 0)
-	{
-		dPitch *= (float)dTimeDelta;
-		dPitch += 1;
-		pCamera->AjustHorizonHeight(dPitch, m_pGameView->GetRect()->h / 2 - 75);
-	}
+		// Zoom
+		float dy = (float)(m_keyboard[m_kfpZoomOut] - m_keyboard[m_kfpZoomIn]);
+		if(dy != 0)
+		{
+			dy *= (float)dTimeDelta;
+			dy = 1 - dy;
+			pCamera->AjustZoom(dy, m_pGameView->GetRect()->h / 2 - 75);
+		}
 
-	// Arrow Keys
-	dx = (float)(m_keyboard[m_kfpTrackRight1] + m_keyboard[m_kfpTrackRight2] - (m_keyboard[m_kfpTrackLeft1] + m_keyboard[m_kfpTrackLeft2])) * 1500 * (float)dTimeDelta;
-	dy = (float)(m_keyboard[m_kfpTrackUp1] + m_keyboard[m_kfpTrackUp2] - (m_keyboard[m_kfpTrackDown1] + m_keyboard[m_kfpTrackDown2])) * 1500 * (float)dTimeDelta;
-	pCamera->Move(dx, dy);
+		// Camera Pitch (sort of)
+		float dPitch = (float)(m_keyboard[m_kfpPitchUp] - m_keyboard[m_kfpPitchDown]);
+		if(dPitch != 0)
+		{
+			dPitch *= (float)dTimeDelta;
+			dPitch += 1;
+			pCamera->AjustHorizonHeight(dPitch, m_pGameView->GetRect()->h / 2 - 75);
+		}
+
+		// Arrow Keys
+		dx = (float)(m_keyboard[m_kfpTrackRight1] + m_keyboard[m_kfpTrackRight2] - (m_keyboard[m_kfpTrackLeft1] + m_keyboard[m_kfpTrackLeft2])) * 1500 * (float)dTimeDelta;
+		dy = (float)(m_keyboard[m_kfpTrackUp1] + m_keyboard[m_kfpTrackUp2] - (m_keyboard[m_kfpTrackDown1] + m_keyboard[m_kfpTrackDown2])) * 1500 * (float)dTimeDelta;
+		pCamera->Move(dx, dy);
+	}
 
 	// Menu Key
 	if(m_keyboard[m_keyMenu1] | m_keyboard[m_keyMenu2])
@@ -875,9 +891,9 @@ void Controller::ControlMainMenu(double dTimeDelta)
 			m_bMouseDown = false;
 		}
 	}
-*/
 	// Give the view mouse tracking information so it can do the scroll bars properly
 	m_pMainMenu->OnMousePos(m_mouseX, m_mouseY);
+*/
 }
 
 void Controller::ControlCharSelect(double dTimeDelta)
@@ -899,8 +915,8 @@ void Controller::ControlCharSelect(double dTimeDelta)
 			m_bMouseDown = false;
 		}
 	}
-*/
 	m_pCharSelect->OnMousePos(m_mouseX, m_mouseY);
+*/
 }
 
 void Controller::ControlMakeNewChar(double dTimeDelta)
@@ -1051,6 +1067,21 @@ printf("Squishing the biggest image...\n");
 	}
 }
 
+void Controller::SafeGoToRealm(const char* szUrl)
+{
+	try
+	{
+		GoToRealm(szUrl);
+	}
+	catch(const char* szErrorMessage)
+	{
+		PopAllViewPorts();
+		VError* pErrorView = new VError(m_pView->GetScreenRect(), szErrorMessage);
+		m_pView->PushViewPort(pErrorView);
+		m_pView->Refresh(); // Draw the error page
+	}
+}
+
 void Controller::GoToRealm(const char* szUrl)
 {
 	// Show the "loading" page
@@ -1166,12 +1197,15 @@ void Controller::GoToRealm(const char* szUrl)
 	delete(pViewPort);
 	m_pLoadingView = NULL;
 	GAssert(!m_pGameView, "The game view already exists");
-	m_pGameView = new VGame(m_pView->GetScreenRect(), m_pGameClient, &pSkyImage->m_value, &pGroundImage->m_value, this);
+	VOnScreenPanel* pPanel = m_pGameClient->GetPanel();
+	GAssert(pPanel->DebugCheck(), "corruption");
+	m_pGameView = new VGame(m_pView->GetScreenRect(), m_pGameClient, &pSkyImage->m_value, &pGroundImage->m_value, pPanel);
 	m_pView->PushViewPort(m_pGameView);
 	char* szCondensedUrl = (char*)alloca(strlen(szUrl) + 1);
 	strcpy(szCondensedUrl, szUrl);
 	CondensePath(szCondensedUrl);
 	m_pGameView->SetUrl(szCondensedUrl);
+	m_pGameClient->GetPanel()->SetDirty();
 
 	// Make sure the mouse isn't down
 	m_mouse[1] = 0;
@@ -1333,9 +1367,10 @@ void Controller::LogIn(GXMLTag* pAccountRefTag, const char* szPassword)
 	if(!szStartUrl)
 		szStartUrl = GameEngine::GetStartUrl();
 
-	// Start the game
+	// Make the panel
 	delete(m_pModel);
-	m_pGameClient = new MGameClient(szFilename, pAccountTag, pAccountRefTag);
+	VOnScreenPanel* pPanel = new VOnScreenPanel(this, m_pView->GetScreenRect()->w, PANEL_HEIGHT);
+	m_pGameClient = new MGameClient(szFilename, pAccountTag, pAccountRefTag, pPanel);
 	m_pModel = m_pGameClient;
 	GoToRealm(szStartUrl);
 }

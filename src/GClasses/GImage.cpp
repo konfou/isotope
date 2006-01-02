@@ -1896,6 +1896,20 @@ void GImage::Invert()
 	}
 }
 
+void GImage::InvertRect(GRect* pRect)
+{
+	int x, y;
+	GColor col;
+	for(y = pRect->y; y < pRect->y + pRect->h; y++)
+	{
+		for(x = pRect->x; x < pRect->x + pRect->w; x++)
+		{
+			col = GetPixel(x, y);
+			SetPixel(x, y, gRGB(255 - gRed(col), 255 - gGreen(col), 255 - gBlue(col)));
+		}
+	}
+}
+
 void GImage::MakeEdgesGlow(float fThresh, int nThickness, int nOpacity, GColor color)
 {
 	// Make initial mask

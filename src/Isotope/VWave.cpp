@@ -11,7 +11,6 @@
 
 #include "VWave.h"
 #include "../SDL/SDL.h"
-#include "../SDL/SDL_audio.h"
 #include "../GClasses/GMacros.h"
 #include "GameEngine.h"
 #ifdef WIN32
@@ -20,11 +19,11 @@
 #include <unistd.h>
 #endif // !WIN32
 
-#define AUDIO_CHANNELS 1
+#define AUDIO_CHANNELS 2
 
 MSound::MSound(const char* szFilename)
 {
-	// Load the sound file and convert it to 16-bit mono at 22kHz
+	// Load the sound file and convert it to 16-bit at 22kHz with the right number of channels
 	SDL_AudioSpec wave;
 	Uint8 *data;
 	Uint32 dlen;
@@ -37,198 +36,77 @@ MSound::MSound(const char* szFilename)
 	cvt.len = dlen;
 	SDL_ConvertAudio(&cvt);
 	SDL_FreeWAV(data);
-	m_pData = cvt.buf;
-	m_nSize = cvt.len_cvt;
+
+	m_mixChunk.allocated = 0; // 0 = sound memory not owned by the Mix_Chunk struct
+	m_mixChunk.abuf = cvt.buf;
+	m_mixChunk.alen = cvt.len_cvt;
+	m_mixChunk.volume = 128; // 0 = silent, 128 = max volume
 }
 
 // ------------------------------------------------------------------------------
 
-class VWaveBuffer
+VAudioPlayer::VAudioPlayer()
 {
-public:
-	VWaveBuffer* m_pNext;
-	VWaveBuffer* m_pPrev;
-    Uint8* m_pData;
-    Uint32 m_nPos;
-    Uint32 m_nLen;
+	m_bPlayingOgg = false;
+	m_pOggMusic = NULL;
 
-	VWaveBuffer()
-	{
-	}
-
-	~VWaveBuffer()
-	{
-	}
-};
-
-// ------------------------------------------------------------------------------
-
-void mixWaves(void *pThis, Uint8 *stream, int len)
-{
-	((VWavePlayer*)pThis)->MixWaves(stream, len);
+	// Init the OGG player
+	int audio_rate = 22050; //Frequency of audio playback
+	Uint16 audio_format = AUDIO_S16SYS; //Format of the audio we're playing
+	int audio_buffers = 4096; //Size of the audio buffers in memory
+	if(Mix_OpenAudio(audio_rate, audio_format, AUDIO_CHANNELS, audio_buffers) != 0) 
+		GameEngine::ThrowError("Unable to initialize audio: %s\n", Mix_GetError());
 }
 
-// ------------------------------------------------------------------------------
-
-VWavePlayer::VWavePlayer()
+VAudioPlayer::~VAudioPlayer()
 {
-	m_pActive = NULL;
-	m_pIdle = NULL;
-
-	SDL_AudioSpec fmt;
-
-	// Set 16-bit stereo audio at 22Khz
-	fmt.freq = 22050;
-	fmt.format = AUDIO_S16;
-	fmt.channels = AUDIO_CHANNELS;
-	fmt.samples = 2048; //512;
-	fmt.callback = mixWaves;
-	fmt.userdata = this;
-
-	// Open the audio device and start playing sound!
-	if(SDL_OpenAudio(&fmt, NULL) < 0)
-		GameEngine::ThrowError(SDL_GetError()); // unable to open audio device
-	SDL_PauseAudio(0);
-}
-
-VWavePlayer::~VWavePlayer()
-{
-	if(m_pActive)
+	Mix_HaltMusic();
+	if(m_pOggMusic)
 	{
-		SDL_PauseAudio(1);
-		while(m_pActive)
-		{
-			VWaveBuffer* pBuf = m_pActive;
-			UnLinkActive(pBuf);
-			LinkIdle(pBuf);
-		}
+		Mix_FreeMusic(m_pOggMusic);
+		m_pOggMusic = NULL;
 	}
+
 	SDL_CloseAudio();
-	while(m_pIdle)
+	Mix_CloseAudio();
+}
+
+void VAudioPlayer::StopAudio()
+{
+	Mix_HaltMusic();
+}
+
+void VAudioPlayer::Play(MSound* pSound)
+{
+	Mix_Chunk* pChunk = pSound->GetMixChunk();
+	Mix_PlayChannelTimed(-1, pChunk, 0, -1);
+}
+
+void musicFinished()
+{
+	printf("The music is done\n");
+}
+
+void VAudioPlayer::PlayBackgroundMusic(const char* szFilename)
+{
+	// Stop any music that's already playing
+	Mix_HaltMusic();
+	if(m_pOggMusic)
 	{
-		VWaveBuffer* pTmp = m_pIdle;
-		UnLinkIdle(pTmp);
-		delete(pTmp);
+		Mix_FreeMusic(m_pOggMusic);
+		m_pOggMusic = NULL;
 	}
+
+	// Load the OGG file from disk
+	Mix_Music* pMusic = Mix_LoadMUS(szFilename);
+	if(!pMusic)
+		GameEngine::ThrowError("Failed to load OGG file: %s\n%s", szFilename, Mix_GetError());
+
+	// Start playing
+	if(Mix_PlayMusic(pMusic, 1000) == -1) // repeat 1000 times
+		GameEngine::ThrowError("Failed to start playing OGG file: %s\n", Mix_GetError());
+	m_bPlayingOgg = true;
+
+	// Tell it to call musicFinished() when the music stops playing
+	Mix_HookMusicFinished(musicFinished);
 }
-
-void VWavePlayer::StartAudio()
-{
-	SDL_PauseAudio(0);
-}
-
-void VWavePlayer::FinishAudio()
-{
-	if(m_pActive)
-	{
-		int n = 0;
-		while(m_pActive)
-		{
-			// Give it one second to finish whatever sound effect is currently playing
-			if((++n) % 100 == 0)
-			{
-				// Rudely stop the audio
-				SDL_PauseAudio(1);
-				while(m_pActive)
-				{
-					VWaveBuffer* pBuf = m_pActive;
-					UnLinkActive(pBuf);
-					LinkIdle(pBuf);
-				}
-				break;
-			}
-#ifdef WIN32
-			Sleep(10);
-#else // WIN32
-			usleep(10);
-#endif // !WIN32
-		}
-	}
-}
-
-void VWavePlayer::LinkActive(VWaveBuffer* pBuf)
-{
-	pBuf->m_pNext = m_pActive;
-	pBuf->m_pPrev = NULL;
-	if(m_pActive)
-		m_pActive->m_pPrev = pBuf;
-	m_pActive = pBuf;
-}
-
-void VWavePlayer::LinkIdle(VWaveBuffer* pBuf)
-{
-	pBuf->m_pNext = m_pIdle;
-	pBuf->m_pPrev = NULL;
-	if(m_pIdle)
-		m_pIdle->m_pPrev = pBuf;
-	m_pIdle = pBuf;
-}
-
-void VWavePlayer::UnLinkActive(VWaveBuffer* pBuf)
-{
-	if(pBuf->m_pPrev)
-		pBuf->m_pPrev->m_pNext = pBuf->m_pNext;
-	else
-		m_pActive = pBuf->m_pNext;
-	if(pBuf->m_pNext)
-		pBuf->m_pNext->m_pPrev = pBuf->m_pPrev;
-}
-
-void VWavePlayer::UnLinkIdle(VWaveBuffer* pBuf)
-{
-	if(pBuf->m_pPrev)
-		pBuf->m_pPrev->m_pNext = pBuf->m_pNext;
-	else
-		m_pIdle = pBuf->m_pNext;
-	if(pBuf->m_pNext)
-		pBuf->m_pNext->m_pPrev = pBuf->m_pPrev;
-}
-
-void VWavePlayer::MixWaves(Uint8 *stream, int len)
-{
-	VWaveBuffer* pBuf;
-	VWaveBuffer* pNext;
-	Uint32 nBlockSize;
-	if(m_pActive)
-	{
-		for(pBuf = m_pActive; pBuf; pBuf = pNext)
-		{
-			pNext = pBuf->m_pNext;
-			nBlockSize = pBuf->m_nLen - pBuf->m_nPos;
-			if(nBlockSize > (unsigned int)len)
-				nBlockSize = (unsigned int)len;
-			SDL_MixAudio(stream, &pBuf->m_pData[pBuf->m_nPos], nBlockSize, SDL_MIX_MAXVOLUME);
-			pBuf->m_nPos += nBlockSize;
-			if(nBlockSize >= pBuf->m_nLen)
-			{
-				UnLinkActive(pBuf);
-				LinkIdle(pBuf);
-			}
-		}
-	}
-	else
-	{
-#ifdef WIN32
-		Sleep(10);
-#else // WIN32
-		usleep(10);
-#endif // !WIN32
-	}
-}
-
-void VWavePlayer::Play(const MSound* pSound)
-{
-	VWaveBuffer* pBuf = m_pIdle;
-	if(pBuf)
-		UnLinkIdle(pBuf);
-	else
-		pBuf = new VWaveBuffer();
-	pBuf->m_pData = pSound->m_pData;
-	pBuf->m_nLen = pSound->m_nSize;
-	pBuf->m_nPos = 0;
-	SDL_LockAudio();
-	LinkActive(pBuf);
-	SDL_UnlockAudio();
-}
-
-

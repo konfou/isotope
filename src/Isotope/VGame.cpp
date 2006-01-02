@@ -13,7 +13,6 @@
 #include "MObject.h"
 #include "MRealm.h"
 #include "../GClasses/GRayTrace.h"
-#include "../GClasses/GWidgets.h"
 #include "View.h"
 #include "../GClasses/GBillboardCamera.h"
 #include "GameEngine.h"
@@ -21,8 +20,8 @@
 #include "MGameClient.h"
 #include "MAnimation.h"
 #include "MGameImage.h"
-
-#define ALPHA_BLENDING
+#include "Controller.h"
+#include "VPanel.h"
 
 struct VVertGroundParams
 {
@@ -42,9 +41,12 @@ struct VHorizGroundParams
 
 #define TERRAIN_EXTRA_RATIO 1.3
 
-VGame::VGame(GRect* pRect, MGameClient* pGameClient, GImage* pSkyImage, GImage* pGroundImage)
+VGame::VGame(GRect* pRect, MGameClient* pGameClient, GImage* pSkyImage, GImage* pGroundImage, VOnScreenPanel* pPanel)
 : ViewPort(pRect)
 {
+	m_pPanel = pPanel;
+	m_WorldRect = *pRect;
+	m_WorldRect.h -= PANEL_HEIGHT;
 	m_pGameClient = pGameClient;
 	m_pCamera = pGameClient->GetCamera();
 	m_pImageSky = pSkyImage;
@@ -67,7 +69,7 @@ VGame::~VGame()
 	delete [] m_pVertGroundParams;
 	delete [] m_pHorizGroundParams;
 }
-
+/*
 void VGame::SetRect(GRect* pRect)
 {
 	m_rect = *pRect;
@@ -76,7 +78,7 @@ void VGame::SetRect(GRect* pRect)
 	delete(m_pHorizGroundParams);
 	m_pHorizGroundParams = new struct VHorizGroundParams[pRect->w];
 }
-
+*/
 void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 {
 	float nMapXMin = m_nMapXMin;
@@ -85,7 +87,7 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 	float nMapYMax = m_nMapYMax;
 
 	// Precalculate some map positions
-	GRect* pScreenRect = &m_rect;
+	GRect* pScreenRect = &m_WorldRect;
 	int x = pScreenRect->x;
 	int y = pScreenRect->y;
 	int xn;
@@ -220,7 +222,7 @@ void VGame::DrawSprite(SDL_Surface* pScreen, MObject* pSprite)
 void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos)
 {
 	// Precalculate stuff
-	GRect* pScreenRect = &m_rect;
+	GRect* pScreenRect = &m_WorldRect;
 	GPanelPos destTrap;
 	m_pCamera->CalcPanelTrapezoid(&destTrap, pGhostPos, pScreenRect);
 	float fWidth = destTrap.w;
@@ -252,11 +254,9 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 	int yEnd;
 	float fSrcY, fSrcDY;
 	GColor col;
-#ifdef ALPHA_BLENDING
 	GColor colOld;
 	int a;
 	Uint32* pPix;
-#endif // ALPHA_BLENDING
 	while(nWid > 0)
 	{
 		fSrcY = (float)pSrcRect->y;
@@ -277,17 +277,12 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 			while(nY < yEnd)
 			{
 				col = pImage->GetPixel((int)fSrcX, (int)fSrcY);
-#ifdef ALPHA_BLENDING
 				pPix = getPixMem32(pScreen, nX, nY);
 				a = gAlpha(col);
 				colOld = *pPix;
 				*pPix = gRGB((a * gRed(col) + (256 - a) * gRed(colOld)) >> 8,
 							(a * gGreen(col) + (256 - a) * gGreen(colOld)) >> 8,
 							(a * gBlue(col) + (256 - a) * gBlue(colOld)) >> 8);
-#else // ALPHA_BLENDING
-				if(col != 0x00ff00) // todo: use sprite's transparent background color
-					*getPixMem32(pScreen, nX, nY) = col;
-#endif // ALPHA_BLENDING
 				fSrcY += fSrcDY;
 				nY++;
 			}
@@ -306,7 +301,7 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 
 void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos)
 {
-	GRect* pScreenRect = &m_rect;
+	GRect* pScreenRect = &m_WorldRect;
 	GRect destRect;
 	m_pCamera->CalcBillboardRect(&destRect, pGhostPos, pScreenRect);
 	int nDestXStart = destRect.x;
@@ -339,10 +334,8 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 	dSrcY = pSrcRect->y + dSrcDeltaY * (nDestYStart - destRect.y);
 	float dStartX = pSrcRect->x + dSrcDeltaX * (nDestXStart - destRect.x);
 	int x, y;
-#ifdef ALPHA_BLENDING
 	int a;
 	GColor pixOld;
-#endif // ALPHA_BLENDING
 	GColor pix;
 	int nBytesPerPixel = pScreen->format->BytesPerPixel;
 	for(y = nDestYStart; y < nDestYFinish; y++)
@@ -354,16 +347,11 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 			for(x = nDestXStart; x < nDestXFinish; x++)
 			{
 				pix = pImage->GetPixel((int)dSrcX, (int)dSrcY);
-#ifdef ALPHA_BLENDING
 				a = gAlpha(pix);
 				pixOld = *pPix;
 				*pPix = gRGB((a * gRed(pix) + (256 - a) * gRed(pixOld)) >> 8,
 							(a * gGreen(pix) + (256 - a) * gGreen(pixOld)) >> 8,
 							(a * gBlue(pix) + (256 - a) * gBlue(pixOld)) >> 8);
-#else // ALPHA_BLENDING
-				if(pix != 0x00ff00) // todo: use sprite's transparent background color
-					*pPix = pix;
-#endif // ALPHA_BLENDING
 				pPix++;
 				dSrcX += dSrcDeltaX;
 			}
@@ -374,8 +362,13 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 			for(x = nDestXStart; x < nDestXFinish; x++)
 			{
 				pix = pImage->GetPixel((int)dSrcX, (int)dSrcY);
-				if(pix != 0x00ff00) // todo: use sprite's transparent background color
-					*pPix = pix;
+				a = gAlpha(pix);
+				pixOld = *pPix;
+				*pPix = SDL_MapRGB(pScreen->format,
+							(a * gRed(pix) + (256 - a) * gRed(pixOld)) >> 8,
+							(a * gGreen(pix) + (256 - a) * gGreen(pixOld)) >> 8,
+							(a * gBlue(pix) + (256 - a) * gBlue(pixOld)) >> 8
+						);
 				pPix++;
 				dSrcX += dSrcDeltaX;
 			}
@@ -424,7 +417,7 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 	float nMapYMax = m_nMapYMax;
 
 	// Precalculate some map positions
-	GRect* pScreenRect = &m_rect;
+	GRect* pScreenRect = &m_WorldRect;
 	int x = pScreenRect->x;
 	int y = pScreenRect->y;
 	int xn;
@@ -597,6 +590,47 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 	}
 }
 
+void VGame::DrawSelectedRegion(SDL_Surface* pScreen)
+{
+	MObject* pSelObj = m_pGameClient->GetSelectionBorder();
+	if(!pSelObj)
+		return;
+	float fOldX, fOldY, x, y, dx, dy;
+	GPosSize* pPosSize = pSelObj->GetGhostPos();
+	fOldX = pPosSize->x;
+	fOldY = pPosSize->y;
+	dx = 1;
+	dy = 1;
+	if(m_fSelectionX2 < m_fSelectionX1)
+		dx = -1;
+	if(m_fSelectionY2 < m_fSelectionY1)
+		dy = -1;
+	x = m_fSelectionX1;
+	while(x * dx < m_fSelectionX2 * dx)
+	{
+		pSelObj->SetPos(x, m_fSelectionY1, 0);
+		pSelObj->SetGhostPos(x, m_fSelectionY1);
+		DrawSprite(pScreen, pSelObj);
+		pSelObj->SetPos(x, m_fSelectionY2, 0);
+		pSelObj->SetGhostPos(x, m_fSelectionY2);
+		DrawSprite(pScreen, pSelObj);
+		x += 50 * dx;
+	}
+	y = m_fSelectionY1;
+	while(y * dy < m_fSelectionY2 * dy)
+	{
+		pSelObj->SetPos(m_fSelectionX1, y, 0);
+		pSelObj->SetGhostPos(m_fSelectionX1, y);
+		DrawSprite(pScreen, pSelObj);
+		pSelObj->SetPos(m_fSelectionX2, y, 0);
+		pSelObj->SetGhostPos(m_fSelectionX2, y);
+		DrawSprite(pScreen, pSelObj);
+		y += 50 * dy;
+	}
+	pSelObj->SetPos(fOldX, fOldY, -10000);
+	pSelObj->SetGhostPos(fOldX, fOldY);
+}
+
 /*virtual*/ void VGame::Draw(SDL_Surface* pScreen)
 {
 	// Draw the sky, ground, and sprites
@@ -610,36 +644,23 @@ void VGame::DrawEverythingWithTerrain(SDL_Surface* pScreen)
 
 	// Draw the selection corners
 	if(m_fSelectionX1 != m_fSelectionX2)
-	{
-		MObject* pGoalFlag = m_pGameClient->GetGoalFlag();
-		if(pGoalFlag)
-		{
-			float fOldX, fOldY;
-			GPosSize* pPosSize = pGoalFlag->GetGhostPos();
-			fOldX = pPosSize->x;
-			fOldY = pPosSize->y;
-			pGoalFlag->SetPos(m_fSelectionX1, m_fSelectionY1, 0);
-			pGoalFlag->SetGhostPos(m_fSelectionX1, m_fSelectionY1);
-			DrawSprite(pScreen, pGoalFlag);
-			pGoalFlag->SetPos(m_fSelectionX1, m_fSelectionY2, 0);
-			pGoalFlag->SetGhostPos(m_fSelectionX1, m_fSelectionY2);
-			DrawSprite(pScreen, pGoalFlag);
-			pGoalFlag->SetPos(m_fSelectionX2, m_fSelectionY1, 0);
-			pGoalFlag->SetGhostPos(m_fSelectionX2, m_fSelectionY1);
-			DrawSprite(pScreen, pGoalFlag);
-			pGoalFlag->SetPos(m_fSelectionX2, m_fSelectionY2, 0);
-			pGoalFlag->SetGhostPos(m_fSelectionX2, m_fSelectionY2);
-			DrawSprite(pScreen, pGoalFlag);
-			pGoalFlag->SetPos(fOldX, fOldY, -10000);
-			pGoalFlag->SetGhostPos(fOldX, fOldY);
-		}
-	}
+		DrawSelectedRegion(pScreen);
+
+	// Draw the on-screen panel
+	if(m_pPanel->IsDirty() || m_pPanel->GetGrabbedWidget())
+		BlitImage(pScreen, m_WorldRect.x, m_WorldRect.y + m_WorldRect.h, m_pPanel->GetCanvas());
 }
 
-void VGame::ScreenToMap(float* px, float* py, bool* pbSky, int x, int y)
+void VGame::ScreenToMap(float* px, float* py, bool* pbPanel, bool* pbSky, int x, int y)
 {
+	*pbPanel = false;
+	if(y > m_WorldRect.y + m_WorldRect.h)
+	{
+		*pbPanel = true;
+		return;
+	}
 	float size;
-	m_pCamera->ScreenToMap(px, py, &size, pbSky, x, y, &m_rect, 1);
+	m_pCamera->ScreenToMap(px, py, &size, pbSky, x, y, &m_WorldRect, 1);
 }
 
 void VGame::SetSelectionRect(float x1, float y1, float x2, float y2)
@@ -648,4 +669,37 @@ void VGame::SetSelectionRect(float x1, float y1, float x2, float y2)
 	m_fSelectionY1 = y1;
 	m_fSelectionX2 = x2;
 	m_fSelectionY2 = y2;
+}
+
+void VGame::SetUrl(const char* szUrl)
+{
+	m_pPanel->SetUrl(szUrl);
+}
+
+/*virtual*/ void VGame::OnChar(char c)
+{
+	m_pPanel->HandleChar(c);
+}
+
+/*virtual*/ void VGame::OnMouseDown(int x, int y)
+{
+	y -= (m_WorldRect.y + m_WorldRect.h);
+	if(y >= 0)
+	{
+		x -= m_WorldRect.x;
+		GWidgetAtomic* pNewWidget = m_pPanel->FindAtomicWidget(x, y);
+		m_pPanel->GrabWidget(pNewWidget, x, y);
+		m_pPanel->SetDirty();
+	}
+}
+
+/*virtual*/ void VGame::OnMouseUp(int x, int y)
+{
+	m_pPanel->ReleaseWidget();
+	m_pPanel->SetDirty();
+}
+
+/*virtual*/ void VGame::OnMousePos(int x, int y)
+{
+	m_pPanel->HandleMousePos(x, y);
 }

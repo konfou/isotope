@@ -74,6 +74,7 @@ public:
 	void SetChar(int nPos, wchar_t wc);
 	void InsertChar(int nPos, wchar_t wc);
 	void RemoveLastChar();
+	void Remove(int nPos, int nLen);
 	void ToUpper();
 	void ToLower();
 	void SetBufferLengthAtLeast(int nNewLength);

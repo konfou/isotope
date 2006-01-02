@@ -26,26 +26,77 @@ class MCharMakeDialog : public GWidgetDialog
 protected:
 	Controller* m_pController;
 	VCharMake* m_pView;
+	GWidgetTextLabel* m_pTitle;
 	GWidgetTextButton* m_pCancelButton;
 	GWidgetTextButton* m_pOKButton;
-	const char* m_szTypeBuffer;
+	GWidgetTextBox* m_pAlias;
+	GWidgetTextBox* m_pPassword1;
+	GWidgetTextBox* m_pPassword2;
+	GWidgetTextLabel* m_pLabelAlias;
+	GWidgetTextLabel* m_pLabelPassword1;
+	GWidgetTextLabel* m_pLabelPassword2;
+	GWidgetTextLabel* m_pLabelWarning;
 
 public:
-	MCharMakeDialog(VCharMake* pView, Controller* pController, const char* szTypeBuffer, int w, int h)
+	MCharMakeDialog(VCharMake* pView, Controller* pController, int w, int h)
 		: GWidgetDialog(w, h, BACKGROUND_COLOR)
 	{
 		m_pView = pView;
 		m_pController = pController;
-		m_szTypeBuffer = szTypeBuffer;
+
 		GString s;
-		s.Copy(L"Cancel");
-		m_pCancelButton = new GWidgetTextButton(this, 235, 420, 150, 24, &s);
+		s.Copy(L"Click on the character you would like:");
+		m_pTitle = new GWidgetTextLabel(this, 10, 25, 400, 30, &s, 0xff8888ff);
+
 		s.Copy(L"OK");
-		m_pOKButton = new GWidgetTextButton(this, 235, 390, 150, 24, &s);
+		m_pOKButton = new GWidgetTextButton(this, 200, 420, 100, 22, &s);
+		s.Copy(L"Cancel");
+		m_pCancelButton = new GWidgetTextButton(this, 320, 420, 100, 22, &s);
+
+		s.Copy(L"Character Name:");
+		m_pLabelAlias = new GWidgetTextLabel(this, 50, 200, 145, 20, &s, 0xff8888ff);
+		m_pLabelAlias->SetAlignLeft(false);
+		s.Copy(L"(Optional) Password:");
+		m_pLabelPassword1 = new GWidgetTextLabel(this, 50, 280, 145, 20, &s, 0xff8888ff);
+		m_pLabelPassword1->SetAlignLeft(false);
+		s.Copy(L"Same Password Again:");
+		m_pLabelPassword2 = new GWidgetTextLabel(this, 50, 310, 145, 20, &s, 0xff8888ff);
+		m_pLabelPassword2->SetAlignLeft(false);
+
+		m_pAlias = new GWidgetTextBox(this, 200, 200, 200, 20);
+		s.Copy(L"(Never use your real name)");
+		m_pLabelWarning = new GWidgetTextLabel(this, 200, 220, 200, 20, &s, 0xff8888ff);
+
+		m_pPassword1 = new GWidgetTextBox(this, 200, 280, 200, 20);
+		m_pPassword2 = new GWidgetTextBox(this, 200, 310, 200, 20);
+		m_pPassword1->SetPassword();
+		m_pPassword2->SetPassword();
 	}
 
 	virtual ~MCharMakeDialog()
 	{
+	}
+
+	// Make the username acceptable for a filename
+	static void StandardizeUsername(char* szUsername)
+	{
+		int i;
+		for(i = 0; szUsername[i] != '\0'; i++)
+		{
+			if((szUsername[i] >= 'a' && szUsername[i] <= 'z') ||
+				(szUsername[i] >= 'A' && szUsername[i] <= 'Z') ||
+				(szUsername[i] >= '0' && szUsername[i] <= '9') ||
+				szUsername[i] == '_' ||
+				szUsername[i] == '-')
+			{
+			}
+			else
+				szUsername[i] = ' ';
+		}
+		while(i > 0 && szUsername[i - 1] == ' ')
+			szUsername[--i] = '\0';
+		for(i = 0; szUsername[i] == ' '; i++)
+			szUsername[i] = '_';
 	}
 
 	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
@@ -54,9 +105,23 @@ public:
 			m_pController->CancelMakeNewChar();
 		else if(pButton == m_pOKButton)
 		{
+			GString* pPassword1 = m_pPassword1->GetText();
+			GString* pPassword2 = m_pPassword2->GetText();
+			if(pPassword1->CompareTo(pPassword2) != 0)
+				return;
+			GString* pUsername = m_pAlias->GetText();
+			if(pUsername->GetLength() <= 0)
+				return;
+			char* szPassword = (char*)alloca(pPassword1->GetLength() + 1);
+			pPassword1->GetAnsi(szPassword);
+			char* szUsername = (char*)alloca(pUsername->GetLength() + 1);
+			pUsername->GetAnsi(szUsername);
+			StandardizeUsername(szUsername);
+			if(strlen(szUsername) <= 0)
+				return;
 			const char* szID = m_pView->GetAvatarID();
-			if(szID)
-				m_pController->CreateNewCharacter(szID, m_szTypeBuffer);
+			if(szID && szUsername && szPassword)
+				m_pController->CreateNewCharacter(szID, szUsername, szPassword);
 		}
 		else
 			GAssert(false, "Unrecognized button");
@@ -73,7 +138,7 @@ public:
 #define GAP_BETWEEN_AVATARS 20
 #define PARADE_BOX_BORDER 50
 
-VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer, Controller* pController)
+VCharMake::VCharMake(GRect* pRect, Controller* pController)
 : ViewPort(pRect)
 {
 	// Make a list of avatar choices
@@ -81,9 +146,11 @@ VCharMake::VCharMake(GRect* pRect, const char* szTypeBuffer, Controller* pContro
 	MakeAvatarList();
 
 	// Make the view stuff
-	m_szTypeBuffer = szTypeBuffer;
 	GAssert(pRect->w >= 620 && pRect->h >= 460, "Screen not big enough to hold this view");
-	m_pDialog = new MCharMakeDialog(this, pController, szTypeBuffer, 620, 460);
+	m_pDialog = new MCharMakeDialog(this, pController, 620, 460);
+	m_nLeft = (pRect->w - 620) / 2 + pRect->x;
+	m_nTop = (pRect->h - 460) / 2 + pRect->y;
+
 	m_dTime = GameEngine::GetTime();
 	m_fCameraDirection = 0;
 	m_nFirstAvatar = 0;
@@ -125,43 +192,24 @@ void VCharMake::MakeAvatarList()
 
 void VCharMake::RefreshEntireImage()
 {
-	GRect r;
 	m_pDialog->Update();
-	GImage* pCanvas = m_pDialog->GetImage(&r);
-	r.x = 10;
-	r.y = 10;
-	r.w = 600;
-	r.h = 25;
-	pCanvas->DrawHardText(&r, "Click on the character you would like:", 0x00ffff, 1);
+	GRect r;
+	GImage* pImage = m_pDialog->GetImage(&r);
+	pImage->DrawBox(0, 0, pImage->GetWidth() - 1, pImage->GetHeight() - 1, 0xff88cc00, false);
 }
 
 /*virtual*/ void VCharMake::Draw(SDL_Surface *pScreen)
 {
 	GRect r;
 	GImage* pCanvas = m_pDialog->GetImage(&r);
-	if(m_eState == PickCharacter || m_eState == ShowCharacter)
+	if(m_eState == PickCharacter)
 		DrawAvatars();
-	if(m_eState == ShowCharacter)
-	{
-		r.x = 10;
-		r.y = 250;
-		r.w = 600;
-		r.h = 25;
-		pCanvas->DrawHardText(&r, "Please enter a password:", 0x00ffff, 1);
-		m_eState = EnterPassword;
-	}
-	else if(m_eState == EnterPassword)
-	{
-		pCanvas->DrawBox(10, 290, 600, 315, 0x0099ff, true);
-		r.x = 10;
-		r.y = 290;
-		r.w = 600;
-		r.h = 25;
-		pCanvas->DrawHardText(&r, m_szTypeBuffer, 0x000000, 1);
-		int nWidth = pCanvas->MeasureHardTextWidth(r.h, m_szTypeBuffer, 1);
-		pCanvas->DrawBox(10 + nWidth, 292, 12 + nWidth, 312, 0x000000, true);
-	}
-	BlitImage(pScreen, m_rect.x, m_rect.y, pCanvas);
+	BlitImage(pScreen, m_nLeft/*m_rect.x*/, m_nTop/*m_rect.y*/, pCanvas);
+}
+
+/*virtual*/ void VCharMake::OnChar(char c)
+{
+	m_pDialog->HandleChar(c);
 }
 
 void VCharMake::DrawAvatars()
@@ -174,7 +222,7 @@ void VCharMake::DrawAvatars()
 	m_fCameraDirection += (float)(timeDelta / 2);
 	GRect r;
 	GImage* pCanvas = m_pDialog->GetImage(&r);
-	pCanvas->DrawBox(PARADE_BOX_BORDER, 50, 620 - PARADE_BOX_BORDER, 170, 0x330022, true);
+	pCanvas->DrawBox(PARADE_BOX_BORDER, 50, 620 - PARADE_BOX_BORDER, 170, 0x440033, true);
 	int nCount = m_pAvatarAnimations->GetSize();
 	if(nCount <= 0)
 		return;
@@ -214,11 +262,11 @@ void VCharMake::DrawAvatars()
 			{
 				bFoundClick = true;
 				m_szAvatarID = g_szAvatarIDList[nAvatar];
-				pCanvas->Blit(nPos, 60, pImage, &r);
+				pCanvas->AlphaBlit(nPos, 60, pImage, &r);
 			}
 		}
 		else
-			pCanvas->Blit(nPos, 60, pImage, &r);
+			pCanvas->AlphaBlit(nPos, 60, pImage, &r);
 		nPos += r.w;
 		nPos += GAP_BETWEEN_AVATARS;
 		nAvatar++;
@@ -227,17 +275,18 @@ void VCharMake::DrawAvatars()
 	}
 }
 
-void VCharMake::OnMouseDown(Controller* pController, int x, int y)
+void VCharMake::OnMouseDown(int x, int y)
 {
-	x -= m_rect.x;
-	y -= m_rect.y;
+	x -= m_nLeft; //m_rect.x;
+	y -= m_nTop; //m_rect.y;
 
 	// Check for clicking on a character
 	if(m_eState == PickCharacter && y > 50 && y < 170)
 	{
 		m_nClickX = x;
 		m_eState = ShowCharacter;
-		pController->ClearTypeBuffer();
+		DrawAvatars();
+		//pController->ClearTypeBuffer();
 		return;
 	}
 
@@ -246,7 +295,7 @@ void VCharMake::OnMouseDown(Controller* pController, int x, int y)
 	m_pDialog->GrabWidget(pNewWidget, x, y);
 }
 
-void VCharMake::OnMouseUp(Controller* pController, int x, int y)
+void VCharMake::OnMouseUp(int x, int y)
 {
 	m_pDialog->ReleaseWidget();
 }

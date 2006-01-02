@@ -1,9 +1,13 @@
 #ifndef __GGENETIC_H__
 #define __GGENETIC_H__
 
+#include "GSearch.h"
+
 class GArffRelation;
 class GArffData;
 class GNeuralNet;
+class GEvolutionarySearchHelper;
+
 
 class GGeneticBits
 {
@@ -26,10 +30,17 @@ public:
 	// learn real values.)
 	static double BitsToDouble(unsigned int* pBits, int nIndex, int nLength);
 
+	// The critic
 	virtual double MeasureFitness(unsigned int* pBits) = 0;
 
+	// Returns a single row of bits from the population
 	unsigned int* GetRow(int nRow) { return &m_pData[nRow * m_nUintsPerSample]; }
+
+	// Performs a single evolutionary generation using fitness proportionate
+	// selection
 	void DoFitnessProportionateSelection(double dSurvivalRate, double dMutationRate, int nBitsPerCrossOverPoint);
+
+	// Performs a single evolutionary generation using tournament selection
 	void DoTournamentSelection(double dProbThatMoreFitSurvives, double dSurvivalRate, double dMutationRate, int nBitsPerCrossOverPoint);
 
 protected:
@@ -44,25 +55,41 @@ protected:
 
 
 
-class GGeneticNeuralNet : public GGeneticBits
+class GEvolutionarySearch : public GSearch
 {
+friend class GEvolutionarySearchHelper;
 protected:
-	GNeuralNet* m_pNN;
-	int m_nBitsPerWeight;
-	int m_nWeightCount;
-	int m_nMaxTestSamples;
-	double* m_pWeights;
-	GArffRelation* m_pRelation;
-	GArffData* m_pData;
-	double* m_pSample;
+	GEvolutionarySearchHelper* m_pHelper;
+	double m_dProbThatMoreFitSurvives;
+	double m_dSurvivalRate;
+	double m_dMutationRate;
+	int m_nBitsPerCrossOverPoint;
 
 public:
-	GGeneticNeuralNet(int nPopulation, int nBitsPerWeight, GNeuralNet* pNN, GArffRelation* pRelation, GArffData* pValidationData, int nMaxTestSamples);
-	~GGeneticNeuralNet();
+	GEvolutionarySearch(GSearchCritic* pCritic, int nPopulation, int nBitsPerWeight);
+	virtual ~GEvolutionarySearch();
 
-	virtual double MeasureFitness(unsigned int* pBits);
+	virtual void Iterate();
 
-	void SetWeightsFromBits(unsigned int* pBits);
+	// d should be a value between .5 and 1. A larger value indicates a more
+	// greedy search.
+	void SetProbThatMoreFitSurvives(double d) { m_dProbThatMoreFitSurvives = d; }
+
+	// d should be a value between 0 and 1.
+	void SetSurvivalRate(double d) { m_dSurvivalRate = d; }
+
+	// d should be a value between 0 and 1
+	void SetMutationRate(double d) { m_dMutationRate = d; }
+
+	// n should be between 1 and nBitsPerWeight inclusively. 1 indicates that
+	// a crossover can happen at any point. nBitsPerWeight would mean it can
+	// only happen at weight boundaries.
+	void SetBitsPerCrossOverPoint(int n) { m_nBitsPerCrossOverPoint = n; }
+
+protected:
+	// This method is called by GEvolutionarySearchHelper to access the critic
+	double Critique(double* pVector);
 };
+
 
 #endif // __GGENETIC_H__

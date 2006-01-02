@@ -13,6 +13,7 @@
 #define __VCHARSELECT_H__
 
 #include "ViewPort.h"
+#include "VWave.h"
 
 struct GRect;
 struct AvatarAccount;
@@ -33,29 +34,30 @@ protected:
 		WrongPassword,
 	};
 
+	int m_nLeft, m_nTop;
+	int m_nSelection;
 	DialogState m_eState;
-	const char* m_szTypeBuffer;
 	GPointerArray* m_pAvatarAnimations;
 	MCharSelectDialog* m_pDialog;
 	double m_dTime;
 	float m_fCameraDirection;
-	int m_nFirstAvatar;
 	int m_nClickX;
-	float m_fParadePos;
-	AvatarAccount* m_pSelectedAccount;
 	double m_dWrongPasswordTime;
+	VAudioPlayer m_audioPlayer;
 
 public:
-	VCharSelect(GRect* pRect, const char* szTypeBuffer, Controller* pController);
+	VCharSelect(GRect* pRect, Controller* pController);
 	virtual ~VCharSelect();
 
 	virtual void Draw(SDL_Surface *pScreen);
-	void OnMouseDown(Controller* pController, int x, int y);
-	void OnMouseUp(Controller* pController, int x, int y);
+	virtual void OnChar(char c) {}
+	virtual void OnMouseDown(int x, int y);
+	virtual void OnMouseUp(int x, int y);
+	virtual void OnMousePos(int x, int y);
+
 	void ReloadAccounts();
 	bool CheckPassword();
-	GXMLTag* GetSelectedAccountTag();
-	AvatarAccount* GetSelectedAccount() { return m_pSelectedAccount; }
+	AvatarAccount* GetSelectedAccount();
 
 protected:
 	void RefreshEntireImage();

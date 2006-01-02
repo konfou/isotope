@@ -1,8 +1,8 @@
-#include "GGenetic.h"
 #include "GMacros.h"
-#include "GBits.h"
+#include "GGenetic.h"
 #include "GNeuralNet.h"
 #include "GArff.h"
+#include "GBits.h"
 
 GGeneticBits::GGeneticBits(int nPopulation, int nBits)
 {
@@ -230,28 +230,39 @@ void GGeneticBits::DoTournamentSelection(double dProbThatMoreFitSurvives, double
 
 // -----------------------------------------------------------------------
 
-GGeneticNeuralNet::GGeneticNeuralNet(int nPopulation, int nBitsPerWeight, GNeuralNet* pNN, GArffRelation* pRelation, GArffData* pValidationData, int nMaxTestSamples)
-: GGeneticBits(nPopulation, nBitsPerWeight * pNN->GetWeightCount())
+class GEvolutionarySearchHelper : public GGeneticBits
 {
-	m_pNN = pNN;
+protected:
+	GEvolutionarySearch* m_pParent;
+	int m_nBitsPerWeight;
+	int m_nWeightCount;
+	double* m_pWeights;
+
+public:
+	GEvolutionarySearchHelper(GEvolutionarySearch* pParent, int nPopulation, int nBitsPerWeight, int nVectorSize);
+	~GEvolutionarySearchHelper();
+
+	virtual double MeasureFitness(unsigned int* pBits);
+	void SetWeightsFromBits(unsigned int* pBits);
+};
+
+
+GEvolutionarySearchHelper::GEvolutionarySearchHelper(GEvolutionarySearch* pParent, int nPopulation, int nBitsPerWeight, int nVectorSize)
+: GGeneticBits(nPopulation, nBitsPerWeight * nVectorSize)
+{
+	m_pParent = pParent;
 	m_nBitsPerWeight = nBitsPerWeight;
-	m_nWeightCount = pNN->GetWeightCount();
-	m_nMaxTestSamples = nMaxTestSamples;
+	m_nWeightCount = nVectorSize;
 	m_pWeights = new double[m_nWeightCount];
-	m_pRelation = pRelation;
-	m_pData = pValidationData;
-	m_pSample = new double[pRelation->GetAttributeCount()];
 }
 
-GGeneticNeuralNet::~GGeneticNeuralNet()
+GEvolutionarySearchHelper::~GEvolutionarySearchHelper()
 {
 	delete(m_pWeights);
-	delete(m_pSample);
 }
 
-void GGeneticNeuralNet::SetWeightsFromBits(unsigned int* pBits)
+void GEvolutionarySearchHelper::SetWeightsFromBits(unsigned int* pBits)
 {
-	// Convert the bits to a set of weights
 	int nPos = 0;
 	int n;
 	double d;
@@ -263,45 +274,38 @@ void GGeneticNeuralNet::SetWeightsFromBits(unsigned int* pBits)
 		m_pWeights[n] = d;
 		nPos += m_nBitsPerWeight;
 	}
-
-	// Copy the weights into the neural net
-	m_pNN->SetWeights(m_pWeights);
 }
 
-/*virtual*/ double GGeneticNeuralNet::MeasureFitness(unsigned int* pBits)
+/*virtual*/ double GEvolutionarySearchHelper::MeasureFitness(unsigned int* pBits)
 {
 	SetWeightsFromBits(pBits);
-
-	// Measure fitness
-	double* pRow;
-	GArffAttribute* pAttr;
-	int nRowCount = m_pData->GetRowCount();
-	int nRowSize = sizeof(double) * m_pRelation->GetAttributeCount();
-	int nOutputs = m_pRelation->GetOutputCount();
-	int i, j, nIndex;
-	double d;
-	double dFitness = 0;
-	for(i = MIN(m_nMaxTestSamples, nRowCount); i > 0; i--)
-	{
-		pRow = m_pData->GetRow(rand() % nRowCount);
-		memcpy(m_pSample, pRow, nRowSize);
-		m_pNN->Eval(m_pSample);
-		for(j = 0; j < nOutputs; j++)
-		{
-			nIndex = m_pRelation->GetOutputIndex(j);
-			pAttr = m_pRelation->GetAttribute(nIndex);
-			if(pAttr->IsContinuous())
-			{
-				d = m_pSample[nIndex] - pRow[nIndex];
-				dFitness += (1 / (d * d + .00001));
-			}
-			else
-			{
-				if((int)m_pSample[nIndex] == (int)pRow[nIndex])
-					dFitness += 1;
-			}
-		}
-	}
-	return dFitness;
+	double dError = m_pParent->Critique(m_pWeights);
+	return (1.0 / (dError + .001)); // todo: is this a good measure of fitness?
 }
 
+// -----------------------------------------------------------------------
+
+GEvolutionarySearch::GEvolutionarySearch(GSearchCritic* pCritic, int nPopulation, int nBitsPerWeight)
+: GSearch(pCritic)
+{
+	m_dProbThatMoreFitSurvives = .9;
+	m_dSurvivalRate = .5;
+	m_dMutationRate = .6;
+	m_nBitsPerCrossOverPoint = nBitsPerWeight;
+	m_pHelper = new GEvolutionarySearchHelper(this, nPopulation, nBitsPerWeight, pCritic->GetVectorSize());
+}
+
+/*virtual*/ GEvolutionarySearch::~GEvolutionarySearch()
+{
+	delete(m_pHelper);
+}
+
+/*virtual*/ void GEvolutionarySearch::Iterate()
+{
+	m_pHelper->DoTournamentSelection(m_dProbThatMoreFitSurvives, m_dSurvivalRate, m_dMutationRate, m_nBitsPerCrossOverPoint);
+}
+
+double GEvolutionarySearch::Critique(double* pVector)
+{
+	return m_pCritic->Critique(pVector);
+}

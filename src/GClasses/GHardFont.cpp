@@ -129,6 +129,7 @@ static const int small_hard_font_offsets[97] =
 	628,
 	636,
 	645,
+	650
 };
 
 static const char* hard_font_pixels[33] = 

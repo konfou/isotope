@@ -55,7 +55,7 @@ public:
 	int GetListBoxLineHeight() { return 16; }
 	int GetDefaultScrollBarSize() { return 16; }
 	void DrawButtonText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool pressed);
-	void DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft, bool bright);
+	void DrawLabelText(GImage* pImage, int x, int y, int w, int h, GString* pString, bool alignLeft, GColor c);
 	void DrawHorizCurvedOutSurface(GImage* pImage, int x, int y, int w, int h);
 	void DrawHorizCurvedInSurface(GImage* pImage, int x, int y, int w, int h, int colorMaskRed = 0, int colorMaskGreen = 0, int colorMaskBlue = 255);
 	void DrawVertCurvedOutSurface(GImage* pImage, int x, int y, int w, int h);
@@ -111,6 +111,9 @@ public:
 	void SetPos(int x, int y);
 	GRect* GetRect() { return &m_rect; }
 	GWidgetGroup* GetParent() { return m_pParent; }
+#ifdef _DEBUG
+	bool DebugCheck();
+#endif // _DEBUG
 };
 
 
@@ -288,7 +291,9 @@ public:
 	virtual WidgetType GetType() { return Dialog; }
 	virtual GWidgetStyle* GetStyle() { return m_pStyle; }
 	GWidgetAtomic* GetGrabbedWidget() { return m_pGrabbedWidget; }
+	GWidgetAtomic* GetFocusWidget() { return m_pFocusWidget; }
 	void GrabWidget(GWidgetAtomic* pWidget, int mouseX, int mouseY);
+	void SetFocusWidget(GWidgetAtomic* pWidget);
 	void ReleaseWidget();
 	virtual void OnDestroyWidget(GWidget* pWidget);
 	void HandleChar(char c);
@@ -336,12 +341,12 @@ protected:
 	GImage m_image;
 	GString m_text;
 	bool m_alignLeft;
-	bool m_bBright;
 	bool m_dirty;
-	bool m_bOpaqueBackground;
+	GColor m_cBackground;
+	GColor m_cForeground;
 
 public:
-	GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText, bool bBright);
+	GWidgetTextLabel(GWidgetGroup* pParent, int x, int y, int w, int h, GString* pText, GColor c);
 	virtual ~GWidgetTextLabel();
 
 	virtual WidgetType GetType() { return TextLabel; }
@@ -350,7 +355,15 @@ public:
 	GString* GetText() { return &m_text; }
 	void SetText(GString* pText);
 	void SetText(const char* szText);
-	void SetOpaqueBackground() { m_bOpaqueBackground = true; }
+
+	// Sets the text color
+	void SetForegroundColor(GColor c) { m_cForeground = c; }
+
+	// The default background color is transparent. If you want an opaque
+	// or semi-opaque background then you should call this method.
+	void SetBackgroundColor(GColor c) { m_cBackground = c; }
+
+	// Specifies whether the text is left-justified (true) or right-justified (false)
 	void SetAlignLeft(bool bAlignLeft) { m_alignLeft = bAlignLeft; m_dirty = true; }
 
 protected:
@@ -578,6 +591,9 @@ protected:
 	bool m_dirty;
 	bool m_bGotFocus;
 	bool m_bPassword;
+	int m_nAnchorPos;
+	int m_nCursorPos;
+	int m_nMouseDelta;
 
 public:
 	GWidgetTextBox(GWidgetGroup* pParent, int x, int y, int w, int h);
@@ -596,6 +612,7 @@ protected:
 	virtual void Release();
 	virtual void OnGetFocus();
 	virtual void OnLoseFocus();
+	virtual void OnMouseMove(int dx, int dy);
 };
 
 

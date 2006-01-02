@@ -859,7 +859,7 @@ void MGameMachine::playSound(Engine* pEngine, EVar* pID)
 	if(index < 0)
 		GameEngine::ThrowError("There was no sound with the ID \"%s\" in the store", szID);
 	MSound* pSound = pSounds->GetSound(index);
-	VWavePlayer* pPlayer = pGameClient->GetWavePlayer();
+	VAudioPlayer* pPlayer = pGameClient->GetWavePlayer();
 	pPlayer->Play(pSound);
 }
 

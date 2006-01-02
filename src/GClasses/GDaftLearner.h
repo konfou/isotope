@@ -48,35 +48,4 @@ protected:
 };
 
 
-
-// Returns the error at the point specified by the array pArrPoint
-typedef double (*GSearchCritic)(void* pThis, double* pArrPoint);
-
-// This is still an experimental algorithm. It's designed to search complex
-// hypersurfaces by optimizing between exploration and exploitation using
-// the intersection of Gaussians extending from known points as a guide
-class GSearch
-{
-protected:
-	int m_nDimensions;
-	GStringHeap* m_pHeap;
-	GAVLTree* m_pPriorityQueue;
-	GSearchCritic m_pCritic;
-	void* m_pCriticThis;
-	GMatrix* m_pMatrix;
-	double m_dThoroughness;
-
-public:
-	GSearch(int nDimensions, double dMin, double dRange, double dThoroughness, GSearchCritic pCritic, void* pCriticThis);
-	~GSearch();
-
-	void Iterate();
-
-protected:
-	double* AddPoint(double* pPoint);
-	double MeasureDistanceSquared(double* pPoint1, double* pPoint2);
-	void AddSearchArea(double** ppNeighbors);
-	double ComputeOptimisticSearchPointError(double* pSearchPoint, double* pNeighbor);
-};
-
 #endif // __GDAFTLEARNER_H__

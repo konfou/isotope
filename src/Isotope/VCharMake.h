@@ -27,11 +27,10 @@ protected:
 	{
 		PickCharacter,
 		ShowCharacter,
-		EnterPassword,
 	};
 
+	int m_nLeft, m_nTop;
 	DialogState m_eState;
-	const char* m_szTypeBuffer;
 	GPointerArray* m_pAvatarAnimations;
 	MCharMakeDialog* m_pDialog;
 	double m_dTime;
@@ -42,13 +41,18 @@ protected:
 	const char* m_szAvatarID;
 
 public:
-	VCharMake(GRect* pRect, const char* szTypeBuffer, Controller* pController);
+	VCharMake(GRect* pRect, Controller* pController);
 	virtual ~VCharMake();
 
 	virtual void Draw(SDL_Surface *pScreen);
-	void OnMouseDown(Controller* pController, int x, int y);
-	void OnMouseUp(Controller* pController, int x, int y);
+	virtual void OnChar(char c);
+	virtual void OnMouseDown(int x, int y);
+	virtual void OnMouseUp(int x, int y);
+	virtual void OnMousePos(int x, int y) {}
+
 	const char* GetAvatarID() { return m_szAvatarID; }
+	const char* GetPassword();
+	const char* GetUsername();
 
 protected:
 	void RefreshEntireImage();

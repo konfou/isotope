@@ -29,7 +29,10 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GBillboardCamera.cpp\
                    $(GCLASSES_PATH)/GBits.cpp\
                    $(GCLASSES_PATH)/GBitTable.cpp\
+                   $(GCLASSES_PATH)/GBlindGreedy.cpp\
+                   $(GCLASSES_PATH)/GCautiousGreedy.cpp\
                    $(GCLASSES_PATH)/GCompress.cpp\
+                   $(GCLASSES_PATH)/GConfSearch.cpp\
                    $(GCLASSES_PATH)/GCppParser.cpp\
                    $(GCLASSES_PATH)/GCrypto.cpp\
                    $(GCLASSES_PATH)/GDaftLearner.cpp\
@@ -60,6 +63,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GNaiveBayes.cpp\
                    $(GCLASSES_PATH)/GNeuralNet.cpp\
                    $(GCLASSES_PATH)/GParseTree.cpp\
+                   $(GCLASSES_PATH)/GParticleSwarm.cpp\
                    $(GCLASSES_PATH)/GPNG.cpp\
                    $(GCLASSES_PATH)/GPointerQueue.cpp\
                    $(GCLASSES_PATH)/GPolynomial.cpp\
@@ -68,9 +72,11 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GRayTrace.cpp\
                    $(GCLASSES_PATH)/GRiddle.cpp\
                    $(GCLASSES_PATH)/GSDL.cpp\
+                   $(GCLASSES_PATH)/GSearch.cpp\
                    $(GCLASSES_PATH)/GSocket.cpp\
                    $(GCLASSES_PATH)/GSphereImage.cpp\
                    $(GCLASSES_PATH)/GSpinLock.cpp\
+                   $(GCLASSES_PATH)/GStabSearch.cpp\
                    $(GCLASSES_PATH)/GStack.cpp\
                    $(GCLASSES_PATH)/GStemmer.cpp\
                    $(GCLASSES_PATH)/GStream.cpp\
@@ -95,8 +101,11 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GBillboardCamera.h\
                    $(GCLASSES_PATH)/GBits.h\
                    $(GCLASSES_PATH)/GBitTable.h\
+                   $(GCLASSES_PATH)/GBlindGreedy.h\
                    $(GCLASSES_PATH)/GBuffer.h\
+                   $(GCLASSES_PATH)/GCautiousGreedy.h\
                    $(GCLASSES_PATH)/GCompress.h\
+                   $(GCLASSES_PATH)/GConfSearch.h\
                    $(GCLASSES_PATH)/GCppParser.h\
                    $(GCLASSES_PATH)/GCrypto.h\
                    $(GCLASSES_PATH)/GDaftLearner.h\
@@ -125,6 +134,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GNaiveBayes.h\
                    $(GCLASSES_PATH)/GNeuralNet.h\
                    $(GCLASSES_PATH)/GParseTree.h\
+                   $(GCLASSES_PATH)/GParticleSwarm.h\
                    $(GCLASSES_PATH)/GPNG.h\
                    $(GCLASSES_PATH)/GPointerQueue.h\
                    $(GCLASSES_PATH)/GPolynomial.h\
@@ -133,9 +143,11 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GRayTrace.h\
                    $(GCLASSES_PATH)/GRiddle.h\
                    $(GCLASSES_PATH)/GSDL.h\
+                   $(GCLASSES_PATH)/GSearch.h\
                    $(GCLASSES_PATH)/GSocket.h\
                    $(GCLASSES_PATH)/GSphereImage.h\
                    $(GCLASSES_PATH)/GSpinLock.h\
+                   $(GCLASSES_PATH)/GStabSearch.h\
                    $(GCLASSES_PATH)/GStemmer.h\
                    $(GCLASSES_PATH)/GString.h\
                    $(GCLASSES_PATH)/GThread.h\

@@ -249,6 +249,9 @@ public:
 	// Inverts the pixels in the image
 	void Invert();
 
+	// Inverts the pixels in a particular rect
+	void InvertRect(GRect* pRect);
+
 	// Finds edges and makes them glow
 	void MakeEdgesGlow(float fThresh, int nThickness, int nOpacity, GColor color);
 

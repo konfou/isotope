@@ -263,7 +263,19 @@
 				RelativePath="GBitTable.h">
 			</File>
 			<File
+				RelativePath=".\GBlindGreedy.cpp">
+			</File>
+			<File
+				RelativePath=".\GBlindGreedy.h">
+			</File>
+			<File
 				RelativePath="GBuffer.h">
+			</File>
+			<File
+				RelativePath=".\GCautiousGreedy.cpp">
+			</File>
+			<File
+				RelativePath=".\GCautiousGreedy.h">
 			</File>
 			<File
 				RelativePath="GCompress.cpp">
@@ -881,6 +893,12 @@
 				RelativePath="GParseTree.h">
 			</File>
 			<File
+				RelativePath=".\GParticleSwarm.cpp">
+			</File>
+			<File
+				RelativePath=".\GParticleSwarm.h">
+			</File>
+			<File
 				RelativePath="GPipe.cpp">
 				<FileConfiguration
 					Name="Release|Win32">
@@ -1116,6 +1134,12 @@
 			</File>
 			<File
 				RelativePath="GSpinLock.h">
+			</File>
+			<File
+				RelativePath=".\GStabSearch.cpp">
+			</File>
+			<File
+				RelativePath=".\GStabSearch.h">
 			</File>
 			<File
 				RelativePath="GStack.cpp">

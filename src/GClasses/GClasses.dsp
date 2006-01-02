@@ -143,7 +143,23 @@ SOURCE=.\GBitTable.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GBlindGreedy.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GBlindGreedy.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GBuffer.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GCautiousGreedy.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GCautiousGreedy.h
 # End Source File
 # Begin Source File
 
@@ -152,6 +168,14 @@ SOURCE=.\GCompress.cpp
 # Begin Source File
 
 SOURCE=.\GCompress.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GConfSearch.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GConfSearch.h
 # End Source File
 # Begin Source File
 
@@ -419,6 +443,14 @@ SOURCE=.\GParseTree.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GParticleSwarm.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GParticleSwarm.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GPipe.cpp
 # End Source File
 # Begin Source File
@@ -488,6 +520,14 @@ SOURCE=.\GSDL.cpp
 # Begin Source File
 
 SOURCE=.\GSDL.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\GSearch.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GSearch.h
 # End Source File
 # Begin Source File
 

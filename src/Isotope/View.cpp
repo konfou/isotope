@@ -21,6 +21,7 @@ View::View()
 	SetScreenSize(m_nScreenWidth, m_nScreenHeight);
 	m_pViewPorts = new GPointerArray(8);
 	m_dLastFullRefreshTime = 0;
+	m_pTopView = NULL;
 }
 
 View::~View()
@@ -75,6 +76,7 @@ void View::MakeScreenBigger()
 void View::PushViewPort(ViewPort* pViewPort)
 {
 	m_pViewPorts->AddPointer(pViewPort);
+	m_pTopView = pViewPort;
 }
 
 int View::GetViewPortCount()
@@ -84,14 +86,40 @@ int View::GetViewPortCount()
 
 ViewPort* View::PopViewPort()
 {
-	ViewPort* pVP = (ViewPort*)m_pViewPorts->GetPointer(m_pViewPorts->GetSize() - 1);
-	m_pViewPorts->DeleteCell(m_pViewPorts->GetSize() - 1);
+	int nCount = m_pViewPorts->GetSize();
+	ViewPort* pVP = (ViewPort*)m_pViewPorts->GetPointer(nCount - 1);
+	m_pViewPorts->DeleteCell(nCount - 1);
+	if(nCount > 1)
+		m_pTopView = (ViewPort*)m_pViewPorts->GetPointer(nCount - 2);
+	else
+		m_pTopView = NULL;
 	return pVP;
 }
 
 GRect* View::GetScreenRect()
 {
     return &m_screenRect;
+}
+
+void View::OnChar(char c)
+{
+	m_pTopView->OnChar(c);
+}
+
+void View::OnMouseDown(int x, int y)
+{
+	m_pTopView->OnMouseDown(x, y);
+}
+
+void View::OnMouseUp(int x, int y)
+{
+	m_pTopView->OnMouseUp(x, y);
+}
+
+bool View::OnMousePos(int x, int y)
+{
+	m_pTopView->OnMousePos(x, y);
+	return false;
 }
 
 void View::Refresh()

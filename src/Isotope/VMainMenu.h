@@ -31,11 +31,12 @@ public:
 	virtual ~VMainMenu();
 
 	virtual void Draw(SDL_Surface *pScreen);
-	void RefreshEntireImage();
+	virtual void OnChar(char c) {}
+	virtual void OnMouseDown(int x, int y);
+	virtual void OnMouseUp(int x, int y);
+	virtual void OnMousePos(int x, int y);
 
-	void OnMouseDown(int x, int y);
-	void OnMouseUp(int x, int y);
-	void OnMousePos(int x, int y);
+	void RefreshEntireImage();
 	void SetRect(GRect* pRect) { m_rect = *pRect; }
 	void AddObject(Controller* pController);
 };

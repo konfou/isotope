@@ -18,8 +18,8 @@ OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /System/Library/Framewo
 else
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
-OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
+DBG_LFLAGS = $(DBG_LIBRARIES) -lSDL_mixer $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
+OPT_LFLAGS = $(OPT_LIBRARIES) -lSDL_mixer $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
 endif
 
 ################
@@ -42,6 +42,7 @@ ISOTOPE_SOURCES =   $(ISOTOPE_PATH)/AutoUpdate.cpp\
                     $(ISOTOPE_PATH)/MSpot.cpp\
                     $(ISOTOPE_PATH)/MStatCollector.cpp\
                     $(ISOTOPE_PATH)/MStore.cpp\
+                    $(ISOTOPE_PATH)/PuzzleGenerator.cpp\
                     $(ISOTOPE_PATH)/NRealmProtocol.cpp\
                     $(ISOTOPE_PATH)/VCharMake.cpp\
                     $(ISOTOPE_PATH)/VCharSelect.cpp\
@@ -70,6 +71,7 @@ ISOTOPE_HEADER =    $(ISOTOPE_PATH)/AutoUpdate.h\
                     $(ISOTOPE_PATH)/MSpot.h\
                     $(ISOTOPE_PATH)/MStatCollector.h\
                     $(ISOTOPE_PATH)/MStore.h\
+                    $(ISOTOPE_PATH)/PuzzleGenerator.h\
                     $(ISOTOPE_PATH)/NRealmProtocol.h\
                     $(ISOTOPE_PATH)/VCharMake.h\
                     $(ISOTOPE_PATH)/VCharSelect.h\
@@ -109,7 +111,7 @@ skipsomelines :
 	echo                        Isotope
 	echo                    ################
 	echo
-	
+
 usage:
 	#
 	# Usage:
@@ -136,4 +138,3 @@ clean :
 	rm -f $(TARGET_PATH)/$(TARGET_NAME_DBG)
 	rm -f $(ALL_OBJECTS_OPT)
 	rm -f $(ALL_OBJECTS_DBG)
-	$(MAKE) -C ../Gasp clean

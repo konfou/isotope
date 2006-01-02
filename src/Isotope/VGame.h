@@ -25,6 +25,8 @@ struct VHorizGroundParams;
 struct GPosSize;
 class GWidgetStyle;
 class GWidgetButton;
+class VOnScreenPanel;
+class Controller;
 
 // This represents the view for the game part of the application.  (In other words, this
 // is what people will spend most of their time looking at when they play the game).  It
@@ -33,6 +35,7 @@ class GWidgetButton;
 class VGame : public ViewPort
 {
 protected:
+	GRect m_WorldRect;
 	MGameClient* m_pGameClient;
 	GBillboardCamera* m_pCamera;
 	GImage* m_pImageGround;
@@ -41,6 +44,7 @@ protected:
 	VHorizGroundParams* m_pHorizGroundParams;
 	double m_dTime;
 	bool m_bTerrain;
+	VOnScreenPanel* m_pPanel;
 
 	float m_nMapXMin;
 	float m_nMapXMax;
@@ -53,18 +57,24 @@ protected:
 	float m_fSelectionY2;
 
 public:
-	VGame(GRect* pRect, MGameClient* pGameClient, GImage* pSkyImage, GImage* pGroundImage);
+	VGame(GRect* pRect, MGameClient* pGameClient, GImage* pSkyImage, GImage* pGroundImage, VOnScreenPanel* pPanel);
 	virtual ~VGame();
 
 	virtual void Draw(SDL_Surface *pScreen);
+	virtual void OnChar(char c);
+	virtual void OnMouseDown(int x, int y);
+	virtual void OnMouseUp(int x, int y);
+	virtual void OnMousePos(int x, int y);
+
 	GBillboardCamera* GetCamera() { return m_pCamera; }
-	void ScreenToMap(float* px, float* py, bool* pbSky, int x, int y);
+	void ScreenToMap(float* px, float* py, bool* pbPanel, bool* pbSky, int x, int y);
 
 	void ToggleTerrain() { m_bTerrain = !m_bTerrain; }
-	void SetRect(GRect* pRect);
+//	void SetRect(GRect* pRect);
 	void SetSelectionRect(float x1, float y1, float x2, float y2);
 	void SetSkyImage(GImage* pImage);
 	void SetGroundImage(GImage* pImage);
+	void SetUrl(const char* szUrl);
 
 protected:
 	void DrawSpritesNoTerrain(SDL_Surface* pScreen);
@@ -73,6 +83,7 @@ protected:
 	void DrawSprite(SDL_Surface* pScreen, MObject* pSprite);
 	void DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos);
 	void DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos);
+	void DrawSelectedRegion(SDL_Surface* pScreen);
 };
 
 #endif // __VGAME_H__

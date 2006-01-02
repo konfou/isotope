@@ -19,7 +19,7 @@ class View;
 class Controller;
 class MScriptEngine;
 class IsotopeErrorHandler;
-class VWavePlayer;
+class VAudioPlayer;
 class GBillboardCamera;
 class MImageStore;
 class MAnimationStore;
@@ -29,6 +29,8 @@ class GPointerArray;
 class NSendObjectPacket;
 class VarHolder;
 class MStatCollector;
+class VOnScreenPanel;
+
 
 // This class represents the model (all the internal data including maps, players, objects, scripts, etc)
 // when the application is running as the client (as opposed to the server, which uses a different model).
@@ -44,7 +46,7 @@ protected:
 	GXMLTag* m_pMap;
 	char* m_szScript;
 	GBillboardCamera* m_pCamera;
-	VWavePlayer* m_pPlayer;
+	VAudioPlayer* m_pPlayer;
 	MObject* m_pClosestObject;
 	MRealm* m_pCurrentRealm;
 	NRealmClientConnection* m_pConnection;
@@ -56,6 +58,7 @@ protected:
 	MScriptEngine* m_pScriptEngine;
 	MObject* m_pAvatar;
 	MObject* m_pGoalFlag;
+	MObject* m_pSelectionBorder;
 	MObject* m_pInfoCloud;
 	bool m_bLoner;
 	bool m_bFirstPerson;
@@ -65,9 +68,11 @@ protected:
 	GXMLTag* m_pAccountRefTag;
 	VarHolder* m_pRemoteVar;
 	MStatCollector* m_pStatCollector;
+	VOnScreenPanel* m_pPanel;
 
 public:
-	MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag);
+	// takes ownership of pPanel
+	MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag, VOnScreenPanel* pPanel);
 	virtual ~MGameClient();
 
 	MImageStore* GetImages() { return m_pImageStore; }
@@ -80,7 +85,7 @@ public:
 
 	// Load the XML realm file
 	void LoadRealmPhase1(GXMLTag* pMap, const char* szUrl);
-	void LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngine* pScriptEngine, double time, int nScreenVerticalCenter, MImageStore* pImageStore, MAnimationStore* pAnimationStore, MSoundStore* pSoundStore, MSpotStore* pSpotStore);
+	void LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngine* pScriptEngine, double time, int nScreenVerticalCenter, MImageStore* pImageStore, MAnimationStore* pAnimationStore, MSoundStore* pSoundStore, MSpotStore* pSpotStore, const char* szMusicFilename);
 
 	const char* GetRemoteFolder() { return m_szRemoteFolder; }
 
@@ -116,7 +121,7 @@ public:
 	void UnloadMedia();
 
 	// Returns the sound effect player
-	VWavePlayer* GetWavePlayer() { return m_pPlayer; }
+	VAudioPlayer* GetWavePlayer() { return m_pPlayer; }
 
 	// Returns the original source to the map file
 	GXMLTag* GetMap() { return m_pMap; }
@@ -135,11 +140,13 @@ public:
 	void SelectObjects(float xMin, float yMin, float xMax, float yMax);
 	void DoActionOnSelectedObjects(float x, float y);
 	MObject* GetGoalFlag() { return m_pGoalFlag; }
+	MObject* GetSelectionBorder() { return m_pSelectionBorder; }
 	void SaveState();
 	GXMLTag* GetAccountTag() { return m_pAccountTag; }
 	const char* GetAccountVar(const char* szName);
 	void SetAccountVar(const char* szName, const char* szValue);
 	void ReportStats(GPointerArray* pNameValuePairs);
+	VOnScreenPanel* GetPanel() { return m_pPanel; }
 
 protected:
 	void SynchronizeWithServer(double time);

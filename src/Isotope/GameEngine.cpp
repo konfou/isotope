@@ -666,7 +666,7 @@ int oldmain(int argc, char *argv[])
 	Holder<char*> hCachePath(new char[strlen(szAppPath) + 12]);
 	char* szCachePath = hCachePath.Get();
 	strcpy(szCachePath, szAppPath);
-	strcat(szCachePath, "../cache/");
+	strcat(szCachePath, "cache/");
 #ifdef WIN32
 	mkdir(szCachePath);
 #else // WIN32

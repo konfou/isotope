@@ -24,11 +24,12 @@ public:
 
 public:
 	MLoadingDialog(int w, int h, const char* szUrl)
-		: GWidgetDialog(w, h, 0xff008800)
+		: GWidgetDialog(w, h, 0xff000000)
 	{
 		GString s;
 		s.Copy(szUrl);
-		m_pCurrentFile = new GWidgetTextLabel(this, 2, 2, w - 4, 20, &s, false);
+		m_pCurrentFile = new GWidgetTextLabel(this, 2, 2, w - 4, 20, &s, 0xff88ddaa);
+		m_pCurrentFile->SetBackgroundColor(0xff000000);
 		m_pProgressBar = new GWidgetProgressBar(this, 2, 24, w - 4, 15);
 	}
 
@@ -50,7 +51,7 @@ VLoading::VLoading(GRect* pRect, const char* szUrl)
 : ViewPort(pRect)
 {
 	m_pImage = new GImage();
-	GAssert(pRect->w >= 620 && pRect->h >= 460, "Screen not big enough to hold this view");
+	GAssert(pRect->w >= 630 && pRect->h >= 470, "Screen not big enough to hold this view");
 	m_pImage->SetSize(630, 470);
 	m_nLeft = (pRect->w - 630) / 2 + pRect->x;
 	m_nTop = (pRect->h - 470) / 2 + pRect->y;

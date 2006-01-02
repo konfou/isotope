@@ -29,13 +29,14 @@
 #include "MGameImage.h"
 #include "MSpot.h"
 #include "MStatCollector.h"
+#include "VPanel.h"
 #ifdef WIN32
-#include <direct.h>
+#	include <direct.h>
 #else // WIN32
-#include <unistd.h>
+#	include <unistd.h>
 #endif // WIN32
 
-MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag)
+MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag, VOnScreenPanel* pPanel)
 : Model()
 {
 	m_szAccountFilename = new char[strlen(szAccountFilename) + 1];
@@ -54,8 +55,9 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 //#endif // _DEBUG
 	m_pScriptEngine = NULL;
 	m_pGoalFlag = NULL;
+	m_pSelectionBorder = NULL;
 	m_pInfoCloud = NULL;
-	m_pPlayer = new VWavePlayer();
+	m_pPlayer = new VAudioPlayer();
 	m_pMap = NULL;
 	m_szScript = NULL;
 	m_szRemoteFolder = NULL;
@@ -68,6 +70,7 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_bFirstPerson = false;
 	m_pSelectedObjects = new GPointerArray(64);
 	m_bLoner = true;
+	m_pPanel = pPanel;
 }
 
 /*virtual*/ MGameClient::~MGameClient()
@@ -81,6 +84,7 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	delete(m_szRemoteFolder);
 	delete(m_pSelectedObjects);
 	delete(m_pStatCollector);
+	delete(m_pPanel);
 }
 
 void MGameClient::UnloadRealm()
@@ -93,6 +97,7 @@ void MGameClient::UnloadRealm()
 	m_pAvatar = NULL;
 	m_pClosestObject = NULL;
 	m_pGoalFlag = NULL;
+	m_pSelectionBorder = NULL;
 	m_pInfoCloud = NULL;
 	UnloadMedia();
 	delete(m_pRemoteVar);
@@ -130,36 +135,7 @@ void MGameClient::SetRemoteFolder(const char* szUrl)
 			break;
 		m_szRemoteFolder[n] = '\0';
 	}
-
-	// Remove extra ".." folders in the path
-	bool bGotOne = true;
-	while(bGotOne)
-	{
-		bGotOne = false;
-		int nPrevSlash = -1;
-		int nPrevPrevSlash = -1;
-		int n;
-		for(n = 0; m_szRemoteFolder[n] != '\0'; n++)
-		{
-			if(m_szRemoteFolder[n] == '/')
-			{
-				nPrevPrevSlash = nPrevSlash;
-				nPrevSlash = n;
-				if(nPrevPrevSlash >= 0 && strncmp(m_szRemoteFolder + n, "/../", 4) == 0)
-				{
-					bGotOne = true;
-					int nDelSize = n - nPrevPrevSlash + 3;
-					int i;
-					for(i = nPrevPrevSlash; ; i++)
-					{
-						m_szRemoteFolder[i] = m_szRemoteFolder[i + nDelSize];
-						if(m_szRemoteFolder[i] == '\0')
-							break;
-					}
-				}
-			}
-		}
-	}
+	CondensePath(m_szRemoteFolder);
 }
 
 void MGameClient::LoadRealmPhase1(GXMLTag* pMap, const char* szUrl)
@@ -195,7 +171,7 @@ void MGameClient::LoadRealmPhase1(GXMLTag* pMap, const char* szUrl)
 	}
 }
 
-void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngine* pScriptEngine, double time, int nScreenVerticalCenter, MImageStore* pImageStore, MAnimationStore* pAnimationStore, MSoundStore* pSoundStore, MSpotStore* pSpotStore)
+void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngine* pScriptEngine, double time, int nScreenVerticalCenter, MImageStore* pImageStore, MAnimationStore* pAnimationStore, MSoundStore* pSoundStore, MSpotStore* pSpotStore, const char* szMusicFilename)
 {
 	m_szScript = szScript;
 	m_pScriptEngine = pScriptEngine;
@@ -268,8 +244,9 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 	// Load the static objects
 	LoadObjects(m_pCurrentRealm, m_pMap);
 
-	// Make the goal flag
+	// Make the goal flag and selection object
 	m_pGoalFlag = MakeIntangibleGlobalObject("flag", 0, 0, -10000);
+	m_pSelectionBorder = MakeIntangibleGlobalObject("selection", 0, 0, -10000);
 
 	if(!m_bFirstPerson)
 	{
@@ -325,7 +302,8 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 	m_pCurrentRealm->RecompileCollisionMap();
 
 	// Start the audio
-	m_pPlayer->StartAudio();
+	if(szMusicFilename)
+		m_pPlayer->PlayBackgroundMusic(szMusicFilename);
 }
 
 void MGameClient::SaveState()
@@ -598,7 +576,13 @@ void MGameClient::UnloadMedia()
 	m_pImageStore = NULL;
 	delete(m_pAnimationStore);
 	m_pAnimationStore = NULL;
-	m_pPlayer->FinishAudio();
+#ifdef WIN32
+	GWindows::YieldToWindows();
+	Sleep(1000);
+#else // WIN32
+	usleep(1000);
+#endif // else WIN32
+	m_pPlayer->StopAudio();
 	delete(m_pSoundStore);
 	m_pSoundStore = NULL;
 	delete(m_pSpotStore);
