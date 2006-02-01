@@ -11,7 +11,7 @@
 
 #include "VCharMake.h"
 #include "MStore.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "../GClasses/GArray.h"
 #include "../GClasses/GString.h"
 #include "../GClasses/GWidgets.h"

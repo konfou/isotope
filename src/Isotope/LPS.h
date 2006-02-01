@@ -1,9 +1,20 @@
+/*
+	Copyright (C) 2006, Edumetrics Institute
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/gpl.html
+*/
+
 #ifndef __LPS_H__
 #define __LPS_H__
 
 class GPointerArray;
 class LPSTask;
-class LPSSubstantiveProcess;
+class LPSThinkingSkill;
 
 // A tube must be at least this full of successful evidence before
 // we will consider a learner to have achieved the attainment
@@ -15,29 +26,29 @@ class LPSSubstantiveProcess;
 class LPSLearnerModel
 {
 protected:
-	GPointerArray* m_pSubstantiveProcesses;
+	GPointerArray* m_pSkills;
 
 public:
 	LPSLearnerModel();
 	~LPSLearnerModel();
 
-	void PushData(const char* szSubstantiveProcess, double dAbilityLevel, double dEvidence, bool bSuccessful);
-	int GetSubstantiveProcessCount();
-	LPSSubstantiveProcess* GetSubstantiveProcess(int n);
+	void PushData(const char* szThinkingSkill, double dAbilityLevel, double dEvidence, bool bSuccessful);
+	int GetThinkingSkillCount();
+	LPSThinkingSkill* GetThinkingSkill(int n);
 };
 
 
 
-// Represents a specific thinking ability
-class LPSSubstantiveProcess
+// Represents a specific thinking skill
+class LPSThinkingSkill
 {
 protected:
 	GPointerArray* m_pAttainments;
 	char* m_szName;
 
 public:
-	LPSSubstantiveProcess(const char* szName);
-	~LPSSubstantiveProcess();
+	LPSThinkingSkill(const char* szName);
+	~LPSThinkingSkill();
 
 	void PushEvidence(double dAbilityLevel, double dEvidence, bool bSuccessful);
 	double CalculateLearnerPosition();
@@ -70,14 +81,14 @@ class LPSAttainment
 {
 protected:
 	double m_dAbilityLevel; // The location (from 0 to 1) along the substantive process pathway
-	LPSSubstantiveProcess* m_pSubstantiveProcess; // The substantive process on which this attainment lies
+	LPSThinkingSkill* m_pSkill; // The substantive process on which this attainment lies
 	LPSEvidence* m_pTube; // Points to the head of a linked list of evidence about whether or not the learner has attained to this ability level
 
 public:
-	LPSAttainment(LPSSubstantiveProcess* pSubstantiveProcess, double dAbilityLevel);
+	LPSAttainment(LPSThinkingSkill* pSkill, double dAbilityLevel);
 	~LPSAttainment();
 
-	LPSSubstantiveProcess* GetSubstantiveProcess() { return m_pSubstantiveProcess; }
+	LPSThinkingSkill* GetThinkingSkill() { return m_pSkill; }
 	double GetAbilityLevel() { return m_dAbilityLevel; }
 	void PushEvidence(double dEvidence, bool bSuccessful);
 	double GetTotalSuccessfulEvidence();

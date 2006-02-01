@@ -21,7 +21,7 @@
 // new far away position.  In such cases we interpolate the position of the
 // ghost to make it drift to where the object really is.  You can tune the
 // values of INTERPOLATE_DISTANCE and INTERPOLATE_RATE to ajust this drifting.
-#define INTERPOLATE_DISTANCE 200 // How big of a jump is required before interpolation kicks in
+#define INTERPOLATE_DISTANCE 100 // How big of a jump is required before interpolation kicks in
 #define INTERPOLATE_RATE .75 // 0 = infinitely fast drift, 1 = infinitely slow drift
 
 
@@ -90,6 +90,7 @@ protected:
 	MScriptEngine* m_pScriptEngine;
 	VarHolder m_vh;
 	GPosSize m_drawPos;
+	int m_nPivotHeight;
 	unsigned int m_flags; // todo: should these flags be moved into Gasp code so scripts can modify them?
 
 public:
@@ -160,6 +161,11 @@ public:
 
 	bool IsSolid() { return (m_flags & MOB_Solid) ? true : false; }
 	void SetIsSolid(bool b) { if(b) m_flags |= MOB_Solid; else m_flags &= (~MOB_Solid); }
+	bool IsChatCloud();
+	bool SanityCheck();
+	const char* GetTypeName();
+	inline int GetPivotHeight() { return m_nPivotHeight; }
+	void SetPivotHeight(int n) { m_nPivotHeight = n; }
 };
 
 #endif // __MOBJECT_H__

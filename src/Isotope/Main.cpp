@@ -9,7 +9,7 @@
 	see http://www.gnu.org/copyleft/gpl.html
 */
 
-#include "GameEngine.h"
+#include "Main.h"
 #include "MRealmServer.h"
 #include "View.h"
 #include "VGame.h"
@@ -25,6 +25,8 @@
 #include "../GClasses/GBillboardCamera.h"
 #include "../GClasses/GThread.h"
 #include "../GClasses/GMatrix.h"
+#include "../GClasses/GBits.h"
+#include "../GClasses/GApp.h"
 #include "../GClasses/sha2.h"
 #include "MGameClient.h"
 #include "MScriptEngine.h"
@@ -250,7 +252,8 @@ class Bogus(Object)\n\
 	char* szConfigFileName = (char*)alloca(strlen(szAppPath) + 50);
 	strcpy(szConfigFileName, szAppPath);
 	strcat(szConfigFileName, "config.xml");
-	GetConfig()->ToFile(szConfigFileName);
+	if(!GetConfig()->ToFile(szConfigFileName))
+		printf("Failed to save config file: %s\n", szConfigFileName);
 }
 
 /*static*/ char* GameEngine::GetErrorMessageBuffer(int nSize)
@@ -260,97 +263,42 @@ class Bogus(Object)\n\
 	return s_szErrorMessage;
 }
 
-char* GetApplicationPath(const char* szArg0)
-{
-	// Make sure the app name includes path info
-	char szFullNameBuf[512];
-#ifdef WIN32
-	GetModuleFileName(NULL/*GetModuleHandle(szArg0)*/, szFullNameBuf, 512);
-#else // WIN32
-	strcpy(szFullNameBuf, szArg0);
-#endif // !WIN32
-	int nFullLen = strlen(szFullNameBuf);
-	const char* szFilename;
-	if(nFullLen > 0)
-		szFilename = szFullNameBuf;
-	else
-	{
-		GAssert(false, "failed to get full name of executing assembly");
-		szFilename = szArg0;
-	}
-
-	// Find the last slash in szFilename
-	int n = strlen(szFilename);
-	for(n--; n >= 0; n--)
-	{
-		if(szFilename[n] == '/' || szFilename[n] == '\\')
-			break;
-	}
-	const char* szFilePart = szFilename + n + 1;
-	char szAppPath[512];
-	if(n >= 0)
-	{
-		memcpy(szAppPath, szFilename, n);
-		szAppPath[n] = '\0';
-	}
-	else
-		getcwd(szAppPath, 512);
-
-	// Copy to an allocated buffer and append a slash if necessary
-	int nLen = strlen(szAppPath);
-	bool bAddSlash = true;
-	if(szAppPath[nLen - 1] == '/' || szAppPath[nLen - 1] == '\\')
-		bAddSlash = false;
-	char* szApplicationPath = new char[nLen + 1 + (bAddSlash ? 1 : 0)];
-	strcpy(szApplicationPath, szAppPath);
-	if(bAddSlash)
-	{
-#ifdef WIN32
-		szApplicationPath[nLen] = '\\';
-#else
-		szApplicationPath[nLen] = '/';
-#endif
-		szApplicationPath[nLen + 1] = '\0';
-	}
-	return szApplicationPath;
-}
-
 void DaemonMain(void* pArg)
 {
 	Controller c(Controller::SERVER, (const char*)pArg);
 	c.Run();
 }
 
-typedef void (*DaemonMainFunc)(void* pArg);
+void PuzSearchEngineMain(void* pArg)
+{
+	Controller c(Controller::PUZSEARCHENGINE, (const char*)pArg);
+	c.Run();
+}
 
 void LaunchDaemon(DaemonMainFunc pDaemonMain, void* pArg)
 {
-#ifdef WIN32
-	// Windows isn't POSIX compliant and it has its own process system that
-	// isn't really friendly to launching daemons.  You're supposed to create
-	// a "service", but I don't know how to do that (and I'm too lazy to learn
-	// something that can't generalize off a proprietary platform) so let's
-	// just launch it like a normal app and be happy with that.
-	pDaemonMain(pArg);
-#else // WIN32
-	// Fork the process
-	int pid = fork();
-	if(pid < 0)
-		GameEngine::ThrowError("Error forking the daemon process\n");
-	if(pid == 0)
+	try
 	{
-		// Drop my process group leader and become my own process group leader
-		// (so the process isn't terminated when the group leader is killed)
-		setsid();
-
-		// Get off any mounted drives so that they can be unmounted without
-		// killing the daemon
-		chdir("/");
-
-		// Launch the daemon
-		pDaemonMain(pArg);
+		GApp::LaunchDaemon(pDaemonMain, pArg);
 	}
-#endif // !WIN32
+	catch(const char* szErrorMessage)
+	{
+		fprintf(stderr, szErrorMessage);
+		fprintf(stderr, "\n");
+#ifdef WIN32
+		printf("\nPress enter to quit\n");
+		getchar();
+#endif // WIN32
+	}
+	catch(wchar_t* wszErrorMessage)
+	{
+		fwprintf(stderr, wszErrorMessage);
+		fwprintf(stderr, L"\n");
+#ifdef WIN32
+		printf("\nPress enter to quit\n");
+		getchar();
+#endif // WIN32
+	}
 }
 
 void PuzzleGenerator()
@@ -375,6 +323,33 @@ void PuzzleGenerator()
 	// todo: don't leak the piece sets here
 }
 
+void LaunchClient(Controller::RunModes eRunMode, const char* szArg)
+{
+	Controller c(eRunMode, szArg);
+	try
+	{
+		c.Run();
+	}
+	catch(const char* szErrorMessage)
+	{
+		fprintf(stderr, szErrorMessage);
+		fprintf(stderr, "\n");
+#ifdef WIN32
+		printf("\nPress enter to quit\n");
+		getchar();
+#endif // WIN32
+	}
+	catch(wchar_t* wszErrorMessage)
+	{
+		fwprintf(stderr, wszErrorMessage);
+		fwprintf(stderr, L"\n");
+#ifdef WIN32
+		printf("\nPress enter to quit\n");
+		getchar();
+#endif // WIN32
+	}
+}
+
 void LaunchProgram(int argc, char *argv[])
 {
 	// Parse the runmode
@@ -384,9 +359,7 @@ void LaunchProgram(int argc, char *argv[])
 	if(argc >= 3)
 	{
 		bOK = true;
-		if(stricmp(argv[1], "server") == 0)
-			eRunMode = Controller::SERVER;
-		else if(stricmp(argv[1], "keypair") == 0)
+		if(stricmp(argv[1], "keypair") == 0)
 			eRunMode = Controller::KEYPAIR;
 		else if(stricmp(argv[1], "bless") == 0 && argc >= 4)
 		{
@@ -402,6 +375,10 @@ void LaunchProgram(int argc, char *argv[])
 		bOK = true;
 		if(stricmp(argv[1], "client") == 0)
 			eRunMode = Controller::CLIENT;
+		else if(stricmp(argv[1], "server") == 0)
+			eRunMode = Controller::SERVER;
+		else if(stricmp(argv[1], "puzsearchengine"))
+			eRunMode = Controller::PUZSEARCHENGINE;
 		else if(stricmp(argv[1], "puzgen") == 0)
 			eRunMode = Controller::PUZGEN;
 		else
@@ -425,10 +402,9 @@ void LaunchProgram(int argc, char *argv[])
 		printf("\n");
 		printf("client                  Run as a client (the default).\n");
 		printf("\n");
-		printf("server [WWW-Root-Path]  Run as a server.  The value of [WWW-Root-Path]\n");
-		printf("                        should be the web root used by your HTTP server\n");
-		printf("                        and all your .realm files and content should be\n");
-		printf("                        somewhere within that folder.\n");
+		printf("server                  Run as a server.\n");
+		printf("\n");
+		printf("puzsearchengine         Run as a puzzle search engine.\n");
 		printf("\n");
 		printf("keypair [Output File]   Generate a key pair.\n");
 		printf("\n");
@@ -447,14 +423,13 @@ void LaunchProgram(int argc, char *argv[])
 		PuzzleGenerator();
 	else if(eRunMode == Controller::SERVER)
 		LaunchDaemon(DaemonMain, (void*)szArg);
+	else if(eRunMode == Controller::PUZSEARCHENGINE)
+		LaunchDaemon(PuzSearchEngineMain, (void*)szArg);
 	else
-	{
-		// Run the main loop
-		Controller c(eRunMode, szArg);
-		c.Run();
-	}
+		LaunchClient(eRunMode, szArg);
 }
 
+/*
 int FooComparer(void* pA, void* pB)
 {
 	if((int)pA > (int)pB)
@@ -483,7 +458,6 @@ protected:
 	}
 };
 
-
 void MungeImages()
 {
 	// Munge Image
@@ -505,7 +479,7 @@ void MungeImages()
 	}
 	image.SaveBMPFile("munged.bmp");
 }
-
+*/
 
 void test()
 {
@@ -616,51 +590,65 @@ void test()
 	printf("[%f, %f]\n", vec[0], vec[1]);
 */
 //	LaunchOgre();
+/*
+	// Make rainy window image
+	int nDrops = 30;
+	int nFrames = 20;
+	int x, y, z;
+	GColor col;
+	double* pOffsets = new double[nDrops];
+	int i;
+	for(i = 0; i < nDrops; i++)
+		pOffsets[i] = GBits::GetRandomDouble();
+	GImage imageIn;
+	if(!imageIn.LoadPNGFile("garden.png"))
+		GAssert(false, "failed to load image");
+	GImage imageOut;
+	imageOut.SetSize(imageIn.GetWidth(), imageIn.GetHeight() * nFrames);
+	int nDrop;
+	double fDropX, fDropY, dDistSquared, dx, dy;
+	for(z = 0; z < nFrames; z++)
+	{
+		for(y = 0; y < (int)imageIn.GetHeight(); y++)
+		{
+			for(x = 0; x < (int)imageIn.GetWidth(); x++)
+			{
+				nDrop = x * nDrops / imageIn.GetWidth();
+				fDropX = (double)imageIn.GetWidth() / nDrops * nDrop + ((double)imageIn.GetWidth() / (2 * nDrops));
+				fDropY = pOffsets[nDrop] + (double)z / nFrames;
+				fDropY -= (int)fDropY;
+				fDropY *= (1.5 * imageIn.GetHeight());
+				dDistSquared = (fDropX - x) * (fDropX - x) + (fDropY - y) * (fDropY - y);
+				dx = ((30 / (dDistSquared + .1)) * fDropX + x) / ((30 / (dDistSquared + .1)) + 1);
+				dy = ((30 / (dDistSquared + .1)) * fDropY + y) / ((30 / (dDistSquared + .1)) + 1);
+				col = imageIn.InterpolatePixel((float)dx, (float)dy);
+				imageOut.SetPixel(x, y + z * imageIn.GetHeight(), col);
+			}
+		}
+	}
+	GImage imageFrame;
+	if(!imageFrame.LoadPNGFile("frame.png"))
+		GAssert(false, "failed to load image");
+	GRect r;
+	r.x = 0;
+	r.y = 0;
+	r.w = imageIn.GetWidth();
+	r.h = imageIn.GetHeight();
+	for(z = 0; z < nFrames; z++)
+		imageOut.AlphaBlit(0, z * imageIn.GetHeight(), &imageFrame, &r);
+	imageOut.SaveBMPFile("rainy.bmp");
+*/
 }
-
-#ifndef WIN32
-void onSigSegV(int n)
-{
-	throw "A memory access violation occurred.  The most common cause is an attempt to dereference null";
-}
-
-void onSigInt(int n)
-{
-	throw "The program was interrupted when the user pressed Ctrl-C";
-}
-
-void onSigQuit(int n)
-{
-	throw "The program was interrupted with SIGQUIT";
-}
-
-void onSigTstp(int n)
-{
-	throw "The program was interrupted with SIGTSTP";
-}
-
-void onSigAbrt(int n)
-{
-	throw "An unhandled exception was thrown";
-}
-
-#endif // !WIN32
 
 int oldmain(int argc, char *argv[])
 {
-#ifndef WIN32
-	signal(SIGSEGV, onSigSegV);
-	signal(SIGINT, onSigInt);
-	signal(SIGQUIT, onSigQuit);
-	signal(SIGTSTP, onSigTstp);
-	signal(SIGABRT, onSigAbrt);
-#endif // !WIN32
+	GApp::TurnSignalsIntoExceptions();
 
 	// Seed the random number generator
 	srand((unsigned int)(GameEngine::GetTime() * 10000));
 
 	// Determine app and cache paths
-	Holder<char*> hAppPath(GetApplicationPath(argv[0]));
+	Holder<char*> hAppPath(GApp::GetApplicationPath(argv[0]));
 	const char* szAppPath = hAppPath.Get();
 	GameEngine::SetAppPath(szAppPath);
 	Holder<char*> hCachePath(new char[strlen(szAppPath) + 12]);
@@ -678,28 +666,7 @@ int oldmain(int argc, char *argv[])
 	test();
 
 	// Run the program
-	try
-	{
-		LaunchProgram(argc, argv);
-	}
-	catch(const char* szErrorMessage)
-	{
-		fprintf(stderr, szErrorMessage);
-		fprintf(stderr, "\n");
-#ifdef WIN32
-		printf("\nPress enter to quit\n");
-		getchar();
-#endif // WIN32
-	}
-	catch(wchar_t* wszErrorMessage)
-	{
-		fwprintf(stderr, wszErrorMessage);
-		fwprintf(stderr, L"\n");
-#ifdef WIN32
-		printf("\nPress enter to quit\n");
-		getchar();
-#endif // WIN32
-	}
+	LaunchProgram(argc, argv);
 
 	// Check for memory leaks
 	GAssert(AllocCounter::s_allocs == AllocCounter::s_deallocs, "memory leak");
@@ -714,10 +681,7 @@ int oldmain(int argc, char *argv[])
 // OGRE on Win32
 INT WINAPI WinMain( HINSTANCE hInst, HINSTANCE, LPSTR strCmdLine, INT )
 {
-	AllocConsole();
-
-	printf("Running...\n");
-	fprintf(stderr, "Running...\n");
+	//AllocConsole();
 	char* szArgs = "";
 	return oldmain(1, &szArgs);
 }
@@ -731,13 +695,7 @@ int main(int argc, char *argv[])
 #	endif
 #else // OGRE
 
-
-
-
-int playOgg(); // todo: remove this line
-
-
-// No Ogre
+// Just SDL (Both Windows and Linux)
 int main(int argc, char *argv[])
 {
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) 

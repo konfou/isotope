@@ -18,11 +18,20 @@
 #include "GMacros.h"
 #include "GImage.h"
 
+class GRayTraceLight;
+class GRayTraceMaterial;
+class GRayTraceObject;
+class GRayTraceScene;
+
+typedef float GRayTraceReal;
+
+/*
 struct Vector;
 class G3DObjPolygon;
 class G3DObject;
 class GXMLTag;
 struct Transform;
+
 
 
 
@@ -216,73 +225,6 @@ struct Vector
 
 
 
-struct Transform
-{
-public:
-	double dScale;
-protected:
-//	double dRoll; // Z-axis
-	double dPitch; // Y-axis (longitude)
-	double dYaw; // X-axis (latitude)
-
-//	double dCosRoll;
-//	double dSinRoll;
-	double dCosPitch;
-	double dSinPitch;
-	double dCosYaw;
-	double dSinYaw;
-
-public:
-	Point3D offset;
-
-
-	Transform()
-	{
-		dScale = 1;
-//		dRoll = 0;
-		SetPitch(0);
-		SetYaw(0);
-	}
-
-	void FromXML(GXMLTag* pTag);
-	void ToXML(GXMLTag* pTag);
-
-	// Note: the vector expresses pitch, yaw, and scale only
-	Vector ToVector()
-	{
-		Vector v;
-		v.dY = dScale * dSinPitch;
-		v.dZ = dScale * dCosPitch;
-		v.dX = v.dZ * dSinYaw;
-		v.dZ *= dCosYaw;
-		return v;
-	}
-
-	void FromVector(const Vector* pV)
-	{
-		double dX2 = pV->dX * pV->dX;
-		double dZ2 = pV->dZ * pV->dZ;
-		dScale = sqrt(dX2 + pV->dY * pV->dY + dZ2);
-		SetPitch(atan2(pV->dY, sqrt(dX2 + dZ2)));
-
-		// Ajust range of yaw
-		double dY = atan2(pV->dY, pV->dZ);
-		if(dY < (-PI / (double)2))
-			dY += (2 * PI);
-		SetYaw(dY);
-	}
-
-	//void SetRoll(double d) { dRoll = d; dCosRoll = cos(d); dSinRoll = sin(d); }
-	void SetPitch(double d) { dPitch = d; dCosPitch = cos(d); dSinPitch = sin(d); }
-	void SetYaw(double d) { dYaw = d; dCosYaw = cos(d); dSinYaw = sin(d); }
-	//double GetRoll() const { return dRoll; }
-	double GetPitch() const { return dPitch; }
-	double GetYaw() const { return dYaw; }
-	double GetCosPitch() const { return dCosPitch; }
-	double GetSinPitch() const { return dSinPitch; }
-	double GetCosYaw() const { return dCosYaw; }
-	double GetSinYaw() const { return dSinYaw; }
-};
 
 
 
@@ -573,5 +515,464 @@ public:
 bool IsInsideTriangle(double fX, double fY, double fZ, struct Point3D* pPoint1, struct Point3D* pPoint2, struct Point3D* pPoint3);
 double GetDistanceUntilRayHitsSphere(struct Ray* pRay, const struct Point3D* pCenter, double fRadius);
 char* dtoa(double d, char* szBuff);
+*/
+
+// ---------------------------------- CS 655 -----------------------------------------
+
+// This class represents a color. It's more precise than GColor, but takes up more
+// memory. Note that the ray tracer ignores the alpha channel because the material
+// class has its own translucency value.
+class GRayTraceColor
+{
+public:
+	GRayTraceReal a, r, g, b;
+
+	GRayTraceColor()
+	{
+		a = (GRayTraceReal)1;
+		r = (GRayTraceReal)0;
+		g = (GRayTraceReal)0;
+		b = (GRayTraceReal)0;
+	}
+
+	GRayTraceColor(GRayTraceColor* pThat)
+	{
+		a = pThat->a;
+		r = pThat->r;
+		g = pThat->g;
+		b = pThat->b;
+	}
+
+	GRayTraceColor(GColor c)
+	{
+		a = ((GRayTraceReal)gAlpha(c)) / 255;
+		r = ((GRayTraceReal)gRed(c)) / 255;
+		g = ((GRayTraceReal)gGreen(c)) / 255;
+		b = ((GRayTraceReal)gBlue(c)) / 255;
+	}
+
+	GRayTraceColor(GRayTraceReal alpha, GRayTraceReal red, GRayTraceReal green, GRayTraceReal blue)
+	{
+		Set(alpha, red, green, blue);
+	}
+
+	void Set(GRayTraceReal alpha, GRayTraceReal red, GRayTraceReal green, GRayTraceReal blue)
+	{
+		a = alpha;
+		r = red;
+		g = green;
+		b = blue;
+	}
+
+	void Copy(GRayTraceColor* pThat)
+	{
+		a = pThat->a;
+		r = pThat->r;
+		g = pThat->g;
+		b = pThat->b;
+	}
+
+	void Add(GRayTraceColor* pThat)
+	{
+		a = MAX(a, pThat->a);
+		r = MIN((GRayTraceReal)1, r + pThat->r);
+		g = MIN((GRayTraceReal)1, g + pThat->g);
+		b = MIN((GRayTraceReal)1, b + pThat->b);
+	}
+
+	void Multiply(GRayTraceReal mag)
+	{
+		r *= mag;
+		g *= mag;
+		b *= mag;
+	}
+
+	void Multiply(GRayTraceColor* pThat)
+	{
+		a *= pThat->a;
+		r *= pThat->r;
+		g *= pThat->g;
+		b *= pThat->b;
+	}
+
+	GColor GetGColor()
+	{
+		return gARGB((int)(a * 255), (int)(r * 255), (int)(g * 255), (int)(b * 255));
+	}
+};
+
+
+
+class GRayTraceVector
+{
+public:
+	GRayTraceReal m_vals[3];
+
+	GRayTraceVector()
+	{
+		m_vals[0] = 0;
+		m_vals[1] = 0;
+		m_vals[2] = 0;
+	}
+
+	GRayTraceVector(GRayTraceVector* pThat)
+	{
+		m_vals[0] = pThat->m_vals[0];
+		m_vals[1] = pThat->m_vals[1];
+		m_vals[2] = pThat->m_vals[2];
+	}
+
+	GRayTraceVector(GRayTraceReal x, GRayTraceReal y, GRayTraceReal z)
+	{
+		m_vals[0] = x;
+		m_vals[1] = y;
+		m_vals[2] = z;
+	}
+
+	void Copy(GRayTraceVector* pThat)
+	{
+		m_vals[0] = pThat->m_vals[0];
+		m_vals[1] = pThat->m_vals[1];
+		m_vals[2] = pThat->m_vals[2];
+	}
+
+	void Set(GRayTraceReal x, GRayTraceReal y, GRayTraceReal z)
+	{
+		m_vals[0] = x;
+		m_vals[1] = y;
+		m_vals[2] = z;
+	}
+
+	inline void Normalize()
+	{
+		GRayTraceReal mag = (GRayTraceReal)sqrt(GetMagnitudeSquared());
+		m_vals[0] /= mag;
+		m_vals[1] /= mag;
+		m_vals[2] /= mag;
+	}
+
+	inline GRayTraceReal GetDistanceSquared(const GRayTraceVector* pThat) const
+	{
+		return (pThat->m_vals[0] - m_vals[0]) * (pThat->m_vals[0] - m_vals[0]) +
+			(pThat->m_vals[1] - m_vals[1]) * (pThat->m_vals[1] - m_vals[1]) +
+			(pThat->m_vals[2] - m_vals[2]) * (pThat->m_vals[2] - m_vals[2]);
+	}
+
+	inline double GetMagnitudeSquared() const
+	{
+		return (m_vals[0] * m_vals[0] + m_vals[1] * m_vals[1] + m_vals[2] * m_vals[2]);
+	}
+
+	inline void Add(const GRayTraceVector* pThat)
+	{
+		m_vals[0] += pThat->m_vals[0];
+		m_vals[1] += pThat->m_vals[1];
+		m_vals[2] += pThat->m_vals[2];
+	}
+
+	inline void Add(GRayTraceReal mag, const GRayTraceVector* pThat)
+	{
+		m_vals[0] += mag * pThat->m_vals[0];
+		m_vals[1] += mag * pThat->m_vals[1];
+		m_vals[2] += mag * pThat->m_vals[2];
+	}
+
+	inline void Subtract(const GRayTraceVector* pThat)
+	{
+		m_vals[0] -= pThat->m_vals[0];
+		m_vals[1] -= pThat->m_vals[1];
+		m_vals[2] -= pThat->m_vals[2];
+	}
+
+	inline void Multiply(GRayTraceReal mag)
+	{
+		m_vals[0] *= mag;
+		m_vals[1] *= mag;
+		m_vals[2] *= mag;
+	}
+
+	inline GRayTraceReal DotProduct(const GRayTraceVector* pThat)
+	{
+		return m_vals[0] * pThat->m_vals[0] +
+			m_vals[1] * pThat->m_vals[1] +
+			m_vals[2] * pThat->m_vals[2];
+	}
+
+	inline void CrossProduct(GRayTraceVector* pA, GRayTraceVector* pB)
+	{
+		m_vals[0] = pA->m_vals[1] * pB->m_vals[2] - pA->m_vals[2] * pB->m_vals[1];
+		m_vals[1] = pA->m_vals[2] * pB->m_vals[0] - pA->m_vals[0] * pB->m_vals[2];
+		m_vals[2] = pA->m_vals[0] * pB->m_vals[1] - pA->m_vals[1] * pB->m_vals[0];
+	}
+
+	void ComputeReflectionVector(GRayTraceVector* pRay, GRayTraceVector* pNormal);
+
+	inline void GetLatLon(double* pdLat, double* pdLon) const
+	{
+		*pdLat = atan2(m_vals[1], sqrt(m_vals[0] * m_vals[0] + m_vals[2] * m_vals[2]));
+		*pdLon = atan2(m_vals[0], m_vals[2]);
+		if((*pdLon) < (-PI / (double)2))
+			(*pdLon) += (2 * PI);
+	}
+};
+
+
+
+class GRayTraceCamera
+{
+protected:
+	GRayTraceVector m_lookFromPoint;
+	GRayTraceVector m_lookAtPoint;
+	GRayTraceVector m_viewUpVector;
+	GRayTraceReal m_viewAngle; // in radians
+	GRayTraceReal m_maxDepth;
+	int m_nRaysPerPixel;
+	int m_nWidth, m_nHeight;
+
+public:
+	GRayTraceCamera()
+	{
+		m_lookFromPoint.Set(2, 0, 0);
+		m_lookAtPoint.Set(0, 0, 0);
+		m_viewUpVector.Set(0, 1, 0);
+		m_viewAngle = (GRayTraceReal)(PI * 3 / 4);
+		m_nRaysPerPixel = 1;
+		m_maxDepth = 1e10;
+		m_nWidth = 320;
+		m_nHeight = 320;
+	}
+
+	~GRayTraceCamera()
+	{
+	}
+
+	void SetRaysPerPixel(int n) { m_nRaysPerPixel = n; }
+	GRayTraceVector* GetLookFromPoint() { return &m_lookFromPoint; }
+	GRayTraceVector* GetLookAtPoint() { return &m_lookAtPoint; }
+	GRayTraceVector* GetViewUpVector() { return &m_viewUpVector; }
+	void SetViewAngle(GRayTraceReal val) { m_viewAngle = val; }
+	GRayTraceReal GetViewAngle() { return m_viewAngle; }
+	void SetMaxDepth(GRayTraceReal val) { m_maxDepth = val; }
+	void SetImageSize(int width, int height) { m_nWidth = width; m_nHeight = height; }
+	int GetImageWidth() { return m_nWidth; }
+	int GetImageHeight() { return m_nHeight; }
+};
+
+
+class GRayTraceRay
+{
+public:
+	GRayTraceVector m_directionVector;
+	GRayTraceVector m_collisionPoint;
+	GRayTraceVector m_normalVector;
+	GRayTraceVector m_reflectionVector;
+	GRayTraceColor m_color;
+
+	GRayTraceRay();
+	~GRayTraceRay();
+
+	void Cast(GRayTraceScene* pScene, GRayTraceVector* pRayOrigin, GRayTraceVector* pScreenPoint);
+};
+
+
+class GRayTraceScene
+{
+protected:
+	GRayTraceColor m_backgroundColor;
+	GRayTraceColor m_ambientLight;
+	GPointerArray* m_pMaterials;
+	GPointerArray* m_pObjects;
+	GPointerArray* m_pLights;
+	GRayTraceCamera* m_pCamera;
+
+	// Rendering values
+	GImage* m_pImage;
+	int m_nY;
+	GRayTraceVector m_pixSide;;
+	GRayTraceVector m_pixDX;
+	GRayTraceVector m_pixDY;
+
+public:
+	GRayTraceScene();
+	~GRayTraceScene();
+
+	// Call this to render the whole image in one pass
+	void Render();
+
+	// Call this before calling RenderLine(). It resets the image and
+	// computes values necessary for rendering.
+	void RenderBegin();
+
+	// Call this to render a singe horizontal line of the image. Returns true if there's
+	// still more rendering to do. Returns false if it's done. You must call RenderBegin()
+	// once before you start calling this method.
+	bool RenderLine();
+
+	// This calls RenderBegine and then renders a single pixel. It's not efficient
+	// to call this method for every pixel. The only purpose for this method is to
+	// make debugging the ray tracer easier. Pick a pixel that isn't rendered the way
+	// you want and step through the ray tracing process to see why.
+	GColor RenderSinglePixel(int x, int y);
+
+	// Returns the rendered image (or partially rendered image). Returns NULL if Render()
+	// or RenderBegin() has not been called yet.
+	GImage* GetImage() { return m_pImage; }
+
+	void SetBackgroundColor(GRayTraceReal a, GRayTraceReal r, GRayTraceReal g, GRayTraceReal b)
+	{
+		m_backgroundColor.Set(a, r, g, b);
+	}
+
+	void SetAmbientLight(GRayTraceReal r, GRayTraceReal g, GRayTraceReal b)
+	{
+		m_ambientLight.Set(1, r, g, b);
+	}
+
+	GRayTraceColor* GetAmbientLight() { return &m_ambientLight; }
+
+	GRayTraceCamera* GetCamera()
+	{
+		return m_pCamera;
+	}
+
+	void AddMaterial(GRayTraceMaterial* pMaterial);
+	void AddObject(GRayTraceObject* pObject);
+	void AddLight(GRayTraceLight* pLight);
+	int GetObjectCount();
+	GRayTraceObject* GetObject(int n);
+	int GetLightCount();
+	GRayTraceLight* GetLight(int n);
+	GRayTraceColor* GetBackgroundColor() { return &m_backgroundColor; }
+};
+
+
+
+
+class GRayTraceLight
+{
+protected:
+	GRayTraceColor m_color;
+	GRayTraceReal m_jitter;
+
+public:
+	GRayTraceLight(GRayTraceReal r, GRayTraceReal g, GRayTraceReal b, GRayTraceReal jitter);
+	virtual ~GRayTraceLight();
+
+	virtual void ComputeColorContribution(GRayTraceRay* pRay, GRayTraceMaterial* pMaterial) = 0;
+};
+
+
+
+
+
+class GRayTraceDirectionalLight : public GRayTraceLight
+{
+protected:
+	GRayTraceVector m_direction;
+
+public:
+	GRayTraceDirectionalLight(GRayTraceReal dx, GRayTraceReal dy, GRayTraceReal dz, GRayTraceReal r, GRayTraceReal g, GRayTraceReal b, GRayTraceReal jitter);
+	virtual ~GRayTraceDirectionalLight();
+
+	virtual void ComputeColorContribution(GRayTraceRay* pRay, GRayTraceMaterial* pMaterial);
+};
+
+
+
+
+class GRayTracePointLight : public GRayTraceLight
+{
+protected:
+	GRayTraceVector m_position;
+
+public:
+	GRayTracePointLight(GRayTraceReal x, GRayTraceReal y, GRayTraceReal z, GRayTraceReal r, GRayTraceReal g, GRayTraceReal b, GRayTraceReal jitter);
+	virtual ~GRayTracePointLight();
+
+	virtual void ComputeColorContribution(GRayTraceRay* pRay, GRayTraceMaterial* pMaterial);
+};
+
+
+
+
+class GRayTraceMaterial
+{
+public:
+	enum ColorType
+	{
+		Diffuse = 0,
+		Specular,
+		Reflective,
+		Transmissive,
+		Ambient,
+		Emissive, // for geometry lights
+	};
+
+protected:
+	GRayTraceColor m_colors[6];
+	GRayTraceReal m_indexOfRefraction;
+	GRayTraceReal m_specularExponent;
+	GRayTraceReal m_glossiness;
+	GRayTraceReal m_translucency;
+
+public:
+	GRayTraceMaterial();
+	~GRayTraceMaterial();
+
+	GRayTraceColor* GetColor(ColorType eType) { return &m_colors[eType]; }
+	void SetColor(ColorType eType, GRayTraceReal r, GRayTraceReal g, GRayTraceReal b);
+	GRayTraceReal GetIndexOfRefraction() { return m_indexOfRefraction; }
+	GRayTraceReal GetSpecularExponent() { return m_specularExponent; }
+	GRayTraceReal GetGlossiness() { return m_glossiness; }
+	GRayTraceReal GetTranslucency() { return m_translucency; }
+	void SetIndexOfRefraction(GRayTraceReal val) { m_indexOfRefraction = val; }
+	void SetSpecularExponent(GRayTraceReal val) { m_specularExponent = val; }
+	void SetGlossiness(GRayTraceReal val) { m_glossiness = val; }
+	void SetTranslucency(GRayTraceReal val) { m_translucency = val; }
+
+	void ComputeColor(GRayTraceScene* pScene, GRayTraceRay* pRay);
+};
+
+
+
+
+class GRayTraceObject
+{
+protected:
+	GRayTraceMaterial* m_pMaterial;
+
+public:
+	GRayTraceObject(GRayTraceMaterial* pMaterial)
+	{
+		m_pMaterial = pMaterial;
+	}
+
+	virtual ~GRayTraceObject()
+	{
+	}
+
+	virtual GRayTraceReal ComputeRayDistance(GRayTraceVector* pRayOrigin, GRayTraceVector* pRayDirection) = 0;
+	virtual void ComputeNormalVector(GRayTraceVector* pOutNormalVector, GRayTraceVector* pPoint) = 0;
+	GRayTraceMaterial* GetMaterial() { return m_pMaterial; }
+};
+
+
+
+
+class GRayTraceSphere : public GRayTraceObject
+{
+protected:
+	GRayTraceVector m_center;
+	GRayTraceReal m_radius;
+
+public:
+	GRayTraceSphere(GRayTraceMaterial* pMaterial, GRayTraceReal x, GRayTraceReal y, GRayTraceReal z, GRayTraceReal radius);
+	virtual ~GRayTraceSphere();
+
+	virtual GRayTraceReal ComputeRayDistance(GRayTraceVector* pRayOrigin, GRayTraceVector* pRayDirection);
+	virtual void ComputeNormalVector(GRayTraceVector* pOutNormalVector, GRayTraceVector* pPoint);
+};
+
+
 
 #endif // __GRAYTRACE_H__

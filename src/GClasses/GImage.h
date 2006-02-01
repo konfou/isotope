@@ -17,6 +17,10 @@
 
 class GBezier;
 
+// Note: This is a 4-channel color of the form 0xAARRGGBB.
+// 0 is completely transparent.
+// 0xff000000 is opaque black.
+// 0xffffffff is opaque white.
 typedef unsigned int GColor;
 
 #define gBlue(c) ((c) & 0xff)
@@ -191,6 +195,9 @@ public:
 
 	// Tolerant boundary fill
 	void BoundaryFill(int nX, int nY, unsigned char nBoundaryR, unsigned char nBoundaryG, unsigned char nBoundaryB, unsigned char nFillR, unsigned char nFillG, unsigned char nFillB, int nTolerance);
+
+	// Draws a filled-in triangle
+	void FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, GColor c);
 
 	// Draws a polygon
 	void DrawPolygon(int nPoints, int* pnPointArray, GColor color);

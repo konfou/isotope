@@ -14,7 +14,9 @@
 
 #include "GMacros.h"
 #ifdef WIN32
-#include <windows.h>
+#	include <windows.h>
+#else
+#	include <unistd.h>
 #endif // WIN32
 
 // A wrapper for PThreads on Linux and for some corresponding WIN32 api on Windows
@@ -22,6 +24,15 @@ class GThread
 {
 public:
 	static HANDLE SpawnThread(unsigned int (*pFunc)(void*), void* pData);
+
+	static inline void sleep(unsigned int nMiliseconds)
+	{
+#ifdef WIN32
+		Sleep(0);
+#else // WIN32
+		usleep(0);
+#endif // else WIN32
+	}
 };
 
 #endif // __GTHREAD_H__

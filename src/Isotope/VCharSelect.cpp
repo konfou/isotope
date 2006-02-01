@@ -16,7 +16,7 @@
 #include "../GClasses/GXML.h"
 #include "../GClasses/GFile.h"
 #include "Controller.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "../Gasp/Include/GaspEngine.h"
 #include "MAnimation.h"
 #include "MStore.h"
@@ -200,7 +200,7 @@ void VCharSelect::ReloadAccounts()
 	{
 		GXMLAttribute* pFileAttr = pTag->GetAttribute("File");
 		GXMLAttribute* pUsernameAttr = pTag->GetAttribute("Username");
-		if(!pUsernameAttr || !pFileAttr || !CheckFile(pFileAttr->GetValue()))
+		if(!pUsernameAttr || !pFileAttr/* || !CheckFile(pFileAttr->GetValue())*/)
 			continue;
 		GXMLAttribute* pAnimAttr = pTag->GetAttribute("Anim");
 		GXMLAttribute* pPasswordAttr = pTag->GetAttribute("Password");

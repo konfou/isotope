@@ -96,7 +96,7 @@ public:
 // if nMaxPacketSize = 0, the socket will be compatible with TCP sockets.
 // if nMaxPacketSize > 0, it will use it's own protocol that guarantees
 //          same-size delivery of packets, but has a maximum packet size.
-GEZSocketServer::GEZSocketServer(int nMaxPacketSize) : GSocket()
+GEZSocketServer::GEZSocketServer(bool bUDP, int nMaxPacketSize, int nPort, int nMaxConnections) : GSocketServerBase(bUDP, nPort, nMaxConnections)
 {
 	GAssert(sizeof(struct GEZSocketPacketHeader) == 8, "packing issue");
 	m_nMaxPacketSize = nMaxPacketSize;
@@ -110,13 +110,10 @@ GEZSocketServer::GEZSocketServer(int nMaxPacketSize) : GSocket()
 
 GEZSocketServer::~GEZSocketServer()
 {
-	// Join the other threads now so they don't try
+	// Join the worker thread now it doesn't try
 	// to queue up a message after we delete the
 	// message queue
-	m_bKeepAccepting = false;
-	m_bKeepListening = false;
-	JoinAcceptorThread();
-	JoinAllListenThreads();
+	JoinWorkerThread();
 
 	if(m_pBuffers)
 	{
@@ -132,40 +129,25 @@ GEZSocketServer::~GEZSocketServer()
 
 /*static*/ GEZSocketServer* GEZSocketServer::HostTCPSocket(int nPort)
 {
-	GEZSocketServer* pSocket = new GEZSocketServer(0);
+	GEZSocketServer* pSocket = new GEZSocketServer(false, 0, nPort, 1000);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(false, true, nPort))
-	{
-		delete(pSocket);
-		return NULL;
-	}
 	return pSocket;
 }
 
 /*static*/ GEZSocketServer* GEZSocketServer::HostUDPSocket(int nPort)
 {
-	GEZSocketServer* pSocket = new GEZSocketServer(0);
+	GEZSocketServer* pSocket = new GEZSocketServer(true, 0, nPort, 1000);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(true, true, nPort))
-	{
-		delete(pSocket);
-		return NULL;
-	}
 	return pSocket;
 }
 
 /*static*/ GEZSocketServer* GEZSocketServer::HostGashSocket(int nPort, int nMaxPacketSize)
 {
-	GEZSocketServer* pSocket = new GEZSocketServer(nMaxPacketSize);
+	GEZSocketServer* pSocket = new GEZSocketServer(false, nMaxPacketSize, nPort, 1000);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(false, true, nPort))
-	{
-		delete(pSocket);
-		return NULL;
-	}
 	return pSocket;
 }
 
@@ -217,9 +199,9 @@ bool GEZSocketServer::Receive(unsigned char *pBuf, int nLen, int nConnectionNumb
 	}
 	else
 	{
-		while(nConnectionNumber > m_pBuffers->GetSize())
+		while(nConnectionNumber >= m_pBuffers->GetSize())
 			m_pBuffers->AddPointer(new GEZSocketServerBuffer(m_nMaxPacketSize));
-		GEZSocketServerBuffer* pBuffer = (GEZSocketServerBuffer*)m_pBuffers->GetPointer(nConnectionNumber - 1);
+		GEZSocketServerBuffer* pBuffer = (GEZSocketServerBuffer*)m_pBuffers->GetPointer(nConnectionNumber);
 		while(nLen > 0)
 		{
 			if(pBuffer->m_nBufferPos == 0 &&
@@ -286,10 +268,10 @@ bool GEZSocketServer::Send(const void* pBuf, int nLen, int nConnectionNumber)
 		header.tag[2] = GEZSocketTag[2];
 		header.tag[3] = GEZSocketTag[3];
 		header.nPayloadSize = nLen;
-		if(!GSocket::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader), nConnectionNumber))
+		if(!GSocketServerBase::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader), nConnectionNumber))
 			return false;
 	}
-	bool bRet = GSocket::Send((const unsigned char*)pBuf, nLen, nConnectionNumber);
+	bool bRet = GSocketServerBase::Send((const unsigned char*)pBuf, nLen, nConnectionNumber);
 	return bRet;
 }
 
@@ -298,7 +280,7 @@ bool GEZSocketServer::Send(const void* pBuf, int nLen, int nConnectionNumber)
 // if nMaxPacketSize = 0, the socket will be compatible with TCP sockets.
 // if nMaxPacketSize > 0, it will use it's own protocol that guarantees
 //          same-size delivery of packets, but has a maximum packet size.
-GEZSocketClient::GEZSocketClient(int nMaxPacketSize) : GSocket()
+GEZSocketClient::GEZSocketClient(bool bUDP, int nMaxPacketSize) : GSocketClientBase(bUDP)
 {
 	m_nMaxPacketSize = nMaxPacketSize;
 	if(nMaxPacketSize > 0)
@@ -315,10 +297,7 @@ GEZSocketClient::~GEZSocketClient()
 	// Join the other threads now so they don't try
 	// to queue up a message after we delete the
 	// message queue
-	m_bKeepAccepting = false;
-	m_bKeepListening = false;
-	JoinAcceptorThread();
-	JoinAllListenThreads();
+	JoinListenThread();
 
 	delete(m_pBuffer);
 	delete(m_pMessageQueue);
@@ -327,14 +306,9 @@ GEZSocketClient::~GEZSocketClient()
 
 /*static*/ GEZSocketClient* GEZSocketClient::ConnectToTCPSocket(const char* szAddress, int nPort)
 {
-	GEZSocketClient* pSocket = new GEZSocketClient(0);
+	GEZSocketClient* pSocket = new GEZSocketClient(false, 0);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(false, false))
-	{
-		delete(pSocket);
-		return NULL;
-	}
 	if(!pSocket->Connect(szAddress, nPort))
 	{
 		delete(pSocket);
@@ -345,14 +319,9 @@ GEZSocketClient::~GEZSocketClient()
 
 /*static*/ GEZSocketClient* GEZSocketClient::ConnectToUDPSocket(const char* szAddress, int nPort)
 {
-	GEZSocketClient* pSocket = new GEZSocketClient(0);
+	GEZSocketClient* pSocket = new GEZSocketClient(true, 0);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(true, false))
-	{
-		delete(pSocket);
-		return NULL;
-	}
 	if(!pSocket->Connect(szAddress, nPort))
 	{
 		delete(pSocket);
@@ -363,14 +332,9 @@ GEZSocketClient::~GEZSocketClient()
 
 /*static*/ GEZSocketClient* GEZSocketClient::ConnectToGashSocket(const char* szAddress, int nPort, int nMaxPacketSize)
 {
-	GEZSocketClient* pSocket = new GEZSocketClient(nMaxPacketSize);
+	GEZSocketClient* pSocket = new GEZSocketClient(false, nMaxPacketSize);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(false, false))
-	{
-		delete(pSocket);
-		return NULL;
-	}
 	if(!pSocket->Connect(szAddress, nPort))
 	{
 		delete(pSocket);
@@ -407,13 +371,10 @@ unsigned char* GEZSocketClient::GetNextMessage(int* pnSize)
 	return pBuf;
 }
 
-bool GEZSocketClient::Receive(unsigned char *pBuf, int nLen, int nConnectionNumber)
+bool GEZSocketClient::Receive(unsigned char *pBuf, int nLen)
 {
 	if(m_nMaxPacketSize == 0)
-	{
-		GAssert(nConnectionNumber == 0, "unexpected connection number");
 		QueueMessage(pBuf, nLen);
-	}
 	else
 	{
 		while(nLen > 0)
@@ -460,7 +421,6 @@ bool GEZSocketClient::Receive(unsigned char *pBuf, int nLen, int nConnectionNumb
 				}
 				if(m_nBufferPos < (int)sizeof(struct GEZSocketPacketHeader) + pHeader->nPayloadSize)
 					return true;
-				GAssert(nConnectionNumber == 0, "unexpected connection number");
 				QueueMessage(m_pBuffer + sizeof(struct GEZSocketPacketHeader), pHeader->nPayloadSize);
 				m_nBufferPos = 0;
 			}
@@ -480,12 +440,12 @@ bool GEZSocketClient::Send(const void* pBuf, int nLen)
 		header.tag[2] = GEZSocketTag[2];
 		header.tag[3] = GEZSocketTag[3];
 		header.nPayloadSize = nLen;
-		if(!GSocket::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader), 0))
+		if(!GSocketClientBase::Send((const unsigned char*)&header, sizeof(struct GEZSocketPacketHeader)))
 			return false;
 	}
 //fprintf(stderr, "Sending %d bytes {%c%c...%c%c}\n", nLen, ((char*)pBuf)[0], ((char*)pBuf)[1], ((char*)pBuf)[nLen - 2], ((char*)pBuf)[nLen - 1]);
 //fflush(stderr);
-	return GSocket::Send((const unsigned char*)pBuf, nLen, 0);
+	return GSocketClientBase::Send((const unsigned char*)pBuf, nLen);
 }
 
 // --------------------------------------------------------------------------
@@ -524,7 +484,7 @@ struct HandshakeHeader
 	// Data
 };
 
-GSecureSocketServer::GSecureSocketServer(int nMaxPacketSize, GRand* pRand) : GEZSocketServer(nMaxPacketSize)
+GSecureSocketServer::GSecureSocketServer(int nMaxPacketSize, GRand* pRand, int nPort) : GEZSocketServer(false, nMaxPacketSize, nPort, 1)
 {
 	m_pRand = pRand;
 	m_pKeyPair = new GKeyPair();
@@ -552,19 +512,13 @@ GSecureSocketServer::~GSecureSocketServer()
 /*static*/ GSecureSocketServer* GSecureSocketServer::HostSecureSocket(u_short nPort, int nMaxPacketSize, GRand* pRand)
 {
 	// Check input
-	int nPassphraseSize = pRand->GetRandByteCount();
-	GAssert(nPassphraseSize >= (int)sizeof(int), "pRand not seeded big enough");
+	GAssert(pRand->GetRandByteCount() >= (int)sizeof(int), "pRand not seeded big enough");
 	GAssert(nMaxPacketSize > 0, "Bad max packet size");
 
 	// Make the socket
-	GSecureSocketServer* pSocket = new GSecureSocketServer(nMaxPacketSize, pRand);
+	GSecureSocketServer* pSocket = new GSecureSocketServer(nMaxPacketSize, pRand, nPort);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(false, true, nPort))
-	{
-		delete(pSocket);
-		return NULL;
-	}
 	return pSocket;
 }
 
@@ -620,13 +574,15 @@ void GSecureSocketServer::Handshake()
 	if(pHeader->nMessage == 0)
 	{
 		bool bRet = OnReceivePublicKey((const char*)pPayload, nPayloadSize, nConnection);
-		GAssert(bRet, "error processing public key");
+		if(!bRet)
+			GAssert(false, "error processing public key");
 	}
 	else
 	{
 		GAssert(pHeader->nMessage == 1, "unexpected handshake packet");
 		bool bRet = OnReceivePassphrase((const unsigned char*)pPayload, nPayloadSize, nConnection);
-		GAssert(bRet, "error processing passphrase");
+		if(!bRet)
+			GAssert(false, "error processing passphrase");
 	}
 	memset(pBuf, '\0',nSize);
 	delete(pBuf);
@@ -758,7 +714,7 @@ bool GSecureSocketServer::Send(const void* pBuf, int nLen, int nConnectionNumber
 
 // --------------------------------------------------------------------------
 
-GSecureSocketClient::GSecureSocketClient(int nMaxPacketSize, GRand* pRand) : GEZSocketClient(nMaxPacketSize)
+GSecureSocketClient::GSecureSocketClient(int nMaxPacketSize, GRand* pRand) : GEZSocketClient(false, nMaxPacketSize)
 {
 	m_pRand = pRand;
 	m_pKeyPair = new GKeyPair();
@@ -782,20 +738,13 @@ GSecureSocketClient::~GSecureSocketClient()
 /*static*/ GSecureSocketClient* GSecureSocketClient::ConnectToSecureSocket(const char* szAddress, u_short nPort, int nMaxPacketSize, GRand* pRand)
 {
 	// Check input
-	int nPassphraseSize = pRand->GetRandByteCount();
-	GAssert(nPassphraseSize >= (int)sizeof(int), "pRand not seeded big enough");
+	GAssert(pRand->GetRandByteCount() >= (int)sizeof(int), "pRand not seeded big enough");
 	GAssert(nMaxPacketSize > 0, "Bad max packet size");
 
 	// Make the socket
 	GSecureSocketClient* pSocket = new GSecureSocketClient(nMaxPacketSize, pRand);
 	if(!pSocket)
 		return NULL;
-	if(!pSocket->Init(false, false))
-	{
-		GAssert(false, "error initializing socket");
-		delete(pSocket);
-		return NULL;
-	}
 	if(!pSocket->Connect(szAddress, nPort))
 	{
 		delete(pSocket);
@@ -856,13 +805,15 @@ bool GSecureSocketClient::HandShake()
 	if(pHeader->nMessage == 0)
 	{
 		bool bRet = OnReceivePublicKey((const char*)pPayload, nPayloadSize);
-		GAssert(bRet, "error processing public key");
+		if(!bRet)
+			GAssert(false, "error processing public key");
 	}
 	else
 	{
 		GAssert(pHeader->nMessage == 1, "unexpected handshake packet");
 		bool bRet = OnReceivePassphrase((const unsigned char*)pPayload, nPayloadSize);
-		GAssert(bRet, "error processing passphrase");
+		if(!bRet)
+			GAssert(false, "error processing passphrase");
 	}
 	memset(pBuf, '\0', nSize);
 	delete(pBuf);

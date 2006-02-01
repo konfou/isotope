@@ -11,7 +11,7 @@
 
 #include <stdlib.h>
 #include "Controller.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "../GClasses/GArray.h"
 #include "../GClasses/GMacros.h"
 #include "../GClasses/GHashTable.h"
@@ -22,11 +22,13 @@
 #include "../GClasses/GFile.h"
 #include "../GClasses/GSDL.h"
 #include "../GClasses/sha2.h"
+#include "../GClasses/GWidgets.h"
 #include <math.h>
 #include "VGame.h"
 #include "MGameClient.h"
 #include "MRealm.h"
 #include "MScriptEngine.h"
+#include "MPuzSearchEngine.h"
 #include "MObject.h"
 #include "VMainMenu.h"
 #include "VEntropyCollector.h"
@@ -84,6 +86,7 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_downloadProgressMode = DPM_IGNORE;
 	m_pErrorHandler = new IsotopeErrorHandler();
 	m_pHttpClient = new GHttpClient();
+	m_pHttpClient->SetClientName("Isotope/1.0");
 
 	if(eRunMode == SERVER)
 #ifdef SERVER_HAS_VIEW
@@ -96,16 +99,20 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_pModel = NULL;
 	switch(eRunMode)
 	{
+		case CLIENT:
+			m_pModel = new NoModel();
+			MakeCharSelectView();
+			break;
+
 		case SERVER:
-			m_pModel = new MGameServer(szParam, this);
+			m_pModel = new MGameServer(this);
 #ifdef SERVER_HAS_VIEW
 			MakeServerView((MGameServer*)m_pModel);
 #endif // SERVER_HAS_VIEW
 			break;
 
-		case CLIENT:
-			m_pModel = new NoModel();
-			MakeCharSelectView();
+		case PUZSEARCHENGINE:
+			m_pModel = new MPuzSearchEngine(this);
 			break;
 
 		case KEYPAIR:
@@ -682,6 +689,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 		{
 			dPitch *= (float)dTimeDelta;
 			dPitch += 1;
+			fprintf(stderr, "Multiplier=%f, Horizon Height=%f\n", dPitch, pCamera->GetHorizonHeight() / 300);
 			pCamera->AjustHorizonHeight(dPitch, m_pGameView->GetRect()->h / 2 - 75);
 		}
 	}
@@ -845,6 +853,7 @@ void Controller::ControlMainMenu(double dTimeDelta)
 		m_dMenuSlideInAnimTime += dTimeDelta;
 		float fac = (float)sqrt(m_dMenuSlideInAnimTime / MENU_SLIDE_ANIMATION_TIME);
 		SlideMenu(fac);
+		m_pGameClient->GetPanel()->SetDirty();
 	}
 	else if(m_dMenuSlideOutAnimTime > 0)
 	{
@@ -852,6 +861,7 @@ void Controller::ControlMainMenu(double dTimeDelta)
 		float fac = (float)(m_dMenuSlideOutAnimTime / MENU_SLIDE_ANIMATION_TIME);
 		fac *= fac;
 		SlideMenu(fac);
+		m_pGameClient->GetPanel()->SetDirty();
 		if(m_dMenuSlideOutAnimTime <= 0)
 		{
 			RemoveMainMenu();
@@ -1067,6 +1077,11 @@ printf("Squishing the biggest image...\n");
 	}
 }
 
+void Controller::GoBack()
+{
+	m_pGameClient->GetPanel()->GoBack();
+}
+
 void Controller::SafeGoToRealm(const char* szUrl)
 {
 	try
@@ -1075,15 +1090,57 @@ void Controller::SafeGoToRealm(const char* szUrl)
 	}
 	catch(const char* szErrorMessage)
 	{
+		m_pGameClient->GetPanel()->SetUrl(szUrl);
 		PopAllViewPorts();
-		VError* pErrorView = new VError(m_pView->GetScreenRect(), szErrorMessage);
+		VError* pErrorView = new VError(this, m_pView->GetScreenRect(), szErrorMessage);
 		m_pView->PushViewPort(pErrorView);
 		m_pView->Refresh(); // Draw the error page
 	}
 }
 
-void Controller::GoToRealm(const char* szUrl)
+// Remove extra ".." folders in the path
+void CondensePath(char* szPath)
 {
+	bool bGotOne = true;
+	while(bGotOne)
+	{
+		bGotOne = false;
+		int nPrevSlash = -1;
+		int nPrevPrevSlash = -1;
+		int n;
+		for(n = 0; szPath[n] != '\0'; n++)
+		{
+			if(szPath[n] == '/')
+			{
+				nPrevPrevSlash = nPrevSlash;
+				nPrevSlash = n;
+				if(nPrevPrevSlash >= 0 && strncmp(szPath + n, "/../", 4) == 0)
+				{
+					bGotOne = true;
+					int nDelSize = n - nPrevPrevSlash + 3;
+					int i;
+					for(i = nPrevPrevSlash; ; i++)
+					{
+						szPath[i] = szPath[i + nDelSize];
+						if(szPath[i] == '\0')
+							break;
+					}
+				}
+			}
+		}
+	}
+}
+
+void Controller::GoToRealm(const char* szRealmUrl)
+{
+	// Notify server to remove the avatar from the realm
+	m_pGameClient->TellServerYoureLeaving();
+
+	// Condense the URL
+	char* szUrl = (char*)alloca(strlen(szRealmUrl) + 1);
+	strcpy(szUrl, szRealmUrl);
+	CondensePath(szUrl);
+
 	// Show the "loading" page
 	SetMode(Controller::NOTHING);
 	PopAllViewPorts();
@@ -1108,7 +1165,10 @@ void Controller::GoToRealm(const char* szUrl)
 	m_pGameClient->LoadRealmPhase1(pMap, szUrl);
 
 	// Load the script
-	GXMLAttribute* pAttrScript = pMap->GetAttribute("Script");
+	GXMLTag* pGameTag = pMap->GetChildTag("Game");
+	if(!pGameTag)
+		GameEngine::ThrowError("Expected a 'Game' tag in the realm file");
+	GXMLAttribute* pAttrScript = pGameTag->GetAttribute("Script");
 	if(!pAttrScript)
 		GameEngine::ThrowError("Expected a \"Script\" attribute in file: %s", szUrl);
 	int nScriptSize;
@@ -1204,7 +1264,7 @@ void Controller::GoToRealm(const char* szUrl)
 	char* szCondensedUrl = (char*)alloca(strlen(szUrl) + 1);
 	strcpy(szCondensedUrl, szUrl);
 	CondensePath(szCondensedUrl);
-	m_pGameView->SetUrl(szCondensedUrl);
+	m_pGameClient->GetPanel()->SetUrl(szCondensedUrl);
 	m_pGameClient->GetPanel()->SetDirty();
 
 	// Make sure the mouse isn't down
@@ -1353,7 +1413,10 @@ void Controller::LogIn(GXMLTag* pAccountRefTag, const char* szPassword)
 	int nErrorLine;
 	GXMLTag* pAccountTag = GXMLTag::FromFile(szFilename, &szErrorMessage, NULL, &nErrorLine, NULL);
 	if(!pAccountTag)
-		GameEngine::ThrowError("Error loading account %s at line %d, %s", szFilename, nErrorLine, szErrorMessage);
+	{
+		printf("Error loading account %s at line %d\n%s\nCreating an empty account\n", szFilename, nErrorLine, szErrorMessage);
+		pAccountTag = new GXMLTag("Account");
+	}
 
 	// Find the start URL
 	const char* szStartUrl = NULL;
@@ -1622,36 +1685,35 @@ char* Controller::DownloadAndCacheFile(const char* szUrl, int* pnSize, char* szC
 	}
 }
 
-// Remove extra ".." folders in the path
-void CondensePath(char* szPath)
+void Controller::ShowMediaHtmlPage(const char* szPage)
 {
-	bool bGotOne = true;
-	while(bGotOne)
-	{
-		bGotOne = false;
-		int nPrevSlash = -1;
-		int nPrevPrevSlash = -1;
-		int n;
-		for(n = 0; szPath[n] != '\0'; n++)
-		{
-			if(szPath[n] == '/')
-			{
-				nPrevPrevSlash = nPrevSlash;
-				nPrevSlash = n;
-				if(nPrevPrevSlash >= 0 && strncmp(szPath + n, "/../", 4) == 0)
-				{
-					bGotOne = true;
-					int nDelSize = n - nPrevPrevSlash + 3;
-					int i;
-					for(i = nPrevPrevSlash; ; i++)
-					{
-						szPath[i] = szPath[i + nDelSize];
-						if(szPath[i] == '\0')
-							break;
-					}
-				}
-			}
-		}
-	}
+	const char* szAppPath = GameEngine::GetAppPath();
+	char* szPath = (char*)alloca(strlen(szAppPath) + 20 + strlen(szPage));
+#ifdef WIN32
+	strcpy(szPath, "file://");
+#else // WIN32
+	strcpy(szPath, "");
+#endif // !WIN32
+	strcat(szPath, szAppPath);
+	strcat(szPath, "media/html/");
+	strcat(szPath, szPage);
+	ShowWebPage(szPath);
 }
 
+void Controller::ShowWebPage(const char* szUrl)
+{
+#ifdef WIN32
+	ShellExecute(NULL, NULL, szUrl, NULL, NULL, SW_SHOW);
+#else // WIN32
+	// KDE
+	char* szCommand = (char*)alloca(strlen(szUrl) + 20);
+	strcpy(szCommand, "konqueror ");
+	strcat(szCommand, szUrl);
+	system(szCommand);
+
+	// Gnome
+	strcpy(szCommand, "open ");
+	strcat(szCommand, szUrl);
+	system(szCommand);
+#endif // !WIN32
+}

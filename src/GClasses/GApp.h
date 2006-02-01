@@ -9,14 +9,17 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
-#ifndef __GTIME_H__
-#define __GTIME_H__
+#ifndef __GAPP_H__
+#define __GAPP_H__
 
-class GTime
+typedef void (*DaemonMainFunc)(void* pArg);
+
+class GApp
 {
 public:
-	// Returns the number of seconds since midnight on January 1, 1970 with at least milisecond precision
-	static double GetTime();
+	static void LaunchDaemon(DaemonMainFunc pDaemonMain, void* pArg);
+	static char* GetApplicationPath(const char* szArg0);
+	static void TurnSignalsIntoExceptions();
 };
 
-#endif // __GTIME_H__
+#endif // __GAPP_H__

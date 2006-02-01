@@ -507,6 +507,14 @@ SOURCE=.\GRayTrace.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\GRibParser.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\GRibParser.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\GRiddle.cpp
 # End Source File
 # Begin Source File

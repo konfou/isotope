@@ -25,7 +25,7 @@
 #include "../Gasp/CodeObjects/Interface.h"
 #include "../Gasp/Engine/GCompiler.h"
 #include "../Gasp/Engine/Disassembler.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MObject.h"
 #include "MAnimation.h"
 #include <math.h>
@@ -84,6 +84,8 @@ void RegisterMGameMachine(GConstStringHashTable* pTable)
 	pTable->Add("method reportStats(Array)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::reportStats));
 	pTable->Add("method setSkyImage(String)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::setSkyImage));
 	pTable->Add("method setGroundImage(String)", new EMethodPointerHolder((MachineMethod1)&MGameMachine::setGroundImage));
+	pTable->Add("method setPivotHeight(Integer, Integer)", new EMethodPointerHolder((MachineMethod2)&MGameMachine::setPivotHeight));
+	pTable->Add("method addMerit(String, Bool, Float, Float)", new EMethodPointerHolder((MachineMethod4)&MGameMachine::addMerit));
 }
 
 // Declared in MGameImage.cpp
@@ -681,6 +683,13 @@ void MScriptEngine::GRectToMRect(GRect* pGRect, ObjectObject* pMRect)
 	return (float)((GaspFloat*)pOb->arrFields[MAV_FIELD_REACH])->m_value;
 }
 
+/*static*/ const char* MScriptEngine::GetChatCloudText(MObject* pChatCloud)
+{
+	ObjectObject* pOb = pChatCloud->GetGObject();
+	MGameImage* pGameImage = (MGameImage*)pOb->arrFields[MOB_FIELD_COUNT];
+	return pGameImage->GetID();
+}
+
 // -------------------------------------------------------------------------
 
 MGameMachine::MGameMachine(Engine* pEngine)
@@ -958,4 +967,24 @@ void MGameMachine::setGroundImage(Engine* pEngine, EVar* pID)
 {
 	Controller* pController = ((MVM*)pEngine)->m_pController;
 	pController->SetGroundImage(&pID->pStringObject->m_value);
+}
+
+void MGameMachine::setPivotHeight(Engine* pEngine, EVar* pID, EVar* pHeight)
+{
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	int nID = pID->pIntObject->m_value;
+	MObject* pObj = pGameClient->GetCurrentRealm()->GetObjectByID(nID);
+	if(!pObj)
+		GameEngine::ThrowError("There's no object with the ID %d", nID);
+	pObj->SetPivotHeight(pHeight->pIntObject->m_value);
+}
+
+void MGameMachine::addMerit(Engine* pEngine, EVar* pSkill, EVar* pCorrect, EVar* pAbilityLevel, EVar* pAmount)
+{
+	MGameClient* pGameClient = ((MVM*)pEngine)->m_pGameClient;
+	const wchar_t* wszSkill = pSkill->pStringObject->m_value.GetString();
+	bool bCorrect = pCorrect->pIntObject->m_value ? true : false;
+	double dAbilityLevel = pAbilityLevel->pFloatObject->m_value;
+	double dAmount = pAmount->pFloatObject->m_value;
+	pGameClient->AddMerit(wszSkill, bCorrect, dAbilityLevel, dAmount);
 }

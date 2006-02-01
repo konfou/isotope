@@ -11,7 +11,7 @@
 
 #include "VServer.h"
 #include "MRealmServer.h"
-#include "GameEngine.h"
+#include "Main.h"
 
 VServer::VServer(GRect* pRect, MGameServer* pServer)
 : ViewPort(pRect)

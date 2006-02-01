@@ -28,7 +28,8 @@ endif
 
 ISOTOPE_SOURCES =   $(ISOTOPE_PATH)/AutoUpdate.cpp\
                     $(ISOTOPE_PATH)/Controller.cpp\
-                    $(ISOTOPE_PATH)/GameEngine.cpp\
+                    $(ISOTOPE_PATH)/LPS.cpp\
+                    $(ISOTOPE_PATH)/Main.cpp\
                     $(ISOTOPE_PATH)/MAnimation.cpp\
                     $(ISOTOPE_PATH)/MCollisionMap.cpp\
                     $(ISOTOPE_PATH)/MGameClient.cpp\
@@ -49,15 +50,18 @@ ISOTOPE_SOURCES =   $(ISOTOPE_PATH)/AutoUpdate.cpp\
                     $(ISOTOPE_PATH)/VEntropyCollector.cpp\
                     $(ISOTOPE_PATH)/VGame.cpp\
                     $(ISOTOPE_PATH)/View.cpp\
+                    $(ISOTOPE_PATH)/VError.cpp\
                     $(ISOTOPE_PATH)/ViewPort.cpp\
                     $(ISOTOPE_PATH)/VLoading.cpp\
                     $(ISOTOPE_PATH)/VMainMenu.cpp\
+                    $(ISOTOPE_PATH)/VPanel.cpp\
                     $(ISOTOPE_PATH)/VServer.cpp\
                     $(ISOTOPE_PATH)/VWave.cpp\
 
 ISOTOPE_HEADER =    $(ISOTOPE_PATH)/AutoUpdate.h\
                     $(ISOTOPE_PATH)/Controller.h\
-                    $(ISOTOPE_PATH)/GameEngine.h\
+                    $(ISOTOPE_PATH)/LPS.h\
+                    $(ISOTOPE_PATH)/Main.h\
                     $(ISOTOPE_PATH)/MAnimation.h\
                     $(ISOTOPE_PATH)/MCollisionMap.h\
                     $(ISOTOPE_PATH)/MGameClient.h\
@@ -78,8 +82,10 @@ ISOTOPE_HEADER =    $(ISOTOPE_PATH)/AutoUpdate.h\
                     $(ISOTOPE_PATH)/VEntropyCollector.h\
                     $(ISOTOPE_PATH)/VGame.h\
                     $(ISOTOPE_PATH)/View.h\
+                    $(ISOTOPE_PATH)/VError.h\
                     $(ISOTOPE_PATH)/ViewPort.h\
                     $(ISOTOPE_PATH)/VLoading.h\
+                    $(ISOTOPE_PATH)/VPanel.h\
                     $(ISOTOPE_PATH)/VMainMenu.h\
                     $(ISOTOPE_PATH)/VServer.h\
                     $(ISOTOPE_PATH)/VWave.h\

@@ -13,7 +13,7 @@
 #include "../Gasp/BuiltIns/GaspString.h"
 #include "../GClasses/GXML.h"
 #include <wchar.h>
-#include "GameEngine.h"
+#include "Main.h"
 
 MInductionPuzzle::MInductionPuzzle(Engine* pEngine, GXMLTag* pSpecTag)
  : WrapperObject(pEngine, "InductionPuzzle")

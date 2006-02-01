@@ -116,6 +116,12 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
+				RelativePath=".\GApp.cpp">
+			</File>
+			<File
+				RelativePath=".\GApp.h">
+			</File>
+			<File
 				RelativePath="GArff.cpp">
 				<FileConfiguration
 					Name="Release|Win32">

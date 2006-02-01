@@ -15,27 +15,25 @@
 #include "ViewPort.h"
 
 class VErrorDialog;
-
+class Controller;
 struct GRect;
 
 class VError : public ViewPort
 {
 protected:
-	GImage* m_pImage;
 	int m_nLeft;
 	int m_nTop;
 	VErrorDialog* m_pDialog;
-	bool m_dirty;
 
 public:
-	VError(GRect* pRect, const char* szUrl);
+	VError(Controller* pController, GRect* pRect, const char* szUrl);
 	virtual ~VError();
 
 	virtual void Draw(SDL_Surface *pScreen);
 	virtual void OnChar(char c) {}
-	virtual void OnMouseDown(int x, int y) {}
-	virtual void OnMouseUp(int x, int y) {}
-	virtual void OnMousePos(int x, int y) {}
+	virtual void OnMouseDown(int x, int y);
+	virtual void OnMouseUp(int x, int y);
+	virtual void OnMousePos(int x, int y);
 
 protected:
 	void RefreshEntireImage();

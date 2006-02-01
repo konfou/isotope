@@ -90,7 +90,7 @@ void GBillboardCamera::ScreenToMap(float* px, float* py, float* pSize, bool* pbS
 	}
 }
 
-void GBillboardCamera::CalcBillboardRect(GRect* pOutRect, GPosSize* pPosSize, GRect* pScreenRect)
+void GBillboardCamera::CalcBillboardRect(GRect* pOutRect, GPosSize* pPosSize, GRect* pScreenRect, int nPivotHeight)
 {
 	float x, y, scale;
 	float wid = m_cosDirection * m_cosDirection * pPosSize->sx + m_sinDirection * m_sinDirection * pPosSize->sy;
@@ -99,7 +99,7 @@ void GBillboardCamera::CalcBillboardRect(GRect* pOutRect, GPosSize* pPosSize, GR
 	wid *= scale;
 	hgt *= scale;
 	pOutRect->x = (int)(x - wid / 2);
-	pOutRect->y = (int)(y - hgt);
+	pOutRect->y = (int)(y - hgt) + (int)(nPivotHeight * scale);
 	pOutRect->w = (int)wid;
 	pOutRect->h = (int)hgt;
 }
@@ -201,7 +201,7 @@ void GBillboardCamera::AjustHorizonHeight(float factor, int nScreenVerticalCente
 	}
 	else
 	{
-		if(m_horizonHeight < 300)
+		if(m_horizonHeight < 100)
 			return;
 	}
 	m_horizonHeight *= factor;

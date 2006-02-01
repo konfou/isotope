@@ -513,7 +513,7 @@ GParseTreeNode* GTextGrammarRule::ParseWord(GStream* pStream)
 	}
 
 	// Succeed
-	GParseTreeNode* pPTN;
+	GParseTreeNode* pPTN = NULL;
 	switch(m_nType)
 	{
 		case TT_DECIMAL_VALUE:		pPTN = new GTextParseTreeNode(GTextParseTreeNode::PTNT_DECIMAL_VALUE, this);	break;

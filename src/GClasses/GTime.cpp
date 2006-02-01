@@ -16,16 +16,15 @@
 #include <time.h>
 #else // WIN32
 #include <sys/time.h>
-//#include <unistd.h>
-//#include <stdlib.h>
 #endif // else WIN32
 
 /*static*/ double GTime::GetTime()
 {
 #ifdef WIN32
+	time_t t;
 	SYSTEMTIME st;
 	GetSystemTime(&st);
-	return ((double)(st.wHour * 3600 + st.wMinute * 60 + st.wSecond) + (double)st.wMilliseconds * 1e-3);
+	return ((double)st.wMilliseconds * 1e-3 + time(&t));
 #else
 	struct timeval tp;
     gettimeofday(&tp, NULL);

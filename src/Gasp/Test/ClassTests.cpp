@@ -405,9 +405,9 @@ bool TestBezier(ClassTests* pThis)
 	int n;
 	for(n = 0; n < pOrig->GetControlPointCount(); n++)
 	{
-		p1.x = rand() % 1000000;
-		p1.y = rand() % 1000000;
-		p1.z = rand() % 1000000;
+		p1.m_vals[0] = rand() % 1000000;
+		p1.m_vals[1] = rand() % 1000000;
+		p1.m_vals[2] = rand() % 1000000;
 		pOrig->SetControlPoint(n, &p1, rand());
 	}
 	GBezier* pCopy = pOrig->Copy();
@@ -418,7 +418,7 @@ bool TestBezier(ClassTests* pThis)
 	{
 		pOrig->GetPoint((double)n / 10, &p1);
 		pCopy->GetPoint((double)n / 10, &p2);
-		if(p1.GetDistance(&p2) > .00001)
+		if(p1.GetDistanceSquared(&p2) > .00001)
 			return false;
 	}
 	GBezier* pCopy2 = pCopy->Copy();
@@ -429,9 +429,9 @@ bool TestBezier(ClassTests* pThis)
 		pOrig->GetPoint((double)n / 10, &p1);
 		pCopy->GetPoint(((double)n / 10) / .3, &p2);
 		pCopy2->GetPoint(((double)n / 10) / .7 - .3 / .7, &p3);
-		if(p1.GetDistance(&p2) > .00001)
+		if(p1.GetDistanceSquared(&p2) > .00001)
 			return false;
-		if(p1.GetDistance(&p3) > .00001)
+		if(p1.GetDistanceSquared(&p3) > .00001)
 			return false;
 	}
 	Point3D coeff[7];
@@ -441,7 +441,7 @@ bool TestBezier(ClassTests* pThis)
 	{
 		pOrig->GetPoint((double)n / 10, &p1);
 		pAnother->GetPoint((double)n / 10, &p2);
-		if(p1.GetDistance(&p2) > .00001)
+		if(p1.GetDistanceSquared(&p2) > .00001)
 			return false;
 	}
 	delete(pOrig);
@@ -550,7 +550,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 	// Check the data and send some of it back to the client
 	int nSize, nConnection;
 	{
-		Holder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
+		ArrayHolder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
 		unsigned char* pData = hData.Get();
 		if(!pData || pData == (unsigned char*)szBuf)
 			return false;
@@ -561,7 +561,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 	}
 	for(i = 10; i < 60; i++)
 	{
-		Holder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
+		ArrayHolder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
 		unsigned char* pData = hData.Get();
 		if(nSize != i || !pData)
 			return false;
@@ -576,7 +576,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 #endif // WIN32
 	}
 	{
-		Holder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
+		ArrayHolder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
 		unsigned char* pData = hData.Get();
 		if(!pData || pData == (unsigned char*)szBuf)
 			return false;
@@ -604,7 +604,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 	// Check the data
 	for(i = 10; i < 60; i++)
 	{
-		Holder<unsigned char*> hData = pClient->GetNextMessage(&nSize);
+		ArrayHolder<unsigned char*> hData = pClient->GetNextMessage(&nSize);
 		unsigned char* pData = hData.Get();
 		if(nSize != 10 || !pData)
 			return false;
@@ -651,7 +651,7 @@ bool TestGEZSocketParallel(ClassTests* pThis)
 	int nSize, nConnection;
 	for(i = 0; i < 500; i++)
 	{
-		Holder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
+		ArrayHolder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
 		if(!hData.Get())
 		{
 			i--;
@@ -683,14 +683,14 @@ bool TestGCompress(ClassTests* pThis)
 	srand(0);
 	int nSize = 4096;
 	int nRands = 2;
-	Holder<unsigned char*> hOrig(new unsigned char[nSize]);
+	ArrayHolder<unsigned char*> hOrig(new unsigned char[nSize]);
 	unsigned char* pOrig = hOrig.Get();
 	int n;
 	for(n = 0; n < nSize; n++)
 		pOrig[n] = (unsigned char)(rand() % nRands + 'A');
 	int nCompressedSize, nFinalSize;
-	Holder<unsigned char*> hCompressed(GCompress::Compress(pOrig, nSize, &nCompressedSize));
-	Holder<unsigned char*> hFinal(GCompress::Decompress(hCompressed.Get(), nCompressedSize, &nFinalSize));
+	ArrayHolder<unsigned char*> hCompressed(GCompress::Compress(pOrig, nSize, &nCompressedSize));
+	ArrayHolder<unsigned char*> hFinal(GCompress::Decompress(hCompressed.Get(), nCompressedSize, &nFinalSize));
 	unsigned char* pFinal = hFinal.Get();
 	if(nFinalSize != nSize)
 		return false;

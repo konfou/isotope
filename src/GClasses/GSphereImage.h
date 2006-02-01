@@ -14,7 +14,8 @@
 
 #include "GMacros.h"
 #include <math.h>
-#include "GRayTrace.h"
+#include "GBezier.h"
+#include "GImage.h"
 
 class GSphereImagePixelEnumerator;
 class QImage;
@@ -154,7 +155,7 @@ public:
 	// x, and y are relative to the center of the screen
 	unsigned int GetPixel(int x, int y, double* pDepth);
 
-	void Render(G3DObject* pUniverse, const Point3D* pCameraPos, int nAllowedSubRays, int nFrame, int nTotalFrames, double dLightThreshold, GImage* pBackgroundImage);
+//	void Render(G3DObject* pUniverse, const Point3D* pCameraPos, int nAllowedSubRays, int nFrame, int nTotalFrames, double dLightThreshold, GImage* pBackgroundImage);
 	bool save(FILE* pFile);
 };
 
@@ -221,10 +222,10 @@ public:
 		return GetHorizOffset((int)nX, (int)nY);
 	}
 
-	void RenderFrames(G3DObject*pObj3D, int nFrame, int nFrames, double dSourceSize, GColor transparentColor, int nAllowedSubRays, double dLightThreshold);
+//	void RenderFrames(G3DObject*pObj3D, int nFrame, int nFrames, double dSourceSize, GColor transparentColor, int nAllowedSubRays, double dLightThreshold);
 
 protected:
-	void RenderFrame(G3DObject*pObj3D, int nFrame, int nFrames, double dLon, double dLat, double dSourceSize, int nHorizOffset, GColor transparentColor, int nAllowedSubRays, double dLightThreshold);
+//	void RenderFrame(G3DObject*pObj3D, int nFrame, int nFrames, double dLon, double dLat, double dSourceSize, int nHorizOffset, GColor transparentColor, int nAllowedSubRays, double dLightThreshold);
 };
 
 #endif // __GSPHEREIMAGE_H__

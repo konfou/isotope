@@ -30,7 +30,7 @@ protected:
 	GHttpClient* m_pParent;
 
 public:
-	GHttpClientSocket(GHttpClient* pParent, int nMaxPacketSize) : GEZSocketClient(nMaxPacketSize)
+	GHttpClientSocket(GHttpClient* pParent, int nMaxPacketSize) : GEZSocketClient(false, nMaxPacketSize)
 	{
 		m_pParent = pParent;
 	}
@@ -44,11 +44,6 @@ public:
 		GHttpClientSocket* pSocket = new GHttpClientSocket(pParent, 0);
 		if(!pSocket)
 			return NULL;
-		if(!pSocket->Init(false, false))
-		{
-			delete(pSocket);
-			return NULL;
-		}
 		if(!pSocket->Connect(szAddress, nPort))
 		{
 			delete(pSocket);
@@ -60,7 +55,6 @@ public:
 protected:
 	virtual void OnLoseConnection(int nSocketNumber)
 	{
-printf("Connection lost 2\n");
 		m_pParent->OnLoseConnection();
 	}
 };
@@ -79,6 +73,7 @@ GHttpClient::GHttpClient()
 	strcpy(m_szServer, "\0");
 	m_szRedirect = NULL;
 	m_dLastReceiveTime = 0;
+	strcpy(m_szClientName, "GHttpClient/1.0");
 //g_pFile = fopen("tmp.txt", "w");
 }
 
@@ -88,6 +83,12 @@ GHttpClient::~GHttpClient()
 	delete(m_pData);
 	delete(m_pChunkQueue);
 	delete(m_szRedirect);
+}
+
+void GHttpClient::SetClientName(const char* szClientName)
+{
+	strncpy(m_szClientName, szClientName, 32);
+	m_szClientName[31] = '\0';
 }
 
 GHttpClient::Status GHttpClient::CheckStatus(float* pfProgress)
@@ -162,8 +163,10 @@ bool GHttpClient::Get(const char* szUrl, int nPort)
 	s.Add(L":");
 	s.Add(nPort);
 // todo: undo the next line
-	s.Add(L"\r\nUser-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.12) Gecko/20051010 Firefox/1.0.7 (Ubuntu package 1.0.7)\r\nAccept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5\r\nAccept-Language: en-us,en;q=0.5\r\nAccept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\nKeep-Alive: 300\r\nConnection: keep-alive\r\n\r\n");
-//	s.Add(L"\r\nUser-Agent: GHttpClient/1.0\r\nKeep-Alive: 60\r\nConnection: keep-alive\r\n\r\n");
+//	s.Add(L"\r\nUser-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.7.12) Gecko/20051010 Firefox/1.0.7 (Ubuntu package 1.0.7)\r\nAccept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5\r\nAccept-Language: en-us,en;q=0.5\r\nAccept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\nKeep-Alive: 300\r\nConnection: keep-alive\r\n\r\n");
+	s.Add(L"\r\nUser-Agent: ");
+	s.Add(m_szClientName);
+	s.Add("\r\nKeep-Alive: 60\r\nConnection: keep-alive\r\n\r\n");
 	char* szRequest = (char*)alloca(s.GetLength() + 1);
 	s.GetAnsi(szRequest);
 //printf("### Sending Request:\n%s\n###\n", szRequest);
@@ -594,13 +597,13 @@ void GHttpServer::MakeResponse(int nConnection, GHttpServerBuffer* pClient)
 	q.Push("\r\n\r\n");
 	int nHeaderSize = q.GetSize();
 	char* szHeader = q.DumpToString();
-	Holder<char*> hHeader(szHeader);
+	ArrayHolder<char*> hHeader(szHeader);
 	m_pSocket->Send(szHeader, nHeaderSize, nConnection);
 
 	// Send the payload
 	m_pQ->Push("\r\n\r\n");
 	char* szPayload = m_pQ->DumpToString();
-	Holder<char*> hPayload(szPayload);
+	ArrayHolder<char*> hPayload(szPayload);
 	m_pSocket->Send(szPayload, nPayloadSize + 4, nConnection);
 }
 

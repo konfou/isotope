@@ -1305,7 +1305,7 @@ bool GImage::LoadPNGFile(const char* szFilename)
 	char* pRawData = GFile::LoadFileToBuffer(szFilename, &nSize);
 	if(!pRawData)
 		return false;
-	Holder<char*> hRawData(pRawData);
+	ArrayHolder<char*> hRawData(pRawData);
 	return LoadPng(this, (const unsigned char*)pRawData, nSize);
 }
 
@@ -2006,7 +2006,7 @@ void GImage::Draw3DLine(const struct Point3D* pA, const struct Point3D* pB, stru
 	struct Point3D b = *pB;
 	a.Transform(pCamera);
 	b.Transform(pCamera);
-	SafeDrawLine((int)a.x, (int)a.y, (int)b.x, (int)b.y, color);
+	SafeDrawLine((int)a.m_vals[0], (int)a.m_vals[1], (int)b.m_vals[0], (int)b.m_vals[1], color);
 }
 
 void GImage::DrawBezier(GBezier* pCurve, GColor color, double dStart, double dEnd, double dStep, struct Transform* pCamera)
@@ -2321,3 +2321,101 @@ GImage* GImage::Munge(int nStyle, float fExtent)
 	return pMunged;
 }
 
+void GImage::FillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, GColor c)
+{
+	// Get y1 on top
+	int t;
+	if(y2 < y1)
+	{
+		t = y2;
+		y2 = y1;
+		y1 = t;
+		t = x2;
+		x2 = x1;
+		x1 = t;
+	}
+	if(y3 < y1)
+	{
+		t = y3;
+		y3 = y1;
+		y1 = t;
+		t = x3;
+		x3 = x1;
+		x1 = t;
+	}
+
+	// Get y2 in the middle
+	if(y3 < y2)
+	{
+		t = y3;
+		y3 = y2;
+		y2 = t;
+		t = x3;
+		x3 = x2;
+		x2 = t;
+	}
+
+	// Compute step sizes
+	float fx1 = (float).5 + x1;
+	float fx2 = (float).5 + x1;
+	float dx1, dx2;
+	if(y1 == y2)
+	{
+		fx1 = (float).5 + x2;
+		dx1 = 0;
+	}
+	else
+		dx1 = (float)(x2 - x1) / (y2 - y1);
+	if(y1 == y3)
+	{
+		fx2 = (float).5 + x3;
+		dx2 = 0;
+	}
+	else
+		dx2 = (float)(x3 - x1) / (y3 - y1);
+
+	// Draw the first half
+	int x, xMax, y;
+	for(y = y1; y <= y2; y++)
+	{
+		if(fx1 < fx2)
+		{
+			x = (int)fx1;
+			xMax = (int)fx2;
+		}
+		else
+		{
+			x = (int)fx2;
+			xMax = (int)fx1;
+		}
+		for( ; x <= xMax; x++)
+			SetPixel(x, y, c);
+		fx1 += dx1;
+		fx2 += dx2;
+	}
+
+	// Draw the second half
+	fx1 = (float).5 + x2;
+	if(y2 == y3)
+		dx1 = 0;
+	else
+		dx1 = (float)(x3 - x2) / (y3 - y2);
+	fx1 += dx1;
+	for( ; y <= y3; y++)
+	{
+		if(fx1 < fx2)
+		{
+			x = (int)fx1;
+			xMax = (int)fx2;
+		}
+		else
+		{
+			x = (int)fx2;
+			xMax = (int)fx1;
+		}
+		for( ; x <= xMax; x++)
+			SetPixel(x, y, c);
+		fx1 += dx1;
+		fx2 += dx2;
+	}
+}

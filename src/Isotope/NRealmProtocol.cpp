@@ -12,7 +12,7 @@
 #include "NRealmProtocol.h"
 #include "../GClasses/GEZSocket.h"
 #include "../GClasses/GPointerQueue.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MObject.h"
 #include "MScriptEngine.h"
 #include "MGameClient.h"
@@ -38,6 +38,11 @@ int NRealmPacket::SerializePacket(MScriptEngine* pScriptEngine, unsigned char* p
 	const unsigned char cPacketType = *pData;
 	pData++;
 	nSize--;
+	if(nSize < 0)
+	{
+		GAssert(false, "bad packet");
+		return NULL;
+	}
 	NRealmPacket* pPacket = NULL;
 	switch(cPacketType)
 	{
@@ -49,8 +54,12 @@ int NRealmPacket::SerializePacket(MScriptEngine* pScriptEngine, unsigned char* p
 			pPacket = NSendMeUpdatesPacket::Deserialize(pData, nSize);
 			break;
 
-		case UPDATE_OBJECT:
-			pPacket = NUpdateObjectPacket::Deserialize(pScriptEngine, pData, nSize);
+		case UPDATE_REALM_OBJECT:
+			pPacket = NUpdateRealmObjectPacket::Deserialize(pScriptEngine, pData, nSize);
+			break;
+
+		case REMOVE_REALM_OBJECT:
+			pPacket = NRemoveRealmObjectPacket::Deserialize(pData, nSize);
 			break;
 
 		case SEND_OBJECT:
@@ -104,7 +113,6 @@ NSetPathPacket::NSetPathPacket(const char* pPath, int nLen)
 NSendMeUpdatesPacket::NSendMeUpdatesPacket()
 : NRealmPacket()
 {
-	m_time = 0;
 }
 
 /*virtual*/ NSendMeUpdatesPacket::~NSendMeUpdatesPacket()
@@ -113,44 +121,74 @@ NSendMeUpdatesPacket::NSendMeUpdatesPacket()
 
 /*virtual*/ int NSendMeUpdatesPacket::Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuf, int nBufSize)
 {
-	*(double*)pBuf = m_time;
-	return sizeof(double);
+	return 0;
 }
 
 /*static*/ NSendMeUpdatesPacket* NSendMeUpdatesPacket::Deserialize(const unsigned char* pData, int nSize)
 {
-	if(nSize != sizeof(double))
+	if(nSize != 0)
 	{
 		GAssert(false, "bad packet");
 		return NULL;
 	}
 	NSendMeUpdatesPacket* pNewPacket = new NSendMeUpdatesPacket();
-	pNewPacket->m_time = *(double*)pData;
 	return pNewPacket;
 }
 
 // -----------------------------------------------------------
 
-NUpdateObjectPacket::NUpdateObjectPacket()
+NRemoveRealmObjectPacket::NRemoveRealmObjectPacket()
+: NRealmPacket()
+{
+	m_uid = 0;
+}
+
+/*virtual*/ NRemoveRealmObjectPacket::~NRemoveRealmObjectPacket()
+{
+}
+
+/*virtual*/ int NRemoveRealmObjectPacket::Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuf, int nBufSize)
+{
+	*(unsigned int*)pBuf = m_uid;
+	return sizeof(unsigned int);
+}
+
+/*static*/ NRemoveRealmObjectPacket* NRemoveRealmObjectPacket::Deserialize(const unsigned char* pData, int nSize)
+{
+	if(nSize != sizeof(unsigned int))
+	{
+		GAssert(false, "bad packet");
+		return NULL;
+	}
+	NRemoveRealmObjectPacket* pNewPacket = new NRemoveRealmObjectPacket();
+	pNewPacket->m_uid = *(unsigned int*)pData;
+	return pNewPacket;
+}
+
+// -----------------------------------------------------------
+
+NUpdateRealmObjectPacket::NUpdateRealmObjectPacket()
 : NRealmPacket()
 {
 	m_pObject = NULL;
 }
 
-/*virtual*/ NUpdateObjectPacket::~NUpdateObjectPacket()
+/*virtual*/ NUpdateRealmObjectPacket::~NUpdateRealmObjectPacket()
 {
 	delete(m_pObject);
 }
 
-/*virtual*/ int NUpdateObjectPacket::Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuf, int nBufSize)
+/*virtual*/ int NUpdateRealmObjectPacket::Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuf, int nBufSize)
 {
 	if(!pScriptEngine)
 		GameEngine::ThrowError("No realm loaded yet");
 	GAssert(m_pObject, "You must set the object before you serialize");
+	GAssert(m_pObject->SanityCheck(), "Object failed sanity check in NUpdateRealmObjectPacket::Serialize");
+//printf("Object ID=%d Type=%s Time=%f\n", m_pObject->GetUid(), m_pObject->GetTypeName(), m_pObject->GetTime());
 	return pScriptEngine->SerializeObject(m_pObject->GetGObject(), pBuf, nBufSize);
 }
 
-/*static*/ NUpdateObjectPacket* NUpdateObjectPacket::Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize)
+/*static*/ NUpdateRealmObjectPacket* NUpdateRealmObjectPacket::Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize)
 {
 	if(!pScriptEngine)
 		GameEngine::ThrowError("No realm loaded yet");
@@ -159,7 +197,12 @@ NUpdateObjectPacket::NUpdateObjectPacket()
 		return NULL;
 	MObject* pObject = new MObject(pScriptEngine);
 	pObject->SetGObject(pObj);
-	NUpdateObjectPacket* pNewPacket = new NUpdateObjectPacket();
+	if(!pObject->SanityCheck())
+	{
+		printf("%s (time=%f) Object failed sanity check in NUpdateRealmObjectPacket::Deserialize\n", pObject->GetTypeName(), pObject->GetTime());
+		return NULL;
+	}
+	NUpdateRealmObjectPacket* pNewPacket = new NUpdateRealmObjectPacket();
 	pNewPacket->SetObject(pObject);
 	return pNewPacket;
 }
@@ -213,9 +256,39 @@ void NSendObjectPacket::SetObject(GObject* pObject)
 
 // -----------------------------------------------------------
 
+class NRealmServerSocket : public GEZSocketServer
+{
+protected:
+	NRealmServerConnection* m_pParent;
+
+public:
+	NRealmServerSocket(NRealmServerConnection* pParent, int nMaxPacketSize, int nPort) : GEZSocketServer(false, nMaxPacketSize, nPort, 1000)
+	{
+		m_pParent = pParent;
+	}
+
+	virtual ~NRealmServerSocket()
+	{
+	}
+
+	static NRealmServerSocket* HostGashSocket(NRealmServerConnection* pParent, int nPort, int nMaxPacketSize)
+	{
+		return new NRealmServerSocket(pParent, nMaxPacketSize, nPort);
+	}
+
+protected:
+	virtual void OnCloseConnection(int nSocketNumber)
+	{
+fprintf(stderr, "### REMOVE ME -- client disconnected\n");
+		m_pParent->OnCloseConnection(nSocketNumber);
+	}
+};
+
+// -----------------------------------------------------------
+
 NRealmServerConnection::NRealmServerConnection(MGameServer* pServer)
 {
-	m_pSocket = GEZSocketServer::HostGashSocket(DEFAULT_PORT, MAX_PACKET_SIZE);
+	m_pSocket = NRealmServerSocket::HostGashSocket(this, DEFAULT_PORT, MAX_PACKET_SIZE);
 	if(!m_pSocket)
 		GameEngine::ThrowError("Failed to create server socket");
 	m_pQueue = new GPointerQueue();
@@ -276,7 +349,7 @@ NRealmPacket* NRealmServerConnection::GetNextPacket()
 
 void NRealmServerConnection::ReportBadPacket(int nConnection)
 {
-	fprintf(stderr, "Error! Received a bad packet!\n");
+	fprintf(stderr, "*** Received a bad packet!\n");
 	GAssert(false, "bad packet");
 	// todo: disconnect the client as punishment for sending a bad packet
 }
@@ -304,12 +377,61 @@ void NRealmServerConnection::SendPacket(NRealmPacket* pPacket, int nConnection)
 	m_pSocket->Send(m_pBuf, nLen, nConnection);
 }
 
+void NRealmServerConnection::OnCloseConnection(int nConnection)
+{
+	m_pServer->OnLoseConnection(nConnection);
+}
+
+void NRealmServerConnection::Disconnect(int nConnection)
+{
+	m_pSocket->Disconnect(nConnection);
+}
+
+// -----------------------------------------------------------
+
+class NRealmClientSocket : public GEZSocketClient
+{
+protected:
+	NRealmClientConnection* m_pParent;
+
+public:
+	NRealmClientSocket(NRealmClientConnection* pParent, int nMaxPacketSize) : GEZSocketClient(false, nMaxPacketSize)
+	{
+		m_pParent = pParent;
+	}
+
+	virtual ~NRealmClientSocket()
+	{
+	}
+
+	static NRealmClientSocket* ConnectToGashSocket(NRealmClientConnection* pParent, const char* szAddress, int nPort, int nMaxPacketSize);
+
+protected:
+	virtual void OnCloseConnection(int nSocketNumber)
+	{
+		m_pParent->OnCloseConnection();
+	}
+};
+
+/*static*/ NRealmClientSocket* NRealmClientSocket::ConnectToGashSocket(NRealmClientConnection* pParent, const char* szAddress, int nPort, int nMaxPacketSize)
+{
+	NRealmClientSocket* pSocket = new NRealmClientSocket(pParent, nMaxPacketSize);
+	if(!pSocket)
+		return NULL;
+	if(!pSocket->Connect(szAddress, nPort))
+	{
+		delete(pSocket);
+		return NULL;
+	}
+	return pSocket;
+}
+
 // -----------------------------------------------------------
 
 NRealmClientConnection::NRealmClientConnection(MGameClient* pGameClient, const char* szServerName)
 {
 	m_pGameClient = pGameClient;
-	m_pSocket = GEZSocketClient::ConnectToGashSocket(szServerName, DEFAULT_PORT, MAX_PACKET_SIZE);
+	m_pSocket = NRealmClientSocket::ConnectToGashSocket(this, szServerName, DEFAULT_PORT, MAX_PACKET_SIZE);
 	if(!m_pSocket)
 		GameEngine::ThrowError("Failed to connect to server: %s", szServerName);
 	m_pQueue = new GPointerQueue();
@@ -350,3 +472,9 @@ void NRealmClientConnection::SendPacket(NRealmPacket* pPacket)
 	GAssert(nLen > 0, "Looks like a bad packet");
 	m_pSocket->Send(m_pBuf, nLen);
 }
+
+void NRealmClientConnection::OnCloseConnection()
+{
+	m_pGameClient->OnLoseConnection();
+}
+

@@ -138,7 +138,7 @@ GXMLTag* GXMLParser::ParseTag()
 	}
 	return ParseTagInternal();
 }
-	
+
 void GXMLParser::MoveIntoNextTag()
 {
 	// Parse the name
@@ -902,7 +902,7 @@ bool GXMLTag::ToFile(const char* szFilename)
 
 bool GXMLTag::ToFile(FILE* pFile)
 {
-	Holder<char*> hBuffer(ToString());
+	ArrayHolder<char*> hBuffer(ToString());
 	char* pBuffer = hBuffer.Get();
 	if(!pBuffer)
 		return false;

@@ -10,7 +10,7 @@
 */
 
 #include "VMainMenu.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "../GClasses/GWidgets.h"
 #include "Controller.h"
 #include "../GClasses/GArray.h"

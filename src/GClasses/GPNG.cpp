@@ -99,11 +99,11 @@ GAssert(depth == 8, "todo: remove this line");
 	// Allocate the row pointers
 	unsigned long rowbytes = png_get_rowbytes(reader.m_pReadStruct, reader.m_pInfoStruct);
 	unsigned long channels = rowbytes / width;
-	Holder<unsigned char*> hData(new unsigned char[rowbytes * height]);
+	ArrayHolder<unsigned char*> hData(new unsigned char[rowbytes * height]);
 	png_bytep pRawData = (png_bytep)hData.Get();
 	unsigned int i;
 	{
-		Holder<unsigned char*> hRows(new unsigned char[sizeof(png_bytep) * height]);
+		ArrayHolder<unsigned char*> hRows(new unsigned char[sizeof(png_bytep) * height]);
 		png_bytep* pRows = (png_bytep*)hRows.Get();
 		for(i = 0; i < height; i++)
 			pRows[i] = pRawData + i * rowbytes;
@@ -186,10 +186,10 @@ bool SavePng(GImage* pImage, FILE* pFile, bool bIncludeAlphaChannel)
 	unsigned long height = pImage->GetHeight();
 	unsigned long channels = bIncludeAlphaChannel ? 4 : 3;
 	unsigned long rowbytes = width * channels;
-	Holder<unsigned char*> hData(new unsigned char[rowbytes * height]);
+	ArrayHolder<unsigned char*> hData(new unsigned char[rowbytes * height]);
 	png_bytep pRawData = (png_bytep)hData.Get();
 	unsigned int i;
-	Holder<unsigned char*> hRows(new unsigned char[sizeof(png_bytep) * height]);
+	ArrayHolder<unsigned char*> hRows(new unsigned char[sizeof(png_bytep) * height]);
 	png_bytep* pRows = (png_bytep*)hRows.Get();
 	for(i = 0; i < height; i++)
 		pRows[i] = pRawData + i * rowbytes;

@@ -19,7 +19,7 @@
 #include <unistd.h>
 #endif // !WIN32
 #include "GFile.h"
-
+#include <math.h>
 
 GWidgetStyle::GWidgetStyle()
 {
@@ -356,6 +356,8 @@ GWidgetDialog::GWidgetDialog(int w, int h, GColor cBackground)
 	m_pStyle = new GWidgetStyle();
 	m_pGrabbedWidget = NULL;
 	m_pFocusWidget = NULL;
+	m_prevMouseX = 0;
+	m_prevMouseY = 0;
 }
 
 /*virtual*/ GWidgetDialog::~GWidgetDialog()
@@ -395,8 +397,6 @@ void GWidgetDialog::GrabWidget(GWidgetAtomic* pWidget, int mouseX, int mouseY)
 	ReleaseWidget();
 	m_pGrabbedWidget = pWidget;
 	SetFocusWidget(pWidget);
-	m_prevMouseX = mouseX;
-	m_prevMouseY = mouseY;
 	if(pWidget)
 	{
 		GWidget* pTmp;
@@ -440,13 +440,15 @@ void GWidgetDialog::HandleChar(char c)
 
 bool GWidgetDialog::HandleMousePos(int x, int y)
 {
+	x -= m_prevMouseX;
+	y -= m_prevMouseY;
+	if(x == 0 && y == 0)
+		return false;
+	m_prevMouseX += x;
+	m_prevMouseY += y;
 	if(!m_pGrabbedWidget)
 		return false;
-	if(x == m_prevMouseX && y == m_prevMouseY)
-		return false;
-	m_pGrabbedWidget->OnMouseMove(x - m_prevMouseX, y - m_prevMouseY);
-	m_prevMouseX = x;
-	m_prevMouseY = y;
+	m_pGrabbedWidget->OnMouseMove(x, y);
 	return true;
 }
 
@@ -529,6 +531,41 @@ void GWidgetTextButton::SetText(const char* szText)
 	m_text.Copy(szText);
 	m_dirty = true;
 	Draw(NULL);
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetImageButton::GWidgetImageButton(GWidgetGroup* pParent, int x, int y, GImage* pImage)
+: GWidgetAtomic(pParent, x, y, pImage->GetWidth() / 2, pImage->GetHeight())
+{
+	m_image.CopyImage(pImage);
+	m_pressed = false;
+}
+
+/*virtual*/ GWidgetImageButton::~GWidgetImageButton()
+{
+}
+
+/*virtual*/ void GWidgetImageButton::Grab(int x, int y)
+{
+	m_pressed = true;
+	Draw(NULL);
+}
+
+/*virtual*/ void GWidgetImageButton::Release()
+{
+	m_pressed = false;
+	Draw(NULL);
+	m_pParent->OnReleaseImageButton(this);
+}
+
+GImage* GWidgetImageButton::GetImage(GRect* pOutRect)
+{
+	pOutRect->x = m_pressed ? m_image.GetWidth() / 2 : 0;
+	pOutRect->y = 0;
+	pOutRect->w = m_image.GetWidth() / 2;
+	pOutRect->h = m_image.GetHeight();
+	return &m_image;
 }
 
 // ----------------------------------------------------------------------
@@ -752,7 +789,15 @@ void GWidgetProgressBar::Update()
 	int w = m_image.GetWidth();
 	int h = m_image.GetHeight();
 	if(m_fProgress > 0)
-		m_pStyle->DrawVertCurvedOutSurface(&m_image, 1, 1, (int)(m_fProgress * (w - 2)), h - 2);
+	{
+		if(w >= h)
+			m_pStyle->DrawVertCurvedOutSurface(&m_image, 1, 1, (int)(m_fProgress * (w - 2)), h - 2);
+		else
+		{
+			int hgt = (int)(m_fProgress * (h - 2));
+			m_pStyle->DrawHorizCurvedOutSurface(&m_image, 1, h - 1 - hgt, w - 2, hgt);
+		}
+	}
 	m_image.DrawBox(0, 0, w - 1, h - 1, gRGB(64, 64, 64), false);
 }
 
@@ -814,7 +859,7 @@ void GWidgetCheckBox::Update()
 	// Draw the non-checked image
 	int w = m_image.GetWidth() / 2;
 	int h = m_image.GetHeight();
-	m_image.Clear(0);
+	m_image.Clear(0xff000000);
 	m_image.DrawBox(1, 1, w - 2, h - 2, gRGB(64, 128, 128), false);
 	m_image.DrawBox(2, 2, w - 3, h - 3, 0xffffffff, true);
 
@@ -822,13 +867,13 @@ void GWidgetCheckBox::Update()
 	m_image.DrawBox(w + 1, 1, w + w - 2, h - 2, gRGB(64, 128, 128), false);
 	m_image.DrawBox(w + 2, 2, w + w - 3, h - 3, 0xffffffff, true);
 
-	m_image.DrawLine(w + 4, 4, w + w - 5, h - 5, 0);
-	m_image.DrawLine(w + 5, 4, w + w - 5, h - 6, 0);
-	m_image.DrawLine(w + 4, 5, w + w - 6, h - 5, 0);
+	m_image.DrawLine(w + 4, 4, w + w - 5, h - 5, 0xff000000);
+	m_image.DrawLine(w + 5, 4, w + w - 5, h - 6, 0xff000000);
+	m_image.DrawLine(w + 4, 5, w + w - 6, h - 5, 0xff000000);
 
-	m_image.DrawLine(w + w - 5, 4, w + 4, h - 5, 0);
-	m_image.DrawLine(w + w - 6, 4, w + 4, h - 6, 0);
-	m_image.DrawLine(w + w - 5, 5, w + 5, h - 5, 0);
+	m_image.DrawLine(w + w - 5, 4, w + 4, h - 5, 0xff000000);
+	m_image.DrawLine(w + w - 6, 4, w + 4, h - 6, 0xff000000);
+	m_image.DrawLine(w + w - 5, 5, w + 5, h - 5, 0xff000000);
 }
 
 GImage* GWidgetCheckBox::GetImage(GRect* pOutRect)
@@ -858,12 +903,12 @@ void GWidgetCheckBox::SetChecked(bool checked)
 
 // ----------------------------------------------------------------------
 
-GWidgetSliderTab::GWidgetSliderTab(GWidgetGroup* pParent, int x, int y, int w, int h, bool vertical, bool impressed)
+GWidgetSliderTab::GWidgetSliderTab(GWidgetGroup* pParent, int x, int y, int w, int h, bool vertical, Style eStyle)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
 	m_image.SetSize(w, h);
 	m_vertical = vertical;
-	m_impressed = impressed;
+	m_eStyle = eStyle;
 	m_dirty = true;
 }
 
@@ -888,21 +933,64 @@ GWidgetSliderTab::GWidgetSliderTab(GWidgetGroup* pParent, int x, int y, int w, i
 void GWidgetSliderTab::Update()
 {
 	m_dirty = false;
+	int i, j;
 	if(m_rect.w <= 0 || m_rect.h <= 0)
 		return;
 	if(m_vertical)
 	{
-		if(m_impressed)
-			m_pStyle->DrawHorizCurvedInSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
-		else
-			m_pStyle->DrawHorizCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+		switch(m_eStyle)
+		{
+			case ScrollBarTab:
+				m_pStyle->DrawHorizCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+				break;
+			case ScrollBarArea:
+				m_pStyle->DrawHorizCurvedInSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+				break;
+			case SliderNub:
+				m_pStyle->DrawHorizCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+				for(i = m_rect.h / 2; i >= 0; i--)
+				{
+					for(j = m_rect.h / 2 - i; j >= 0; j--)
+					{
+						m_image.SetPixel(m_rect.w - 1 - j, i, 0xff000000);
+						m_image.SetPixel(m_rect.w - 1 - j, m_rect.h - 1 - i, 0xff000000);
+					}
+				}
+				break;
+			case SliderArea:
+				m_pStyle->DrawHorizCurvedInSurface(&m_image, m_rect.w / 4, 0, m_rect.w / 2, m_rect.h);
+				break;
+			default:
+				GAssert(false, "Unexpected case");
+		}
 	}
 	else
 	{
-		if(m_impressed)
-			m_pStyle->DrawVertCurvedInSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
-		else
-			m_pStyle->DrawVertCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+		switch(m_eStyle)
+		{
+			case ScrollBarTab:
+				m_pStyle->DrawVertCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+				break;
+			case ScrollBarArea:
+				m_pStyle->DrawVertCurvedInSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+				break;
+			case SliderNub:
+				m_pStyle->DrawVertCurvedOutSurface(&m_image, 0, 0, m_rect.w, m_rect.h);
+				for(i = m_rect.w / 2; i >= 0; i--)
+				{
+					for(j = m_rect.w / 2 - i; j >= 0; j--)
+					{
+						m_image.SetPixel(i, j, 0xff000000);
+						m_image.SetPixel(m_rect.w - 1 - i, j, 0xff000000);
+					}
+				}
+				break;
+			case SliderArea:
+				m_pStyle->DrawVertCurvedInSurface(&m_image, 0, m_rect.h / 4, m_rect.w, m_rect.h / 2);
+				break;
+			default:
+				GAssert(false, "Unexpected case");
+		}
 	}
 }
 
@@ -936,9 +1024,9 @@ GWidgetHorizScrollBar::GWidgetHorizScrollBar(GWidgetGroup* pParent, int x, int y
 	int wid = GetButtonWidth();
 	m_pLeftButton = new GWidgetVCRButton(this, 0, 0, wid, h, GWidgetVCRButton::ArrowLeft);
 	m_pRightButton = new GWidgetVCRButton(this, m_rect.w - wid, 0, wid, h, GWidgetVCRButton::ArrowRight);
-	m_pLeftTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, true);
-	m_pTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, false);
-	m_pRightTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, true);
+	m_pLeftTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, GWidgetSliderTab::ScrollBarArea);
+	m_pTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, GWidgetSliderTab::ScrollBarTab);
+	m_pRightTab = new GWidgetSliderTab(this, 0, 0, w, 0, false, GWidgetSliderTab::ScrollBarArea);
 }
 
 /*virtual*/ GWidgetHorizScrollBar::~GWidgetHorizScrollBar()
@@ -1064,9 +1152,9 @@ GWidgetVertScrollBar::GWidgetVertScrollBar(GWidgetGroup* pParent, int x, int y, 
 	int hgt = GetButtonHeight();
 	m_pUpButton = new GWidgetVCRButton(this, 0, 0, w, hgt, GWidgetVCRButton::ArrowUp);
 	m_pDownButton = new GWidgetVCRButton(this, 0, m_rect.h - hgt, w, hgt, GWidgetVCRButton::ArrowDown);
-	m_pAboveTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, true);
-	m_pTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, false);
-	m_pBelowTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, true);
+	m_pAboveTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, GWidgetSliderTab::ScrollBarArea);
+	m_pTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, GWidgetSliderTab::ScrollBarTab);
+	m_pBelowTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, GWidgetSliderTab::ScrollBarArea);
 }
 
 /*virtual*/ GWidgetVertScrollBar::~GWidgetVertScrollBar()
@@ -1700,7 +1788,7 @@ void GWidgetGrid::SetColumnWidth(int col, int nWidth)
 			if(nLeftPos + nColumnWidth <= w)
 				nRightClip = 0;
 			else
-				nRightClip = w - (nLeftPos + nColumnWidth);
+				nRightClip = (nLeftPos + nColumnWidth) - w;
 			if(nLeftPos >= 0)
 				nLeftClip = 0;
 			else
@@ -1716,14 +1804,13 @@ void GWidgetGrid::SetColumnWidth(int col, int nWidth)
 				pImage = pWidget->GetImage(&r);
 				if(pImage)
 				{
-					if(r.w > nColumnWidth)
-						r.w = nColumnWidth;
+					r.w = MIN(r.w, nColumnWidth - nRightClip);
 					if(r.h > m_nRowHeight)
 						r.h = m_nRowHeight;
 					r.x += nLeftClip;
 					r.w -= nLeftClip;
-					r.w -= nRightClip;
-					m_image.Blit(nLeftPos, 0, pImage, &r);
+					if(r.w > 0)
+						m_image.Blit(nLeftPos, 0, pImage, &r);
 				}
 			}
 
@@ -1744,18 +1831,17 @@ void GWidgetGrid::SetColumnWidth(int col, int nWidth)
 						pImage = pWidget->GetImage(&r);
 						if(pImage)
 						{
-							if(r.w > nColumnWidth)
-								r.w = nColumnWidth;
+							r.w = MIN(r.w, nColumnWidth - nRightClip);
 							if(r.h > m_nRowHeight)
 								r.h = m_nRowHeight;
 							r.x += nLeftClip;
 							r.w -= nLeftClip;
-							r.w -= nRightClip;
 							r.y += (m_nRowHeight - nVertHeight);
 							r.h -= (m_nRowHeight - nVertHeight);
 							if(nVertPos + r.h > h)
 								r.h -= (nVertPos + r.h - h);
-							m_image.Blit(nLeftPos, nVertPos, pImage, &r);
+							if(r.w > 0)
+								m_image.Blit(nLeftPos, nVertPos, pImage, &r);
 						}
 					}
 				}
@@ -2003,4 +2089,234 @@ void GWidgetFileSystemBrowser::ReloadFileList()
 		if(m_pParent)
 			m_pParent->OnSelectFilename(this, m_szPath);
 	}
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetPolarChart::GWidgetPolarChart(GWidgetGroup* pParent, int x, int y, int w, int h, int nValues)
+: GWidgetAtomic(pParent, x, y, w, h)
+{
+	m_image.SetSize(w, h);
+	m_nValues = nValues;
+	m_cForeground = 0xffff88ff;
+	m_cBackground = 0x00000000; // transparent
+	m_cShading = 0xff4422ff;
+	m_cSelected = 0xffffffff;
+	m_nSelected = -1;
+	m_pValues = new float[nValues];
+	int i;
+	for(i = 0; i < nValues; i++)
+		m_pValues[i] = .5;
+	m_dirty = true;
+}
+
+/*virtual*/ GWidgetPolarChart::~GWidgetPolarChart()
+{
+	delete(m_pValues);
+}
+
+/*virtual*/ void GWidgetPolarChart::Grab(int x, int y)
+{
+	x -= m_image.GetWidth() / 2;
+	y -= m_image.GetHeight() / 2;
+	double d = atan2((double)x, (double)-y);
+	int n = (int)(d * m_nValues / (2 * PI) + .5 + m_nValues) % m_nValues;
+	SetSelection(n);
+}
+
+/*virtual*/ void GWidgetPolarChart::Release()
+{
+}
+
+void GWidgetPolarChart::Update()
+{
+	m_dirty = false;
+	m_image.Clear(m_cBackground);
+	int xCenter = m_image.GetWidth() / 2;
+	int yCenter = m_image.GetHeight() / 2;
+	int radius = MIN(xCenter, yCenter) - 2;
+	double x, y, xx, yy;
+	double xPrev = m_pValues[m_nValues - 1] * sin(2 * PI * (m_nValues - 1) / m_nValues) * radius + xCenter;
+	double yPrev = m_pValues[m_nValues - 1] * -cos(2 * PI * (m_nValues - 1) / m_nValues) * radius + yCenter;
+	GColor c;
+	int i;
+	for(i = 0; i < m_nValues; i++)
+	{
+		if(i == m_nSelected || ((i + m_nValues - 1) % m_nValues) == m_nSelected)
+			c = m_cSelected;
+		else
+			c = m_cShading;
+		x = m_pValues[i] * sin(2 * PI * i / m_nValues) * radius + xCenter;
+		y = m_pValues[i] * -cos(2 * PI * i / m_nValues) * radius + yCenter;
+		m_image.FillTriangle(xCenter, yCenter, (int)x, (int)y, (int)xPrev, (int)yPrev, c);
+		xPrev = x;
+		yPrev = y;
+	}
+	double xxPrev = sin(2 * PI * (m_nValues - 1) / m_nValues) * radius + xCenter;
+	double yyPrev = -cos(2 * PI * (m_nValues - 1) / m_nValues) * radius + yCenter;
+	for(i = 0; i < m_nValues; i++)
+	{
+		if(i == m_nSelected)
+			c = m_cSelected;
+		else
+			c = m_cForeground;
+		xx = sin(2 * PI * i / m_nValues) * radius;
+		yy = -cos(2 * PI * i / m_nValues) * radius;
+		x = xx * m_pValues[i] + xCenter;
+		y = yy * m_pValues[i] + yCenter;
+		xx += xCenter;
+		yy += yCenter;
+		m_image.DrawLine((int)x, (int)y, (int)xx, (int)yy, c);
+		m_image.DrawLine((int)x, (int)y, (int)xPrev, (int)yPrev, m_cForeground);
+		m_image.DrawLine((int)xx, (int)yy, (int)xxPrev, (int)yyPrev, m_cForeground);
+		m_image.DrawCircle((int)x, (int)y, 3, 0xffffccdd);
+		xxPrev = xx;
+		yyPrev = yy;
+		xPrev = x;
+		yPrev = y;
+	}
+}
+
+GImage* GWidgetPolarChart::GetImage(GRect* pOutRect)
+{
+	if(m_dirty)
+		Update();
+	pOutRect->x = 0;
+	pOutRect->y = 0;
+	pOutRect->w = m_image.GetWidth();
+	pOutRect->h = m_image.GetHeight();
+	return &m_image;
+}
+
+void GWidgetPolarChart::SetSize(int w, int h)
+{
+	m_rect.w = w;
+	m_rect.h = h;
+	m_image.SetSize(w, h);
+	m_dirty = true;
+}
+
+void GWidgetPolarChart::SetValueCount(int n)
+{
+	delete(m_pValues);
+	m_pValues = new float[n];
+	m_nValues = n;
+	int i;
+	for(i = 0; i < n; i++)
+		m_pValues[i] = .5;
+}
+
+void GWidgetPolarChart::SetValue(int n, float value)
+{
+	GAssert(n >= 0 && n < m_nValues, "out of range");
+	m_pValues[n] = value;
+}
+
+void GWidgetPolarChart::SetSelection(int n)
+{
+	GAssert(n >= 0 && n < m_nValues, "out of range");
+	m_nSelected = n;
+	m_dirty = true;
+	Draw(NULL);
+	m_pParent->OnChangePolarChartSelection(this);
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetVertSlider::GWidgetVertSlider(GWidgetGroup* pParent, int x, int y, int w, int h)
+: GWidgetGroupWithCanvas(pParent, x, y, w, h)
+{
+	m_fPos = .5;
+	m_pAboveTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, GWidgetSliderTab::SliderArea);
+	m_pTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, GWidgetSliderTab::SliderNub);
+	m_pBelowTab = new GWidgetSliderTab(this, 0, 0, w, 0, true, GWidgetSliderTab::SliderArea);
+}
+
+/*virtual*/ GWidgetVertSlider::~GWidgetVertSlider()
+{
+}
+
+void GWidgetVertSlider::SetSize(int w, int h)
+{
+	m_rect.w = w;
+	m_rect.h = h;
+	m_image.SetSize(w, h);
+	m_dirty = true;
+}
+
+void GWidgetVertSlider::SetPos(float f)
+{
+	m_fPos = f;
+	m_dirty = true;
+	Draw(NULL);
+}
+
+/*virtual*/ void GWidgetVertSlider::Update()
+{
+	m_dirty = false;
+
+	// Calculations
+	int wid = m_image.GetWidth();
+	int hgt = m_image.GetHeight();
+	GAssert(hgt > wid, "disproportioned vertical slider");
+	int nTabSize = wid / 2;
+	if(m_fPos < 0)
+		m_fPos = 0;
+	else if(m_fPos > 1)
+		m_fPos = 1;
+	int nTabPos = hgt - nTabSize - (int)(m_fPos * (hgt - nTabSize));
+
+	// Position the three tab areas
+	m_pAboveTab->SetPos(0, 0);
+	m_pAboveTab->SetSize(m_rect.w, nTabPos);
+	m_pTab->SetPos(0, nTabPos);
+	m_pTab->SetSize(m_rect.w, nTabSize);
+	m_pBelowTab->SetPos(0, nTabPos + nTabSize);
+	m_pBelowTab->SetSize(m_rect.w, hgt - (nTabPos + nTabSize));
+
+	// Draw everything
+	m_image.Clear(0xff000000);
+	m_pAboveTab->Draw(this);
+	m_pTab->Draw(this);
+	m_pBelowTab->Draw(this);
+}
+
+/*virtual*/ void GWidgetVertSlider::OnClickTab(GWidgetSliderTab* pTab)
+{
+	if(pTab == m_pAboveTab)
+	{
+		m_fPos -= (float).2;
+		if(m_fPos < 0)
+			m_fPos = 0;
+		m_dirty = true;
+		if(m_pParent)
+			m_pParent->OnVertSliderMove(this);
+	}
+	else if(pTab == m_pBelowTab)
+	{
+		m_fPos += (float).2;
+		if(m_fPos > 1)
+			m_fPos = 1;
+		m_dirty = true;
+		if(m_pParent)
+			m_pParent->OnVertSliderMove(this);
+	}
+}
+
+/*virtual*/ void GWidgetVertSlider::OnSlideTab(GWidgetSliderTab* pTab, int dx, int dy)
+{
+	if(pTab != m_pTab)
+		return;
+	int wid = m_image.GetWidth();
+	int hgt = m_image.GetHeight();
+	int nTabSize = wid / 2;
+	m_fPos -= (float)dy / (hgt - nTabSize);
+	if(m_fPos < 0)
+		m_fPos = 0;
+	else if(m_fPos > 1)
+		m_fPos = 1;
+	m_dirty = true;
+	Draw(NULL);
+	if(m_pParent)
+		m_pParent->OnVertSliderMove(this);
 }

@@ -11,11 +11,161 @@
 
 #include "GBezier.h"
 #include "GRayTrace.h"
+#include "GXML.h"
 #ifdef DARWIN
 #include <sys/malloc.h>
 #else // DARWIN
 #include <malloc.h>
 #endif // !DARWIN
+
+void Point3D::Transform(const struct Transform* pTransform)
+{
+	double c, s, t;
+
+	// Size
+	m_vals[0] *= pTransform->dScale;
+	m_vals[1] *= pTransform->dScale;
+	m_vals[2] *= pTransform->dScale;
+
+	// Roll
+//	c = pTransform->GetCosRoll();
+//	s = pTransform->GetSinRoll();
+//	t = x;
+//	x = x * c + y * s;
+//	y = y * c - t * s;
+
+	// Pitch;
+	c = pTransform->GetCosPitch();
+	s = pTransform->GetSinPitch();
+	t = m_vals[1];
+	m_vals[1] = m_vals[1] * c + m_vals[2] * s;
+	m_vals[2] = m_vals[2] * c - t * s;
+
+	// Yaw
+	c = pTransform->GetCosYaw();
+	s = pTransform->GetSinYaw();
+	t = m_vals[2];
+	m_vals[2] = m_vals[2] * c + m_vals[0] * s;
+	m_vals[0] = m_vals[0] * c - t * s;
+
+	// Offset
+	Add(&pTransform->offset);
+}
+
+void Point3D::Untransform(const struct Transform* pTransform)
+{
+	double c, s, t;
+
+	// Offset
+	Subtract(&pTransform->offset);
+
+	// Yaw
+	c = pTransform->GetCosYaw();
+	s = pTransform->GetSinYaw();
+	t = m_vals[2];
+	m_vals[2] = m_vals[2] * c - m_vals[0] * s;
+	m_vals[0] = m_vals[0] * c + t * s;
+
+	// Pitch;
+	c = pTransform->GetCosPitch();
+	s = pTransform->GetSinPitch();
+	t = m_vals[1];
+	m_vals[1] = m_vals[1] * c - m_vals[2] * s;
+	m_vals[2] = m_vals[2] * c + t * s;
+	// Roll
+//	c = pTransform->GetCosRoll();
+//	s = pTransform->GetSinRoll();
+//	t = x;
+//	x = x * c - y * s;
+//	y = y * c + t * s;
+
+	// Size
+	m_vals[0] /= pTransform->dScale;
+	m_vals[1] /= pTransform->dScale;
+	m_vals[2] /= pTransform->dScale;
+}
+
+void Point3D::FromXML(GXMLTag* pTag)
+{
+	GXMLAttribute* pAttr;
+	pAttr = pTag->GetAttribute("x");
+	if(pAttr)
+		m_vals[0] = atof(pAttr->GetValue());
+	pAttr = pTag->GetAttribute("y");
+	if(pAttr)
+		m_vals[1] = atof(pAttr->GetValue());
+	pAttr = pTag->GetAttribute("z");
+	if(pAttr)
+		m_vals[2] = atof(pAttr->GetValue());
+}
+
+char* dtoa(double d, char* szBuff)
+{
+	sprintf(szBuff, "%f", d);
+	
+	// Remove trailing zeros
+	int n;
+	for(n = strlen(szBuff) - 1; n > 0 && szBuff[n] != '.'; n--)
+	{
+		if(szBuff[n] == '0')
+			szBuff[n] = '\0';
+		else
+			break;
+	}
+	if(szBuff[n] == '.')
+		szBuff[n] = '\0';
+
+	return szBuff;
+}
+
+void Point3D::ToXML(GXMLTag* pTag)
+{
+	char szBuff[256];
+	pTag->AddAttribute(new GXMLAttribute("x", dtoa(m_vals[0], szBuff)));
+	pTag->AddAttribute(new GXMLAttribute("y", dtoa(m_vals[1], szBuff)));
+	pTag->AddAttribute(new GXMLAttribute("z", dtoa(m_vals[2], szBuff)));
+}
+
+
+// --------------------------------------------------------------------
+
+
+
+void Transform::FromXML(GXMLTag* pTag)
+{
+	offset.FromXML(pTag);
+	GXMLAttribute* pAttr;
+	pAttr = pTag->GetAttribute("Scale");
+	if(pAttr)
+		dScale = atof(pAttr->GetValue());
+//	pAttr = pTag->GetAttribute("Roll");
+//	if(pAttr)
+//		dRoll = atof(pAttr->GetValue());
+	pAttr = pTag->GetAttribute("Pitch");
+	if(pAttr)
+		dPitch = atof(pAttr->GetValue());
+	pAttr = pTag->GetAttribute("Yaw");
+	if(pAttr)
+		dYaw = atof(pAttr->GetValue());
+}
+
+void Transform::ToXML(GXMLTag* pTag)
+{
+	char szBuff[256];
+	offset.ToXML(pTag);
+	if(dScale != 0)
+		pTag->AddAttribute(new GXMLAttribute("Scale", dtoa(dScale, szBuff)));
+//	if(dRoll != 0)
+//		pTag->AddAttribute(new GXMLAttribute("Roll", dtoa(dScale, szBuff)));
+	if(dPitch != 0)
+		pTag->AddAttribute(new GXMLAttribute("Pitch", dtoa(dScale, szBuff)));
+	if(dYaw != 0)
+		pTag->AddAttribute(new GXMLAttribute("Yaw", dtoa(dScale, szBuff)));
+}
+
+
+// --------------------------------------------------------------------
+
 
 struct GBezierPoint
 {
@@ -85,9 +235,9 @@ void GBezier::GetPoint(double t, struct Point3D* pOutPoint)
 		return;
 	}
 	double fw = m_pPoints[n].weight;
-	pOutPoint->x = m_pPoints[n].point.x * fw;
-	pOutPoint->y = m_pPoints[n].point.y * fw;
-	pOutPoint->z = m_pPoints[n].point.z * fw;
+	pOutPoint->m_vals[0] = m_pPoints[n].point.m_vals[0] * fw;
+	pOutPoint->m_vals[1] = m_pPoints[n].point.m_vals[1] * fw;
+	pOutPoint->m_vals[2] = m_pPoints[n].point.m_vals[2] * fw;
 	double u = t / (1.0 - t); // t/(1-t) in "monomialization trick" 
 	double bc = 1.0; // binomial coefficient
 	double den = 1.0; // denominator in P(t)/(1-t)^n
@@ -98,16 +248,16 @@ void GBezier::GetPoint(double t, struct Point3D* pOutPoint)
 	{
 		bc = (bc * (i + 1)) / (n - i); // new binomial coefficient 
 		aux = bc * m_pPoints[i].weight;
-		pOutPoint->x = pOutPoint->x * u + m_pPoints[i].point.x * aux;
-		pOutPoint->y = pOutPoint->y * u + m_pPoints[i].point.y * aux;
-		pOutPoint->z = pOutPoint->z * u + m_pPoints[i].point.z * aux;
+		pOutPoint->m_vals[0] = pOutPoint->m_vals[0] * u + m_pPoints[i].point.m_vals[0] * aux;
+		pOutPoint->m_vals[1] = pOutPoint->m_vals[1] * u + m_pPoints[i].point.m_vals[1] * aux;
+		pOutPoint->m_vals[2] = pOutPoint->m_vals[2] * u + m_pPoints[i].point.m_vals[2] * aux;
 		fw = fw * u + aux;
 		den *= (1.0 - t);
 	}
 
-	pOutPoint->x /= fw;
-	pOutPoint->y /= fw;
-	pOutPoint->z /= fw;
+	pOutPoint->m_vals[0] /= fw;
+	pOutPoint->m_vals[1] /= fw;
+	pOutPoint->m_vals[2] /= fw;
 }
 
 int GBezier::GetControlPointCount()
@@ -293,17 +443,17 @@ double DoPolarEquasion(int n, double* pPolarCoords, int nPolarCoords)
 
 void CalculateBernsteinCoefficient(Point3D* pOutPoint, double* pPolarCoords, struct Point3D* pPolyCoeff, int nPolyCoeff)
 {
-	pOutPoint->x = 0;
-	pOutPoint->y = 0;
-	pOutPoint->z = 0;
+	pOutPoint->m_vals[0] = 0;
+	pOutPoint->m_vals[1] = 0;
+	pOutPoint->m_vals[2] = 0;
 	double tmp;
 	int n;
 	for(n = 0; n < nPolyCoeff; n++)
 	{
 		tmp = DoPolarEquasion(n, pPolarCoords, nPolyCoeff - 1);
-		pOutPoint->x += pPolyCoeff[n].x * tmp;
-		pOutPoint->y += pPolyCoeff[n].y * tmp;
-		pOutPoint->z += pPolyCoeff[n].z * tmp;
+		pOutPoint->m_vals[0] += pPolyCoeff[n].m_vals[0] * tmp;
+		pOutPoint->m_vals[1] += pPolyCoeff[n].m_vals[1] * tmp;
+		pOutPoint->m_vals[2] += pPolyCoeff[n].m_vals[2] * tmp;
 	}
 }
 

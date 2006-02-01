@@ -12,6 +12,159 @@
 #ifndef __GBEZIER_H__
 #define __GBEZIER_H__
 
+#include <math.h>
+#include "GMacros.h"
+
+class GXMLTag;
+
+struct Point3D
+{
+public:
+	double m_vals[3];
+
+	Point3D()
+	{
+		m_vals[0] = 0;
+		m_vals[1] = 0;
+		m_vals[2] = 0;
+	}
+
+	Point3D(double x, double y, double z)
+	{
+		m_vals[0] = x;
+		m_vals[1] = y;
+		m_vals[2] = z;
+	}
+
+	inline double GetDistanceSquared(const Point3D* pThat) const
+	{
+		return (pThat->m_vals[0] - m_vals[0]) * (pThat->m_vals[0] - m_vals[0]) +
+			(pThat->m_vals[1] - m_vals[1]) * (pThat->m_vals[1] - m_vals[1]) +
+			(pThat->m_vals[2] - m_vals[2]) * (pThat->m_vals[2] - m_vals[2]);
+	}
+
+	inline double GetDistanceFromOriginSquared() const
+	{
+		return (m_vals[0] * m_vals[0] + m_vals[1] * m_vals[1] + m_vals[2] * m_vals[2]);
+	}
+
+	inline void Add(const Point3D* pThat)
+	{
+		m_vals[0] += pThat->m_vals[0];
+		m_vals[1] += pThat->m_vals[1];
+		m_vals[2] += pThat->m_vals[2];
+	}
+
+	inline void Subtract(const Point3D* pThat)
+	{
+		m_vals[0] -= pThat->m_vals[0];
+		m_vals[1] -= pThat->m_vals[1];
+		m_vals[2] -= pThat->m_vals[2];
+	}
+
+	inline void Multiply(double mag)
+	{
+		m_vals[0] *= mag;
+		m_vals[1] *= mag;
+		m_vals[2] *= mag;
+	}
+
+	inline void DotProduct(const Point3D* pThat)
+	{
+		m_vals[0] *= pThat->m_vals[0];
+		m_vals[1] *= pThat->m_vals[1];
+		m_vals[2] *= pThat->m_vals[2];
+	}
+
+	inline void GetLatLon(double* pdLat, double* pdLon) const
+	{
+		*pdLat = atan2(m_vals[1], sqrt(m_vals[0] * m_vals[0] + m_vals[2] * m_vals[2]));
+		*pdLon = atan2(m_vals[0], m_vals[2]);
+		if((*pdLon) < (-PI / (double)2))
+			(*pdLon) += (2 * PI);
+	}
+
+	void Transform(const struct Transform* pTransform);
+	void Untransform(const struct Transform* pTransform);
+	void FromXML(GXMLTag* pTag);
+	void ToXML(GXMLTag* pTag);
+};
+
+
+struct Transform
+{
+public:
+	double dScale;
+protected:
+//	double dRoll; // Z-axis
+	double dPitch; // Y-axis (longitude)
+	double dYaw; // X-axis (latitude)
+
+//	double dCosRoll;
+//	double dSinRoll;
+	double dCosPitch;
+	double dSinPitch;
+	double dCosYaw;
+	double dSinYaw;
+
+public:
+	Point3D offset;
+
+
+	Transform()
+	{
+		dScale = 1;
+//		dRoll = 0;
+		SetPitch(0);
+		SetYaw(0);
+	}
+
+	void FromXML(GXMLTag* pTag);
+	void ToXML(GXMLTag* pTag);
+/*
+	// Note: the vector expresses pitch, yaw, and scale only
+	Vector ToVector()
+	{
+		Vector v;
+		v.dY = dScale * dSinPitch;
+		v.dZ = dScale * dCosPitch;
+		v.dX = v.dZ * dSinYaw;
+		v.dZ *= dCosYaw;
+		return v;
+	}
+
+	void FromVector(const Vector* pV)
+	{
+		double dX2 = pV->dX * pV->dX;
+		double dZ2 = pV->dZ * pV->dZ;
+		dScale = sqrt(dX2 + pV->dY * pV->dY + dZ2);
+		SetPitch(atan2(pV->dY, sqrt(dX2 + dZ2)));
+
+		// Ajust range of yaw
+		double dY = atan2(pV->dY, pV->dZ);
+		if(dY < (-PI / (double)2))
+			dY += (2 * PI);
+		SetYaw(dY);
+	}
+*/
+	//void SetRoll(double d) { dRoll = d; dCosRoll = cos(d); dSinRoll = sin(d); }
+	void SetPitch(double d) { dPitch = d; dCosPitch = cos(d); dSinPitch = sin(d); }
+	void SetYaw(double d) { dYaw = d; dCosYaw = cos(d); dSinYaw = sin(d); }
+	//double GetRoll() const { return dRoll; }
+	double GetPitch() const { return dPitch; }
+	double GetYaw() const { return dYaw; }
+	double GetCosPitch() const { return dCosPitch; }
+	double GetSinPitch() const { return dSinPitch; }
+	double GetCosYaw() const { return dCosYaw; }
+	double GetSinYaw() const { return dSinYaw; }
+};
+
+
+
+
+
+
+
 struct GBezierPoint;
 
 // Represents a Bezier curve

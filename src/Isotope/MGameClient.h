@@ -30,6 +30,7 @@ class NSendObjectPacket;
 class VarHolder;
 class MStatCollector;
 class VOnScreenPanel;
+class LPSLearnerModel;
 
 
 // This class represents the model (all the internal data including maps, players, objects, scripts, etc)
@@ -50,7 +51,7 @@ protected:
 	MObject* m_pClosestObject;
 	MRealm* m_pCurrentRealm;
 	NRealmClientConnection* m_pConnection;
-	double m_nextUpdateTime;
+	double m_lastUpdateRequestTime;
 //#ifdef _DEBUG // todo: uncomment this line
 	double m_dFrameRateTime;
 	int m_nFrames;
@@ -60,7 +61,6 @@ protected:
 	MObject* m_pGoalFlag;
 	MObject* m_pSelectionBorder;
 	MObject* m_pInfoCloud;
-	bool m_bLoner;
 	bool m_bFirstPerson;
 	GPointerArray* m_pSelectedObjects;
 	char* m_szAccountFilename;
@@ -69,6 +69,7 @@ protected:
 	VarHolder* m_pRemoteVar;
 	MStatCollector* m_pStatCollector;
 	VOnScreenPanel* m_pPanel;
+	LPSLearnerModel* m_pLearnerModel;
 
 public:
 	// takes ownership of pPanel
@@ -147,11 +148,14 @@ public:
 	void SetAccountVar(const char* szName, const char* szValue);
 	void ReportStats(GPointerArray* pNameValuePairs);
 	VOnScreenPanel* GetPanel() { return m_pPanel; }
+	void TellServerYoureLeaving();
+	void OnLoseConnection();
+	void AddMerit(const wchar_t* wszSkill, bool bCorrect, double dAbilityLevel, double dAmount);
 
 protected:
 	void SynchronizeWithServer(double time);
 	void ProcessPacket(NRealmPacket* pPacket);
-	void UpdateObject(NUpdateObjectPacket* pPacket);
+	void UpdateRealmObject(NUpdateRealmObjectPacket* pPacket);
 	void ReceiveObject(NSendObjectPacket* pPacket);
 	void LoadObjects(MRealm* pRealm, GXMLTag* pModelTag);
 	void SetRemoteFolder(const char* szRemoteFolder);

@@ -1,8 +1,19 @@
+/*
+	Copyright (C) 2006, Edumetrics Institute
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/gpl.html
+*/
+
 #include "MStatCollector.h"
 #include "../GClasses/GQueue.h"
 #include "../GClasses/GArray.h"
 #include "../Gasp/BuiltIns/GaspString.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include <time.h>
 
 MStatCollector::MStatCollector()
@@ -10,16 +21,19 @@ MStatCollector::MStatCollector()
 	m_pQ = new GQueue();
 	m_pFile = fopen("stats.log", "a");
 	if(!m_pFile)
-		GameEngine::ThrowError("Failed to create stats file");
+		printf("Failed to create stats file");
 }
 
 MStatCollector::~MStatCollector()
 {
-	fclose(m_pFile);
+	if(m_pFile)
+		fclose(m_pFile);
 }
 
 void MStatCollector::ReportStats(GPointerArray* pNameValuePairs)
 {
+	if(!m_pFile)
+		return;
 	GAssert(m_pQ->GetSize() == 0, "There's already stuff in the queue");
 	int n, i;
 	char c;

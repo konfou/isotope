@@ -10,6 +10,10 @@
 		<Image id="flag" File="obj/flag.png" />
 		<Image id="selection" File="obj/selection.png" />
 		<Image id="loading" File="bkg/loading.png" />
+		<Image id="button-warp" File="obj/warp.png" />
+		<Image id="button-news" File="obj/news.png" />
+		<Image id="button-keys" File="obj/keys.png" />
+		<Image id="button-help" File="obj/help.png" />
 	</Images>
 	<Animations>
 		<Animation id="av1" image="av1" columns="8">
@@ -39,14 +43,14 @@
 			<Frame x="0" y="0" w="100" h="100" t="1" />
 		</Animation>
 		<Animation id="av3" image="av3" columns="8">
-			<Frame x="0" y="0" w="100" h="100" t="1" />
-			<Frame x="0" y="100" w="100" h="100" t="1" />
-			<Frame x="0" y="200" w="100" h="100" t="1" />
-			<Frame x="0" y="300" w="100" h="100" t="1" />
-			<Frame x="0" y="400" w="100" h="100" t="1" />
-			<Frame x="0" y="500" w="100" h="100" t="1" />
-			<Frame x="0" y="600" w="100" h="100" t="1" />
-			<Frame x="0" y="700" w="100" h="100" t="1" />
+			<Frame x="0" y="0" w="50" h="50" t="1" />
+			<Frame x="0" y="50" w="50" h="50" t="1" />
+			<Frame x="0" y="100" w="50" h="50" t="1" />
+			<Frame x="0" y="150" w="50" h="50" t="1" />
+			<Frame x="0" y="200" w="50" h="50" t="1" />
+			<Frame x="0" y="250" w="50" h="50" t="1" />
+			<Frame x="0" y="300" w="50" h="50" t="1" />
+			<Frame x="0" y="350" w="50" h="50" t="1" />
 		</Animation>
 		<Animation id="av3action" image="av3action" columns="8">
 			<Frame x="0" y="0" w="100" h="100" t="1" />

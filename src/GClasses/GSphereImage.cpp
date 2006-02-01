@@ -154,15 +154,15 @@ void GPreRendered3DScreen::ScreenPixelToSphereCoords(int x, int y, double* pdLon
 	Point3D point;
 	if(m_bFlatScreen)
 	{
-		point.x = (double)x / m_dZoom;
-		point.y = (double)y / m_dZoom;
-		point.z = m_dRadius;
+		point.m_vals[0] = (double)x / m_dZoom;
+		point.m_vals[1] = (double)y / m_dZoom;
+		point.m_vals[2] = m_dRadius;
 	}
 	else
 	{
-		point.x = m_dRadius * tan((double)x / m_dZoom);
-		point.y = m_dRadius * tan((double)y / m_dZoom);
-		point.z = m_dRadius;
+		point.m_vals[0] = m_dRadius * tan((double)x / m_dZoom);
+		point.m_vals[1] = m_dRadius * tan((double)y / m_dZoom);
+		point.m_vals[2] = m_dRadius;
 	}
 
 	point.Transform(&m_camera);
@@ -186,7 +186,7 @@ unsigned int GPreRendered3DScreen::GetPixel(int x, int y, double* pDepth)
 	*pDepth = m_pDepthMap[nImageY * m_nWidth + nImageX];
 	return m_pImage->GetPixel(nImageX, nImageY);
 }
-
+/*
 void GPreRendered3DScreen::Render(G3DObject* pUniverse, const Point3D* pCameraPos, int nAllowedSubRays, int nFrame, int nTotalFrames, double dLightThreshold, GImage* pBackgroundImage)
 {
 	m_pImage->SetSize(GetWidth(), GetHeight());
@@ -219,7 +219,7 @@ void GPreRendered3DScreen::Render(G3DObject* pUniverse, const Point3D* pCameraPo
 		m_pDepthMap[m_nWidth * nFlattenedY + nFlattenedX] = results.distance;
 	}
 }
-
+*/
 bool GPreRendered3DScreen::save(FILE* pFile)
 {
 	if(fwrite(&m_nQuarterGirth, sizeof(int), 1, pFile) != 1)
@@ -275,7 +275,7 @@ GPreRendered3DSprite::~GPreRendered3DSprite()
 	delete(m_pImages);
 	delete(m_pArray);
 }
-
+/*
 void GPreRendered3DSprite::RenderFrame(G3DObject*pObj3D, int nFrame, int nFrames, double dLon, double dLat, double dSourceSize, int nHorizOffset, GColor transparentColor, int nAllowedSubRays, double dLightThreshold)
 {
 	// Calculate camera pos
@@ -298,17 +298,17 @@ void GPreRendered3DSprite::RenderFrame(G3DObject*pObj3D, int nFrame, int nFrames
 		{
 			// Make target point
 			Point3D target;
-			target.x = dSourceSize * (double)(x - (m_nImageSize / 2)) / m_nImageSize;
-			target.y = dSourceSize * (double)(y - (m_nImageSize / 2)) / m_nImageSize;
+			target.m_vals[0] = dSourceSize * (double)(x - (m_nImageSize / 2)) / m_nImageSize;
+			target..m_vals[1] = dSourceSize * (double)(y - (m_nImageSize / 2)) / m_nImageSize;
 
 			// Transform target by latitude
-			target.z = -target.y * dSinLat;
-			target.y = target.y * dCosLat;
+			target.m_vals[2] = -target.m_vals[1] * dSinLat;
+			target.m_vals[1] = target.m_vals[1] * dCosLat;
 
 			// Transoform target by longitude
 			double dTmp = target.x;
-			target.x = target.x * dCosLon + target.z * dSinLon;
-			target.z = target.z * dCosLon - dTmp * dSinLon;
+			target.m_vals[0] = target.m_vals[0] * dCosLon + target.m_vals[2] * dSinLon;
+			target.m_vals[2] = target.m_vals[2] * dCosLon - dTmp * dSinLon;
 
 			// Make the ray
 			ray.point = cameraPos;
@@ -345,3 +345,4 @@ void GPreRendered3DSprite::RenderFrames(G3DObject*pObj3D, int nFrame, int nFrame
 		nHorizOffset += m_nImageSize;
 	}
 }
+*/

@@ -36,6 +36,7 @@ public:
 protected:
 	char m_szHeaderBuf[258];
 	char m_szServer[256];
+	char m_szClientName[32];
 	int m_nHeaderPos;
 	int m_nContentSize;
 	bool m_bChunked;
@@ -74,6 +75,8 @@ public:
 
 	// This is called when the connection is lost
 	void OnLoseConnection();
+
+	void SetClientName(const char* szClientName);
 
 protected:
 	void ProcessHeader(const unsigned char* szData, int nSize);

@@ -74,15 +74,14 @@ public:
 	void SetSelectionRect(float x1, float y1, float x2, float y2);
 	void SetSkyImage(GImage* pImage);
 	void SetGroundImage(GImage* pImage);
-	void SetUrl(const char* szUrl);
 
 protected:
 	void DrawSpritesNoTerrain(SDL_Surface* pScreen);
 	void DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen);
 	void DrawEverythingWithTerrain(SDL_Surface* pScreen);
 	void DrawSprite(SDL_Surface* pScreen, MObject* pSprite);
-	void DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos);
-	void DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos);
+	void DrawBillboard(SDL_Surface* pScreen, MObject* pSprite);
+	void DrawPanel(SDL_Surface* pScreen, MObject* pSprite);
 	void DrawSelectedRegion(SDL_Surface* pScreen);
 };
 

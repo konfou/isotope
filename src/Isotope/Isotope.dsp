@@ -51,7 +51,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\..\lib\SDL.lib ..\..\lib\sdlmain.lib ..\..\lib\libz.lib ..\..\lib\libpng.lib wsock32.lib /nologo /subsystem:console /machine:I386 /nodefaultlib:"libc.lib" /nodefaultlib:"libcd.lib" /out:"../../bin/Isotope.exe"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\..\lib\SDL.lib ..\..\lib\sdlmain.lib ..\..\lib\sdl_mixer.lib ..\..\lib\libz.lib ..\..\lib\libpng.lib wsock32.lib /nologo /subsystem:console /machine:I386 /nodefaultlib:"libc.lib" /nodefaultlib:"libcd.lib" /out:"../../bin/Isotope.exe"
 
 !ELSEIF  "$(CFG)" == "Isotope - Win32 Debug"
 
@@ -76,7 +76,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\..\lib\SDL.lib ..\..\lib\sdlmain.lib ..\..\lib\libz.lib ..\..\lib\libpng.lib wsock32.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libcd.lib" /nodefaultlib:"libc.lib" /out:"../../bin/IsotopeDebug.exe" /pdbtype:sept
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\..\lib\SDL.lib ..\..\lib\sdlmain.lib ..\..\lib\sdl_mixer.lib ..\..\lib\libz.lib ..\..\lib\libpng.lib wsock32.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libcd.lib" /nodefaultlib:"libc.lib" /out:"../../bin/IsotopeDebug.exe" /pdbtype:sept
 
 !ENDIF 
 
@@ -102,15 +102,15 @@ SOURCE=.\Controller.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\GameEngine.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\GameEngine.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\isotope.gash
+# End Source File
+# Begin Source File
+
+SOURCE=.\Main.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\Main.h
 # End Source File
 # Begin Source File
 
@@ -230,6 +230,14 @@ SOURCE=.\NRealmProtocol.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\PuzzleGenerator.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\PuzzleGenerator.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\VCharMake.cpp
 # End Source File
 # Begin Source File
@@ -251,6 +259,14 @@ SOURCE=.\VEntropyCollector.cpp
 # Begin Source File
 
 SOURCE=.\VEntropyCollector.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\VError.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\VError.h
 # End Source File
 # Begin Source File
 
@@ -291,6 +307,14 @@ SOURCE=.\VMainMenu.cpp
 # Begin Source File
 
 SOURCE=.\VMainMenu.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\VPanel.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\VPanel.h
 # End Source File
 # Begin Source File
 

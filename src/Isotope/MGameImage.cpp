@@ -13,7 +13,8 @@
 #include "../GClasses/GHashTable.h"
 #include "../Gasp/Include/GaspLib.h"
 #include "../Gasp/BuiltIns/GaspStream.h"
-#include "GameEngine.h"
+#include "../Gasp/BuiltIns/GaspFloat.h"
+#include "Main.h"
 #include "MScriptEngine.h"
 #include "MStore.h"
 #include "MGameClient.h"
@@ -36,6 +37,7 @@ void RegisterMGameImage(GConstStringHashTable* pTable)
 	pTable->Add("method &invert()", new EMethodPointerHolder((MachineMethod0)&MGameImage::invert));
 	pTable->Add("method &glow()", new EMethodPointerHolder((MachineMethod0)&MGameImage::glow));
 	pTable->Add("method !newCopy(GImage)", new EMethodPointerHolder((MachineMethod1)&MGameImage::newCopy));
+	pTable->Add("method &munge(Integer style, Float extent)", new EMethodPointerHolder((MachineMethod2)&MGameImage::munge));
 }
 
 
@@ -208,6 +210,12 @@ void MGameImage::newCopy(Engine* pEngine, EVar* pThat)
 
 const char* MGameImage::GetID()
 {
-	GAssert(m_eMode == GlobalId || m_eMode == Store, "This image has no ID");
 	return m_szText;
+}
+
+void MGameImage::munge(Engine* pEngine, EVar* pStyle, EVar* pExtent)
+{
+	int nStyle = pStyle->pIntObject->m_value;
+	double dExtent = pExtent->pFloatObject->m_value;
+	m_value.Munge(nStyle, (float)dExtent);
 }

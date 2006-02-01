@@ -15,7 +15,7 @@
 #include "../GClasses/GRayTrace.h"
 #include "View.h"
 #include "../GClasses/GBillboardCamera.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MStore.h"
 #include "MGameClient.h"
 #include "MAnimation.h"
@@ -202,6 +202,15 @@ void VGame::DrawGroundAndSkyNoTerrain(SDL_Surface* pScreen)
 
 void VGame::DrawSprite(SDL_Surface* pScreen, MObject* pSprite)
 {
+	// Calculate the destination values
+	if(pSprite->IsPanel())
+		DrawPanel(pScreen, pSprite);
+	else
+		DrawBillboard(pScreen, pSprite);
+}
+
+void VGame::DrawPanel(SDL_Surface* pScreen, MObject* pSprite)
+{
 	// Get the source image
 	GRect srcRect;
 	GImage* pImage = pSprite->GetFrame(&srcRect, m_pCamera);
@@ -211,25 +220,16 @@ void VGame::DrawSprite(SDL_Surface* pScreen, MObject* pSprite)
 	if(srcRect.w <= 0 && srcRect.h <= 0)
 		return;
 
-	// Calculate the destination values
-	GPosSize* pGhostPos = pSprite->GetGhostPos();
-	if(pSprite->IsPanel())
-		DrawPanel(pScreen, pImage, &srcRect, pGhostPos);
-	else
-		DrawBillboard(pScreen, pImage, &srcRect, pGhostPos);
-}
-
-void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos)
-{
 	// Precalculate stuff
+	GPosSize* pGhostPos = pSprite->GetGhostPos();
 	GRect* pScreenRect = &m_WorldRect;
 	GPanelPos destTrap;
 	m_pCamera->CalcPanelTrapezoid(&destTrap, pGhostPos, pScreenRect);
 	float fWidth = destTrap.w;
 	float fHeight = destTrap.h;
 	float fY = destTrap.y;
-	float fSrcDX = pSrcRect->w / destTrap.w;
-	float fSrcX = (float)pSrcRect->x;
+	float fSrcDX = srcRect.w / destTrap.w;
+	float fSrcX = (float)srcRect.x;
 	int nX = (int)destTrap.x;
 	if(nX < pScreenRect->x)
 	{
@@ -245,8 +245,8 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 		return;
 	if(nX + nWid > pScreenRect->x + pScreenRect->w)
 		nWid = pScreenRect->x + pScreenRect->w - nX;
-	if((int)(fSrcX + fSrcDX * nWid) > pSrcRect->x + pSrcRect->w)
-		fSrcDX = ((float)pSrcRect->w - 1 - fSrcX) / nWid;
+	if((int)(fSrcX + fSrcDX * nWid) > srcRect.x + srcRect.w)
+		fSrcDX = ((float)srcRect.w - 1 - fSrcX) / nWid;
 	int nBytesPerPixel = pScreen->format->BytesPerPixel;
 
 	// Blit it
@@ -259,19 +259,27 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 	Uint32* pPix;
 	while(nWid > 0)
 	{
-		fSrcY = (float)pSrcRect->y;
-		fSrcDY = pSrcRect->h / fHeight;
+		fSrcY = (float)srcRect.y;
+		fSrcDY = srcRect.h / fHeight;
 		yEnd = (int)(fY + fHeight);
+
+		// Clip with bottom of screen
 		if(yEnd > pScreenRect->y + pScreenRect->h)
 			yEnd = pScreenRect->y + pScreenRect->h;
 		nY = (int)fY;
+
+		// Clip with top of screen
 		if(nY < pScreenRect->y)
 		{
 			fSrcY += fSrcDY * (pScreenRect->y - nY);
 			nY = pScreenRect->y;
 		}
-		if((int)(fSrcY + fSrcDY * (yEnd - nY)) > pSrcRect->y + pSrcRect->h) // todo: is this check necessary?
-			fSrcDY = ((float)pSrcRect->h - 1 - fSrcY) / (yEnd - nY);
+
+		// Bounds check (just to make sure we don't exceed the edges of the source image)
+		if((int)(fSrcY + fSrcDY * (yEnd - nY - 1)) >= srcRect.y + srcRect.h)
+			fSrcDY = ((float)(srcRect.y + srcRect.h) - fSrcY) / (yEnd - nY);
+
+		// Draw it
 		if(nBytesPerPixel == 4)
 		{
 			while(nY < yEnd)
@@ -299,11 +307,12 @@ void VGame::DrawPanel(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPo
 	}
 }
 
-void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect, GPosSize* pGhostPos)
+void VGame::DrawBillboard(SDL_Surface* pScreen, MObject* pSprite)
 {
+	GPosSize* pGhostPos = pSprite->GetGhostPos();
 	GRect* pScreenRect = &m_WorldRect;
 	GRect destRect;
-	m_pCamera->CalcBillboardRect(&destRect, pGhostPos, pScreenRect);
+	m_pCamera->CalcBillboardRect(&destRect, pGhostPos, pScreenRect, pSprite->GetPivotHeight());
 	int nDestXStart = destRect.x;
 	int nDestYStart = destRect.y;
 	int nDestXFinish = destRect.x + destRect.w;
@@ -321,18 +330,27 @@ void VGame::DrawBillboard(SDL_Surface* pScreen, GImage* pImage, GRect* pSrcRect,
 	if(nDestYFinish <= nDestYStart)
 		return;
 
+	// Get the source image
+	GRect srcRect;
+	GImage* pImage = pSprite->GetFrame(&srcRect, m_pCamera);
+	if(!pImage)
+		return;
+	GAssert(srcRect.x >= 0 && srcRect.y >= 0 && srcRect.x + srcRect.w <= (int)pImage->GetWidth() && srcRect.y + srcRect.h <= (int)pImage->GetHeight(), "Out of range");
+	if(srcRect.w <= 0 && srcRect.h <= 0)
+		return;
+
 	// Calculate stepping values and make sure the bounds of the source image won't be exceeded by the blitting loops
-	float dSrcDeltaX = (float)pSrcRect->w / ((float)destRect.w + 1);
-	while((nDestXFinish - nDestXStart - 1) * dSrcDeltaX >= pSrcRect->w)
+	float dSrcDeltaX = (float)srcRect.w / ((float)destRect.w + 1);
+	while((nDestXFinish - nDestXStart - 1) * dSrcDeltaX >= srcRect.w)
 		nDestXFinish--;
-	float dSrcDeltaY = (float)pSrcRect->h / ((float)destRect.h + 1);
-	while((nDestYFinish - nDestYStart - 1) * dSrcDeltaY >= pSrcRect->h)
+	float dSrcDeltaY = (float)srcRect.h / ((float)destRect.h + 1);
+	while((nDestYFinish - nDestYStart - 1) * dSrcDeltaY >= srcRect.h)
 		nDestYFinish--;
 
 	// stretch-blt the image
 	float dSrcX, dSrcY;
-	dSrcY = pSrcRect->y + dSrcDeltaY * (nDestYStart - destRect.y);
-	float dStartX = pSrcRect->x + dSrcDeltaX * (nDestXStart - destRect.x);
+	dSrcY = srcRect.y + dSrcDeltaY * (nDestYStart - destRect.y);
+	float dStartX = srcRect.x + dSrcDeltaX * (nDestXStart - destRect.x);
 	int x, y;
 	int a;
 	GColor pixOld;
@@ -669,11 +687,6 @@ void VGame::SetSelectionRect(float x1, float y1, float x2, float y2)
 	m_fSelectionY1 = y1;
 	m_fSelectionX2 = x2;
 	m_fSelectionY2 = y2;
-}
-
-void VGame::SetUrl(const char* szUrl)
-{
-	m_pPanel->SetUrl(szUrl);
 }
 
 /*virtual*/ void VGame::OnChar(char c)

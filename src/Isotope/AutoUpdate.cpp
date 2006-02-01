@@ -1,7 +1,18 @@
+/*
+	Copyright (C) 2006, Edumetrics Institute
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/gpl.html
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include "AutoUpdate.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "Controller.h"
 #include "../GClasses/GKeyPair.h"
 #include "../GClasses/GBigNumber.h"
@@ -170,6 +181,7 @@ unsigned int CheckForUpdates(void* pData)
 {
 	// Download the update.xml file
 	GHttpClient httpClient;
+	httpClient.SetClientName("Isotope Update/1.0");
 	int nSize;
 	Holder<char*> hUpdateFile(Controller::DownloadFile(&httpClient, UPDATE_DESCRIPTOR, &nSize, false, 60, NULL, NULL));
 	char* pUpdateFile = hUpdateFile.Get();

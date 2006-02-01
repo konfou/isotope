@@ -151,6 +151,8 @@ public:
 	// Returns how far the avatar can reach
 	static float GetAvatarReach(MObject* pAvatar);
 
+	static const char* GetChatCloudText(MObject* pChatCloud);
+
 	GVM* GetEngine() { return m_pVM; }
 
 	// Calls "getFrame" on the specified object and returns the results in C++ objects
@@ -265,6 +267,8 @@ public:
 	void reportStats(Engine* pEngine, EVar* pNameValuePairs);
 	void setSkyImage(Engine* pEngine, EVar* pID);
 	void setGroundImage(Engine* pEngine, EVar* pID);
+	void setPivotHeight(Engine* pEngine, EVar* pID, EVar* pHeight);
+	void addMerit(Engine* pEngine, EVar* pSkill, EVar* pCorrect, EVar* pAbilityLevel, EVar* pAmount);
 };
 
 

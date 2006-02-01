@@ -20,7 +20,8 @@ class NRealmClientConnection;
 class NRealmPacket;
 class NSetPathPacket;
 class NSendMeUpdatesPacket;
-class NUpdateObjectPacket;
+class NUpdateRealmObjectPacket;
+class NRemoveRealmObjectPacket;
 class MObject;
 class Controller;
 class View;
@@ -38,6 +39,7 @@ public:
 		Server,
 		Client,
 		KeyGenerator,
+		PuzSearchEngine,
 	};
 
 	Model();

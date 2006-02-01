@@ -69,67 +69,48 @@ public:
 
 
 
-// This class handles sockets.  You can make a client socket (that can connect
-// to only one host) or a host socket (that can connect to many clients).  
-class GSocket
+class GSocketClientBase
 {
 protected:
-	int m_nListenThreadCount;
 	bool m_bKeepListening;
-	int m_nAcceptorThreadCount;
-	bool m_bKeepAccepting;
 	SOCKET m_s;
-	bool m_bIAmTheServer;
-	int m_nSocketNumber;
-	GSpinLock* m_pMutexSocketNumber;
 	HANDLE m_hListenThread;
-	HANDLE m_hConnectionAccepterThread;
-	GSocketArray* m_pHostSockets;
-	GHandleArray* m_pHostListenThreads;
-	SOCKADDR_IN m_sHostAddrIn;
 	bool m_bUDP;
 
 public:
-	GSocket();
-	virtual ~GSocket();
+	GSocketClientBase(bool bUDP);
+	virtual ~GSocketClientBase();
+
+	static bool IsThisAnIPAddress(const char* szHost);
+	static unsigned short StringToPort(const char* szURL);
+	static struct in_addr StringToAddr(const char* szURL); // (If you pass in "localhost", it will return your IP address)
 
 	// This returns the SOCKET
-	SOCKET GetSocketHandle(int nConnectionNumber);
-
-	// if bIAmTheHost is true, you need to specify a port to host at
-	// if bIAmTheHost is true, more than one connection can be made to it
-	// if bIAmTheHost is false, you should call Connect() next to connect
-	virtual bool Init(bool bUDP, bool bIAmTheServer, u_short nPort = 0, int nMaxConnections = SOMAXCONN);
+	SOCKET GetSocketHandle();
 
 	// You should only call Connect for a Client socket
 	bool Connect(struct in_addr nAddr, u_short nPort, short nFamily = AF_INET);
 	bool Connect(const char* szAddr, unsigned short nPort);
 	//bool Connect(const char* szURL);
-	void Disconnect(int nConnectionNumber = 0);
+	void Disconnect();
 
-	bool Send(const unsigned char *pBuf, int nLen, int nConnectionNumber = 0);
+	bool Send(const unsigned char *pBuf, int nLen);
 
 	// This method is abstract because you need to implement something here
-	virtual bool Receive(unsigned char *pBuf, int nLen, int nConnectionNumber) = 0; // Override me
+	virtual bool Receive(unsigned char *pBuf, int nLen) = 0; // Override me
 
-	// STATIC methods (you can call these from anywhere)
-	static bool IsThisAnIPAddress(const char* szHost);
-	static unsigned short StringToPort(const char* szURL);
-	static struct in_addr StringToAddr(const char* szURL); // (If you pass in "localhost", it will return your IP address)
 
-	// These methods may only work if this is a client socket
 	u_short GetMyPort();
 	struct in_addr GetMyIPAddr();
-	bool IsConnected(int nConnectionNumber = 0);
+	bool IsConnected();
 	char* GetMyIPAddr(char* szBuff, int nBuffSize);
 	char* GetMyName(char* szBuff, int nBuffSize);
-	u_short GetTheirPort(int nConnectionNumber = 0);
-	struct in_addr GetTheirIPAddr(int nConnectionNumber = 0);
-	char* GetTheirIPAddr(char* szBuff, int nBuffSize, int nConnectionNumber = 0);
-	char* GetTheirName(char* szBuff, int nBuffSize, int nConnectionNumber = 0);
+	u_short GetTheirPort();
+	struct in_addr GetTheirIPAddr();
+	char* GetTheirIPAddr(char* szBuff, int nBuffSize);
+	char* GetTheirName(char* szBuff, int nBuffSize);
 
 	void Listen(); // Don't call this method directly
-	void ConnectionAccepter(); // Don't call this method directly
 
 	// This parses a URL into its parts
 	static void ParseURL(const char* szBuff, char* szProtocall, char* szHost, char* szLoc, char* szPort, char* szParams);
@@ -140,16 +121,84 @@ public:
 protected:
 	bool GoIntoHostMode(unsigned short nListenPort, int nMaxConnections);
 	int GetFirstAvailableSocketNumber();
-    void JoinAllListenThreads();
-	void JoinAcceptorThread();
+	void JoinListenThread();
 	void JoinListenThread(int nConnectionNumber);
 
-	// These methods are all empty--override them if you want
-	virtual void OnLoseConnection(int nSocketNumber);
-	
+	// This method is empty. It's just here so you can override it.
+	// This is called when the connection is gracefully closed. (There is no built-in support
+	// for detecting ungraceful disconnects. This is a feature, not a bug, because it makes
+	// it robust to sporadic hardware. I recommend implementing a system where the
+	// server requires the client to send periodic heartbeat packets and you call Disconnect()
+	// if the responses don't come regularly.)
+	virtual void OnCloseConnection();
+};
+
+
+
+
+
+
+
+
+class GSocketServerBase
+{
+protected:
+	SOCKET m_socketConnectionListener;
+	GSocketArray* m_pConnections;
+	fd_set m_socketSet; // structure used by select()
+	HANDLE m_hWorkerThread;
+	bool m_bKeepWorking;
+	SOCKADDR_IN m_sHostAddrIn;
+	bool m_bUDP;
+	int m_nMaxConnections;
+	char* m_szReceiveBuffer;
+
+public:
+	GSocketServerBase(bool bUDP, int nPort, int nMaxConnections);
+	virtual ~GSocketServerBase();
+
+	// This returns the SOCKET
+	SOCKET GetSocketHandle(int nConnectionNumber);
+
+	void Disconnect(int nConnectionNumber);
+
+	bool Send(const unsigned char *pBuf, int nLen, int nConnectionNumber = 0);
+
+	// This method is abstract because you need to implement something here
+	virtual bool Receive(unsigned char *pBuf, int nLen, int nConnectionNumber) = 0; // Override me
+
+	// These methods may only work if this is a client socket
+	struct in_addr GetMyIPAddr();
+	bool IsConnected(int nConnectionNumber = 0);
+	u_short GetTheirPort(int nConnectionNumber = 0);
+	struct in_addr GetTheirIPAddr(int nConnectionNumber = 0);
+	char* GetTheirIPAddr(char* szBuff, int nBuffSize, int nConnectionNumber = 0);
+	char* GetTheirName(char* szBuff, int nBuffSize, int nConnectionNumber = 0);
+
+	void ServerWorker(); // Don't call this method directly
+
+protected:
+	void Init(bool bUDP, int nPort, int nMaxConnections);
+	int GetFirstAvailableConnectionNumber();
+	void JoinWorkerThread();
+
+	// This method is empty. It's just here so you can override it.
+	// This is called when the connection is gracefully closed. (There is no built-in support
+	// for detecting ungraceful disconnects. This is a feature, not a bug, because it makes
+	// it robust to sporadic hardware. To detect ungraceful disconnects, I recommend requiring
+	// the client to send periodic heartbeat packets and calling Disconnect() if they stop coming.)
+	virtual void OnCloseConnection(int nConnection);
+
+	// This method is empty. It's just here so you can override it.
 	// WARNING: the connection isn't fully open at the time this method is called,
 	//          so don't send anything back to the client inside this callback
-	virtual void OnAcceptConnection(int nSocketNumber);
+	virtual void OnAcceptConnection(int nConnection);
+
+	SOCKET RefreshSocketSet();
+	void HandleNewConnection();
+	void ReduceConnectionList();
 };
+
+
 
 #endif // __GSOCKET_H__

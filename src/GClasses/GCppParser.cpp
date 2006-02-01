@@ -290,7 +290,7 @@ char* LoadFileToBuffer(const char* szFilename)
 	if(!pFile)
 		return NULL;
 	int nFileSize = filelength(fileno(pFile));
-	Holder<char*> hBuffer(new char[nFileSize + 1]);
+	ArrayHolder<char*> hBuffer(new char[nFileSize + 1]);
 	if(!hBuffer.Get())
 	{
 		fclose(pFile);
@@ -378,6 +378,8 @@ bool GCppParser::ParseScope()
 						break;
 					}
 				}
+				else if(pTok->GetLength() <= 0)
+					nScopeNests--;
 				Advance();
 			}
 		}
@@ -404,7 +406,7 @@ bool GCppParser::PushFile(const char* szFilename, bool bProjectFile)
 	chdir(szNewDir);
 
 	// Load the file
-	Holder<char*> hFile(LoadFileToBuffer(szNewFile));
+	ArrayHolder<char*> hFile(LoadFileToBuffer(szNewFile));
 	if(!hFile.Get())
 	{
 		chdir(szOldDir);
@@ -1575,7 +1577,7 @@ GCppDeclaration* GCppParser::parseDecl3(GCppType* pType, bool bParam, bool bDest
 			m_eMethodModifiers |= MM_CONSTRUCTOR;
 		}
 	}
-	else if(bParam && (pTok->Equals(")") || pTok->Equals(",")) || pTok->Equals(":"))
+	else if(pTok->GetLength() <= 0 || (bParam && (pTok->Equals(")") || pTok->Equals(",")) || pTok->Equals(":")))
 	{
 		szName = "<unnamed>";
 	}

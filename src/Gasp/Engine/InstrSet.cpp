@@ -486,7 +486,8 @@ void Instr_IsIntGreaterThan(GVM* pEngine)
 //------------------------------------------------------------------
 void Instr_Jump(GVM* pEngine)
 {
-	pEngine->m_pInstructionPointer += pEngine->GetIntParam();
+	int nOffset = pEngine->GetIntParam();
+	pEngine->m_pInstructionPointer += nOffset;
 }
 
 void Instr_MaxInteger(GVM* pEngine)

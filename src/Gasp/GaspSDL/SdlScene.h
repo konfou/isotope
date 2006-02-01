@@ -66,7 +66,7 @@ protected:
 	SdlView* m_pViews;
 	SdlView* m_pCurrentView;
 	int m_nCounter;
-	Transform m_camera;
+//	Transform m_camera;
 
 	SdlScene(Engine* pEngine);
 

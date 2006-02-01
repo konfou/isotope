@@ -420,7 +420,8 @@ public:
 		int nNewSize;
 		unsigned char* pTemp = DecompressBlock(&pBytes[nPos], nCompressedSize, &nNewSize);
 		nPos += nCompressedSize;
-		GAssert(nNewSize == nUncompressedSize, "bad compressed image");
+		if(nNewSize != nUncompressedSize)
+			GAssert(false, "bad compressed image");
 		memcpy(&pOut[nOutPos], pTemp, nNewSize);
 		nOutPos += nNewSize;
 		delete(pTemp);

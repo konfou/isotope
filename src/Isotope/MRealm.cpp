@@ -18,7 +18,7 @@
 #include "MStore.h"
 #include "MGameClient.h"
 #include "MGameImage.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MCollisionMap.h"
 
 MRealm::MRealm(Model* pModel)
@@ -288,6 +288,7 @@ void MRealm::ReplaceObject(int nConnection, MObject* pNewOb)
 		m_pObjectsByID->Add(uid, (void*)m_pObjects->GetSize());
 		m_pObjects->AddPointer(pNewOb);
 	}
+	GAssert(pNewOb->SanityCheck(), "Object failed sanity check in MRealm::ReplaceObject");
 }
 
 void MRealm::SetTerrainMap(GImage* pImage)
@@ -352,30 +353,41 @@ void MRealm::SetTerrainMap(GImage* pImage)
 
 void MRealm::FromXml(GXMLTag* pTag, MImageStore* pStore)
 {
-	// Load the map boundaries
-	GXMLAttribute* pAttr;
-	pAttr = pTag->GetAttribute("xmin");
-	if(pAttr)
-		m_fXMin = (float)atof(pAttr->GetValue());
-	pAttr = pTag->GetAttribute("xmax");
-	if(pAttr)
-		m_fXMax = (float)atof(pAttr->GetValue());
-	pAttr = pTag->GetAttribute("ymin");
-	if(pAttr)
-		m_fYMin = (float)atof(pAttr->GetValue());
-	pAttr = pTag->GetAttribute("ymax");
-	if(pAttr)
-		m_fYMax = (float)atof(pAttr->GetValue());
-
-	// Load the terrain map
-	pAttr = pTag->GetAttribute("terrain");
-	if(pAttr && pStore)
+	GXMLTag* pViewTag = pTag->GetChildTag("View");
+	if(pViewTag)
 	{
-		int nImageIndex = pStore->GetIndex(pAttr->GetValue());
-		VarHolder* pVH = pStore->GetVarHolder(nImageIndex);
-		if(!pVH)
-			GameEngine::ThrowError("The terrain is specified as \"%s\" but there is no image with that ID", pAttr->GetValue());
-		SetTerrainMap(&((MGameImage*)pVH->GetGObject())->m_value);
+		// Load the map boundaries
+		GXMLAttribute* pAttr;
+		pAttr = pViewTag->GetAttribute("xmin");
+		if(pAttr)
+			m_fXMin = (float)atof(pAttr->GetValue());
+		pAttr = pViewTag->GetAttribute("xmax");
+		if(pAttr)
+			m_fXMax = (float)atof(pAttr->GetValue());
+		pAttr = pViewTag->GetAttribute("ymin");
+		if(pAttr)
+			m_fYMin = (float)atof(pAttr->GetValue());
+		pAttr = pViewTag->GetAttribute("ymax");
+		if(pAttr)
+			m_fYMax = (float)atof(pAttr->GetValue());
+
+		// Load the terrain map
+		pAttr = pTag->GetAttribute("terrain");
+		if(pAttr && pStore)
+		{
+			int nImageIndex = pStore->GetIndex(pAttr->GetValue());
+			VarHolder* pVH = pStore->GetVarHolder(nImageIndex);
+			if(!pVH)
+				GameEngine::ThrowError("The terrain is specified as \"%s\" but there is no image with that ID", pAttr->GetValue());
+			SetTerrainMap(&((MGameImage*)pVH->GetGObject())->m_value);
+		}
+		else
+		{
+			GImage tmp;
+			tmp.SetSize(1, 1);
+			tmp.SetPixel(0, 0, 0);
+			SetTerrainMap(&tmp);
+		}
 	}
 	else
 	{

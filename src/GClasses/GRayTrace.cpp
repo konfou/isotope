@@ -18,100 +18,10 @@
 #else // DARWIN
 #include <malloc.h>
 #endif // !DARWIN
-
+/*
 Light RayHitData::MeasureLight(G3DObject* pUniverse, int nAllowedSubRays)
 {
 	return pPolygon->MeasureLight(pUniverse, this, nAllowedSubRays);
-}
-
-void Point3D::Transform(const struct Transform* pTransform)
-{
-	double c, s, t;
-
-	// Size
-	x *= pTransform->dScale;
-	y *= pTransform->dScale;
-	z *= pTransform->dScale;
-/*
-	// Roll
-	c = pTransform->GetCosRoll();
-	s = pTransform->GetSinRoll();
-	t = x;
-	x = x * c + y * s;
-	y = y * c - t * s;
-*/
-	// Pitch;
-	c = pTransform->GetCosPitch();
-	s = pTransform->GetSinPitch();
-	t = y;
-	y = y * c + z * s;
-	z = z * c - t * s;
-
-	// Yaw
-	c = pTransform->GetCosYaw();
-	s = pTransform->GetSinYaw();
-	t = z;
-	z = z * c + x * s;
-	x = x * c - t * s;
-
-	// Offset
-	Add(&pTransform->offset);
-}
-
-void Point3D::Untransform(const struct Transform* pTransform)
-{
-	double c, s, t;
-
-	// Offset
-	Subtract(&pTransform->offset);
-
-	// Yaw
-	c = pTransform->GetCosYaw();
-	s = pTransform->GetSinYaw();
-	t = z;
-	z = z * c - x * s;
-	x = x * c + t * s;
-
-	// Pitch;
-	c = pTransform->GetCosPitch();
-	s = pTransform->GetSinPitch();
-	t = y;
-	y = y * c - z * s;
-	z = z * c + t * s;
-/*
-	// Roll
-	c = pTransform->GetCosRoll();
-	s = pTransform->GetSinRoll();
-	t = x;
-	x = x * c - y * s;
-	y = y * c + t * s;
-*/
-	// Size
-	x /= pTransform->dScale;
-	y /= pTransform->dScale;
-	z /= pTransform->dScale;
-}
-
-void Point3D::FromXML(GXMLTag* pTag)
-{
-	GXMLAttribute* pAttr;
-	pAttr = pTag->GetAttribute("x");
-	if(pAttr)
-		x = atof(pAttr->GetValue());
-	pAttr = pTag->GetAttribute("y");
-	if(pAttr)
-		y = atof(pAttr->GetValue());
-	pAttr = pTag->GetAttribute("z");
-	if(pAttr)
-		z = atof(pAttr->GetValue());
-}
-
-void Point3D::ToXML(GXMLTag* pTag)
-{
-	char szBuff[256];
-	pTag->AddAttribute(new GXMLAttribute("x", dtoa(x, szBuff)));
-	pTag->AddAttribute(new GXMLAttribute("y", dtoa(y, szBuff)));
-	pTag->AddAttribute(new GXMLAttribute("z", dtoa(z, szBuff)));
 }
 
 void Triangle3D::FromXML(GXMLTag* pTag)
@@ -307,38 +217,6 @@ double GetDistanceUntilRayHitsSphere(struct Ray* pRay, const struct Point3D* pCe
 		return 0;
 }
 
-void Transform::FromXML(GXMLTag* pTag)
-{
-	offset.FromXML(pTag);
-	GXMLAttribute* pAttr;
-	pAttr = pTag->GetAttribute("Scale");
-	if(pAttr)
-		dScale = atof(pAttr->GetValue());
-/*	pAttr = pTag->GetAttribute("Roll");
-	if(pAttr)
-		dRoll = atof(pAttr->GetValue());*/
-	pAttr = pTag->GetAttribute("Pitch");
-	if(pAttr)
-		dPitch = atof(pAttr->GetValue());
-	pAttr = pTag->GetAttribute("Yaw");
-	if(pAttr)
-		dYaw = atof(pAttr->GetValue());
-}
-
-void Transform::ToXML(GXMLTag* pTag)
-{
-	char szBuff[256];
-	offset.ToXML(pTag);
-	if(dScale != 0)
-		pTag->AddAttribute(new GXMLAttribute("Scale", dtoa(dScale, szBuff)));
-/*	if(dRoll != 0)
-		pTag->AddAttribute(new GXMLAttribute("Roll", dtoa(dScale, szBuff)));*/
-	if(dPitch != 0)
-		pTag->AddAttribute(new GXMLAttribute("Pitch", dtoa(dScale, szBuff)));
-	if(dYaw != 0)
-		pTag->AddAttribute(new GXMLAttribute("Yaw", dtoa(dScale, szBuff)));
-}
-
 G3DObject::G3DObject()
 {
 }
@@ -347,7 +225,8 @@ G3DObject::~G3DObject()
 {
 }
 
-/*static*/ G3DObject* G3DObject::ObjectsFromXML(GXMLTag* pObjectsTag)
+//static
+G3DObject* G3DObject::ObjectsFromXML(GXMLTag* pObjectsTag)
 {
 	GXMLAttribute* pMainAttr = pObjectsTag->GetAttribute("Main");
 	if(!pMainAttr)
@@ -358,7 +237,8 @@ G3DObject::~G3DObject()
 	return G3DObject::FromXML(pObjectsTag, pMainAttr->GetValue(), NULL);
 }
 
-/*static*/ G3DObject* G3DObject::FromXML(GXMLTag* pObjectsTag, const char* szName, G3DObject* pParent)
+//static
+G3DObject* G3DObject::FromXML(GXMLTag* pObjectsTag, const char* szName, G3DObject* pParent)
 {
 	GAssert(stricmp(pObjectsTag->GetName(), "Objects") == 0, "unexpected tag");
 	GXMLTag* pChildTag;
@@ -388,24 +268,6 @@ G3DObject::~G3DObject()
 	return NULL;
 }
 
-char* dtoa(double d, char* szBuff)
-{
-	sprintf(szBuff, "%f", d);
-	
-	// Remove trailing zeros
-	int n;
-	for(n = strlen(szBuff) - 1; n > 0 && szBuff[n] != '.'; n--)
-	{
-		if(szBuff[n] == '0')
-			szBuff[n] = '\0';
-		else
-			break;
-	}
-	if(szBuff[n] == '.')
-		szBuff[n] = '\0';
-
-	return szBuff;
-}
 
 G3DObjAgg::G3DObjAgg(G3DObject* pParent) : G3DObject()
 {
@@ -430,7 +292,8 @@ G3DObjAgg::~G3DObjAgg()
 	delete(m_pFrames);
 }
 
-/*static*/ G3DObjAgg* G3DObjAgg::FromXML(GXMLTag* pObjectsTag, GXMLTag* pObjTag, G3DObject* pParent)
+//static
+G3DObjAgg* G3DObjAgg::FromXML(GXMLTag* pObjectsTag, GXMLTag* pObjTag, G3DObject* pParent)
 {
 	if(stricmp(pObjectsTag->GetName(), "Objects") != 0)
 	{
@@ -694,7 +557,8 @@ double G3DObjPolygon::GetRadius()
 	return m_dRadius;
 }
 
-/*static*/ G3DObjPolygon* G3DObjPolygon::FromXML(GXMLTag* pObjTag, G3DObject* pParent)
+//static
+G3DObjPolygon* G3DObjPolygon::FromXML(GXMLTag* pObjTag, G3DObject* pParent)
 {
 	G3DObjPolygon* pPoly = new G3DObjPolygon(pParent);
 	GXMLTag* pChildTag;
@@ -1196,4 +1060,373 @@ void G3DObjPolygon::FireRay(struct Ray* pRay, struct RayHitData* pOutResults, in
 		pOutResults->bFront = bFront;
 	}
 }
+*/
+// -------------- CS 655 ------------------
 
+void GRayTraceVector::ComputeReflectionVector(GRayTraceVector* pRay, GRayTraceVector* pNormal)
+{
+	Copy(pNormal);
+	Multiply(-2);
+	GRayTraceReal r = DotProduct(pRay);
+	Copy(pNormal);
+	Multiply(r);
+	Add(pRay);
+}
+
+// -----------------------------------------------------------------------------
+
+GRayTraceRay::GRayTraceRay()
+{
+}
+
+GRayTraceRay::~GRayTraceRay()
+{
+}
+
+void GRayTraceRay::Cast(GRayTraceScene* pScene, GRayTraceVector* pRayOrigin, GRayTraceVector* pScreenPoint)
+{
+	// Compute the direction vector
+	m_directionVector.Copy(pScreenPoint);
+	m_directionVector.Subtract(pRayOrigin);
+	m_directionVector.Normalize();
+
+	// Find the closest intersection
+	GRayTraceReal distance;
+	GRayTraceReal closestDistance = (GRayTraceReal)1e30; // todo: unmagic this value
+	GRayTraceObject* pClosestObject = NULL;
+	int nCount = pScene->GetObjectCount();
+	int n;
+	for(n = 0; n < nCount; n++)
+	{
+		GRayTraceObject* pObject = pScene->GetObject(n);
+		distance = pObject->ComputeRayDistance(pRayOrigin, &m_directionVector);
+		if(distance > 0)
+		{
+			if(distance < closestDistance)
+			{
+				closestDistance = distance;
+				pClosestObject = pObject;
+			}
+		}
+	}
+
+	// Compute the color
+	if(pClosestObject)
+	{
+		// Compute the collision point
+		m_collisionPoint.Copy(&m_directionVector);
+		m_collisionPoint.Multiply(closestDistance);
+		m_collisionPoint.Add(pRayOrigin);
+
+		// Compute the normal
+		pClosestObject->ComputeNormalVector(&m_normalVector, &m_collisionPoint);
+
+		// Compute the reflection vector
+		m_reflectionVector.ComputeReflectionVector(&m_directionVector, &m_normalVector);
+
+		// Compute the color
+		GRayTraceMaterial* pMaterial = pClosestObject->GetMaterial();
+		pMaterial->ComputeColor(pScene, this);
+	}
+	else
+		m_color.Copy(pScene->GetBackgroundColor());
+}
+
+// -----------------------------------------------------------------------------
+
+GRayTraceScene::GRayTraceScene()
+: m_backgroundColor(1, (GRayTraceReal).6, (GRayTraceReal).7, (GRayTraceReal).5),
+  m_ambientLight(1, (GRayTraceReal).3, (GRayTraceReal).3, (GRayTraceReal).3)
+{
+	m_pMaterials = new GPointerArray(256);
+	m_pObjects = new GPointerArray(256);
+	m_pLights = new GPointerArray(32);
+	m_pCamera = new GRayTraceCamera();
+	m_pImage = NULL;
+	m_nY = -1;
+}
+
+GRayTraceScene::~GRayTraceScene()
+{
+	int n, nCount;
+	nCount = m_pMaterials->GetSize();
+	for(n = 0; n < nCount; n++)
+		delete((GRayTraceMaterial*)m_pMaterials->GetPointer(n));
+	delete(m_pMaterials);
+	nCount = m_pObjects->GetSize();
+	for(n = 0; n < nCount; n++)
+		delete((GRayTraceObject*)m_pObjects->GetPointer(n));
+	delete(m_pObjects);
+	nCount = m_pLights->GetSize();
+	for(n = 0; n < nCount; n++)
+		delete((GRayTraceLight*)m_pLights->GetPointer(n));
+	delete(m_pCamera);
+	delete(m_pImage);
+}
+
+int GRayTraceScene::GetObjectCount()
+{
+	return m_pObjects->GetSize();
+}
+
+GRayTraceObject* GRayTraceScene::GetObject(int n)
+{
+	return (GRayTraceObject*)m_pObjects->GetPointer(n);
+}
+
+int GRayTraceScene::GetLightCount()
+{
+	return m_pLights->GetSize();
+}
+
+GRayTraceLight* GRayTraceScene::GetLight(int n)
+{
+	return (GRayTraceLight*)m_pLights->GetPointer(n);
+}
+
+void GRayTraceScene::AddMaterial(GRayTraceMaterial* pMaterial)
+{
+	m_pMaterials->AddPointer(pMaterial);
+}
+
+void GRayTraceScene::AddObject(GRayTraceObject* pObject)
+{
+	m_pObjects->AddPointer(pObject);
+}
+
+void GRayTraceScene::AddLight(GRayTraceLight* pLight)
+{
+	m_pLights->AddPointer(pLight);
+}
+
+void GRayTraceScene::RenderBegin()
+{
+	// Allocate an image
+	if(!m_pImage)
+		m_pImage = new GImage();
+	int nWidth = m_pCamera->GetImageWidth();
+	int nHeight = m_pCamera->GetImageHeight();
+	m_pImage->SetSize(nWidth, nHeight);
+	m_pImage->Clear(0xff808080);
+
+	// Precompute vectors
+	GRayTraceVector n(m_pCamera->GetLookAtPoint());
+	n.Subtract(m_pCamera->GetLookFromPoint());
+	GRayTraceVector v(m_pCamera->GetViewUpVector());
+	GRayTraceVector u;
+	u.CrossProduct(&v, &n);
+	u.Normalize();
+	v.Normalize();
+	GRayTraceReal halfViewHeight = (GRayTraceReal)(tan(m_pCamera->GetViewAngle() / 2) * sqrt(n.GetMagnitudeSquared()));
+	GRayTraceReal halfViewWidth = halfViewHeight * nWidth / nHeight;
+	u.Multiply(halfViewWidth);
+	v.Multiply(halfViewHeight);
+	m_pixSide.Copy(m_pCamera->GetLookAtPoint());
+	m_pixSide.Subtract(&u);
+	m_pixSide.Subtract(&v);
+	m_pixDX.Copy(&u);
+	m_pixDX.Multiply((GRayTraceReal)2 / nWidth);
+	m_pixDY.Copy(&v);
+	m_pixDY.Multiply((GRayTraceReal)2 / nHeight);
+	m_nY = nHeight - 1;
+}
+
+bool GRayTraceScene::RenderLine()
+{
+	if(m_nY < 0)
+		return false;
+	GRayTraceRay ray;
+	int x;
+	GRayTraceVector screenPoint(&m_pixSide);
+	GRayTraceVector* pCameraPoint = m_pCamera->GetLookFromPoint();
+	screenPoint.Copy(&m_pixSide);
+	m_pixSide.Add(&m_pixDY);
+	int nWidth = m_pImage->GetWidth();
+	for(x = nWidth - 1; x >= 0; x--)
+	{
+		ray.Cast(this, pCameraPoint, &screenPoint);
+		m_pImage->SetPixel(x, m_nY, ray.m_color.GetGColor());
+		screenPoint.Add(&m_pixDX);
+	}
+	if(--m_nY >= 0)
+		return true;
+	else
+		return false;
+}
+
+void GRayTraceScene::Render()
+{
+	RenderBegin();
+	while(RenderLine())
+	{
+	}
+}
+
+GColor GRayTraceScene::RenderSinglePixel(int x, int y)
+{
+	// Init the rendering
+	RenderBegin();
+
+	// Compute the ray direction
+	GRayTraceColor col;
+	GRayTraceVector* pCameraPoint = m_pCamera->GetLookFromPoint();
+	GRayTraceVector screenPoint(&m_pixSide);
+	m_pixDY.Multiply((GRayTraceReal)(m_pImage->GetHeight() - 1 - y));
+	screenPoint.Add(&m_pixDY);
+	m_pixDX.Multiply((GRayTraceReal)(m_pImage->GetWidth() - 1 - x));
+	screenPoint.Add(&m_pixDX);
+
+	// Cast the ray
+	GRayTraceRay ray;
+	ray.Cast(this, pCameraPoint, &screenPoint);
+	GColor c = ray.m_color.GetGColor();
+	return c;
+}
+
+// -----------------------------------------------------------------------------
+
+GRayTraceLight::GRayTraceLight(GRayTraceReal r, GRayTraceReal g, GRayTraceReal b, GRayTraceReal jitter)
+: m_color(1, r, g, b), m_jitter(jitter)
+{
+}
+
+/*virtual*/ GRayTraceLight::~GRayTraceLight()
+{
+}
+
+
+// -----------------------------------------------------------------------------
+
+
+GRayTraceDirectionalLight::GRayTraceDirectionalLight(GRayTraceReal dx, GRayTraceReal dy, GRayTraceReal dz, GRayTraceReal r, GRayTraceReal g, GRayTraceReal b, GRayTraceReal jitter)
+: GRayTraceLight(r, g, b, jitter), m_direction(dx, dy, dz)
+{
+}
+
+/*virtual*/ GRayTraceDirectionalLight::~GRayTraceDirectionalLight()
+{
+}
+
+/*virtual*/ void GRayTraceDirectionalLight::ComputeColorContribution(GRayTraceRay* pRay, GRayTraceMaterial* pMaterial)
+{
+	// Compute diffuse component of the color
+	GRayTraceColor diffuse(pMaterial->GetColor(GRayTraceMaterial::Diffuse));
+	diffuse.Multiply(MAX((GRayTraceReal)0, m_direction.DotProduct(&pRay->m_normalVector)));
+
+	// Compute specular component of the color
+	GRayTraceReal mag = pow(MAX((GRayTraceReal)0, pRay->m_reflectionVector.DotProduct(&m_direction)), pMaterial->GetSpecularExponent());
+	GRayTraceColor specular(pMaterial->GetColor(GRayTraceMaterial::Specular));
+	specular.Multiply(mag);
+
+	// Combine and multiply by light intensity
+	diffuse.Add(&specular);
+	diffuse.Multiply(&m_color);
+	pRay->m_color.Add(&diffuse);
+}
+
+// -----------------------------------------------------------------------------
+
+
+GRayTracePointLight::GRayTracePointLight(GRayTraceReal x, GRayTraceReal y, GRayTraceReal z, GRayTraceReal r, GRayTraceReal g, GRayTraceReal b, GRayTraceReal jitter)
+: GRayTraceLight(r, g, b, jitter), m_position(x, y, z)
+{
+}
+
+/*virtual*/ GRayTracePointLight::~GRayTracePointLight()
+{
+}
+
+/*virtual*/ void GRayTracePointLight::ComputeColorContribution(GRayTraceRay* pRay, GRayTraceMaterial* pMaterial)
+{
+	// Compute diffuse component of the color
+	GRayTraceColor diffuse(pMaterial->GetColor(GRayTraceMaterial::Diffuse));
+	GRayTraceVector lightDirection(&m_position);
+	lightDirection.Subtract(&pRay->m_collisionPoint);
+	diffuse.Multiply(MAX((GRayTraceReal)0, lightDirection.DotProduct(&pRay->m_normalVector)));
+
+	// Compute specular component of the color
+	GRayTraceReal mag = pow(MAX((GRayTraceReal)0, pRay->m_reflectionVector.DotProduct(&lightDirection)), pMaterial->GetSpecularExponent());
+	GRayTraceColor specular(pMaterial->GetColor(GRayTraceMaterial::Specular));
+	specular.Multiply(mag);
+
+	// Combine and multiply by light intensity
+	diffuse.Add(&specular);
+	diffuse.Multiply(&m_color);
+	pRay->m_color.Add(&diffuse);	
+}
+
+// -----------------------------------------------------------------------------
+
+GRayTraceMaterial::GRayTraceMaterial()
+{
+	SetColor(Diffuse, (GRayTraceReal).5, (GRayTraceReal).5, (GRayTraceReal).5);
+	SetColor(Specular, 1, 1, 1);
+	SetColor(Reflective, 1, 1, 1);
+	SetColor(Transmissive, 0, 0, 0);
+	SetColor(Ambient, (GRayTraceReal).1, (GRayTraceReal).1, (GRayTraceReal).1);
+	SetColor(Emissive, 0, 0, 0);
+	m_indexOfRefraction = 1;
+	m_specularExponent = 1;
+	m_glossiness = 1;
+	m_translucency = 0;
+}
+
+GRayTraceMaterial::~GRayTraceMaterial()
+{
+}
+
+void GRayTraceMaterial::SetColor(ColorType eType, GRayTraceReal r, GRayTraceReal g, GRayTraceReal b)
+{
+	m_colors[eType].Set(1, r, g, b);
+}
+
+void GRayTraceMaterial::ComputeColor(GRayTraceScene* pScene, GRayTraceRay* pRay)
+{
+	pRay->m_color.Copy(pScene->GetAmbientLight());
+	pRay->m_color.Multiply(GetColor(Ambient));
+	int nLights = pScene->GetLightCount();
+	int n;
+	for(n = 0; n < nLights; n++)
+		pScene->GetLight(n)->ComputeColorContribution(pRay, this);
+}
+
+// -----------------------------------------------------------------------------
+
+GRayTraceSphere::GRayTraceSphere(GRayTraceMaterial* pMaterial, GRayTraceReal x, GRayTraceReal y, GRayTraceReal z, GRayTraceReal radius)
+: GRayTraceObject(pMaterial), m_center(x, y, z), m_radius(radius)
+{
+}
+
+/*virtual*/ GRayTraceSphere::~GRayTraceSphere()
+{
+}
+
+/*virtual*/ GRayTraceReal GRayTraceSphere::ComputeRayDistance(GRayTraceVector* pRayOrigin, GRayTraceVector* pRayDirection)
+{
+	GRayTraceReal b = (GRayTraceReal)2 * (
+				pRayDirection->m_vals[0] * (pRayOrigin->m_vals[0] - m_center.m_vals[0]) +
+				pRayDirection->m_vals[1] * (pRayOrigin->m_vals[1] - m_center.m_vals[1]) +
+				pRayDirection->m_vals[2] * (pRayOrigin->m_vals[2] - m_center.m_vals[2])
+			);
+	GRayTraceReal c = pRayOrigin->m_vals[0] * pRayOrigin->m_vals[0] -
+				(GRayTraceReal)2 * pRayOrigin->m_vals[0] * m_center.m_vals[0] +
+				m_center.m_vals[0] * m_center.m_vals[0] +
+				pRayOrigin->m_vals[1] * pRayOrigin->m_vals[1] -
+				(GRayTraceReal)2 * pRayOrigin->m_vals[1] * m_center.m_vals[1] +
+				m_center.m_vals[1] * m_center.m_vals[1] +
+				pRayOrigin->m_vals[2] * pRayOrigin->m_vals[2] -
+				(GRayTraceReal)2 * pRayOrigin->m_vals[2] * m_center.m_vals[2] +
+				m_center.m_vals[2] * m_center.m_vals[2] -
+				m_radius * m_radius;
+	GRayTraceReal discriminant = b * b - (GRayTraceReal)4 * c;
+	if(discriminant < 0)
+		return 0;
+	return (b + (GRayTraceReal)sqrt(discriminant)) / (-2);
+}
+
+/*virtual*/ void GRayTraceSphere::ComputeNormalVector(GRayTraceVector* pOutNormalVector, GRayTraceVector* pPoint)
+{
+	pOutNormalVector->Copy(pPoint);
+	pOutNormalVector->Subtract(&m_center);
+	pOutNormalVector->Normalize();
+}

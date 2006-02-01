@@ -10,19 +10,23 @@
 */
 
 #include "VError.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "../GClasses/GString.h"
 #include "../GClasses/GWidgets.h"
+#include "Controller.h"
 
 class VErrorDialog : public GWidgetDialog
 {
 protected:
 	GWidgetTextLabel* m_pErrorMessage;
+	GWidgetTextButton* m_pBackButton;
+	Controller* m_pController;
 
 public:
-	VErrorDialog(int w, int h, const char* szError)
+	VErrorDialog(Controller* pController, int w, int h, const char* szError)
 		: GWidgetDialog(w, h, 0xffffffaa)
 	{
+		m_pController = pController;
 		int nMaxLineLength = 70;
 		char* szLine = (char*)alloca(nMaxLineLength + 1);
 		int nStart;
@@ -59,10 +63,22 @@ public:
 			if(szError[nEnd] == '\0')
 				break;
 		}
+
+		GString s;
+		s.Copy(L"Back");
+		m_pBackButton = new GWidgetTextButton(this, (w - 80) / 2, h - 40, 80, 20, &s);
 	}
 
 	virtual ~VErrorDialog()
 	{
+	}
+
+	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
+	{
+		if(pButton == m_pBackButton)
+			m_pController->GoBack();
+		else
+			GAssert(false, "Unexpected button");
 	}
 };
 
@@ -70,19 +86,16 @@ public:
 
 
 
+// ----------------------------------------------------------------------
 
-
-VError::VError(GRect* pRect, const char* szErrorMessage)
+VError::VError(Controller* pController, GRect* pRect, const char* szErrorMessage)
 : ViewPort(pRect)
 {
-	m_pImage = new GImage();
 	GAssert(pRect->w >= 630 && pRect->h >= 470, "Screen not big enough to hold this view");
-	m_pImage->SetSize(630, 470);
 	m_nLeft = (pRect->w - 630) / 2 + pRect->x;
 	m_nTop = (pRect->h - 470) / 2 + pRect->y;
 
-	m_pDialog = new VErrorDialog(pRect->w, pRect->h, szErrorMessage);
-	m_dirty = true;
+	m_pDialog = new VErrorDialog(pController, 630, 470, szErrorMessage);
 
 	RefreshEntireImage();
 }
@@ -90,40 +103,36 @@ VError::VError(GRect* pRect, const char* szErrorMessage)
 /*virtual*/ VError::~VError()
 {
 	delete(m_pDialog);
-	delete(m_pImage);
 }
 
 /*virtual*/ void VError::Draw(SDL_Surface *pScreen)
 {
-	if(m_dirty)
-	{
-		m_dirty = false;
-		GRect r;
-		GImage* pCanvas = m_pDialog->GetImage(&r);
-		m_pImage->Blit(0, 0, pCanvas, &r);
-	}
-	BlitImage(pScreen, m_nLeft, m_nTop, m_pImage);
+	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
+	BlitImage(pScreen, m_nLeft, m_nTop, pCanvas);
 }
 
 void VError::RefreshEntireImage()
 {
-/*
-	m_pImage->Clear(0xffffffaa);
+	GRect r;
+	GImage* pCanvas = m_pDialog->GetImage(&r);
+	pCanvas->DrawBox(1, 1, pCanvas->GetWidth() - 2, pCanvas->GetHeight() - 2, 0xff886600, false);
+}
 
-	// Draw the background image
-	MImageStore* pGlobalImageStore = GameEngine::GetGlobalImageStore();
-	int nIndex = pGlobalImageStore->GetIndex("loading");
-	VarHolder* pVH = pGlobalImageStore->GetVarHolder(nIndex);
-	if(pVH)
-	{
-		MGameImage* pGameImage = (MGameImage*)pVH->GetGObject();
-		GRect r;
-		r.x = 0;
-		r.y = 0;
-		r.w = 630;
-		r.h = 470;
-		m_pImage->Blit(0, 0, &pGameImage->m_value, &r);
-	}
-*/
-	m_dirty = true;
+void VError::OnMouseDown(int x, int y)
+{
+	x -= m_nLeft;
+	y -= m_nTop;
+	GWidgetAtomic* pNewWidget = m_pDialog->FindAtomicWidget(x, y);
+	m_pDialog->GrabWidget(pNewWidget, x, y);
+}
+
+void VError::OnMouseUp(int x, int y)
+{
+	m_pDialog->ReleaseWidget();
+}
+
+void VError::OnMousePos(int x, int y)
+{
+	m_pDialog->HandleMousePos(x - m_nLeft, y - m_nTop);
 }

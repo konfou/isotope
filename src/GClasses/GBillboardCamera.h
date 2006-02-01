@@ -86,7 +86,7 @@ public:
 	void ScreenToMap(float* px, float* pY, float* pSize, bool* pbSky, int x, int y, GRect* pScreenRect, int nSkyImageWidth);
 
 	// Converts a GPosSize to a GRect in which you should draw the billboard
-	void CalcBillboardRect(GRect* pOutRect, GPosSize* pPosSize, GRect* pScreenRect);
+	void CalcBillboardRect(GRect* pOutRect, GPosSize* pPosSize, GRect* pScreenRect, int nPivotHeight);
 
 	// Computes the trapezoid in which to draw a panel (a billboard that doesn't necessarily face the camera)
 	void CalcPanelTrapezoid(GPanelPos* pOutPos, GPosSize* pPosSize, GRect* pScreenRect);

@@ -14,7 +14,7 @@
 #include "MRealm.h"
 #include <time.h>
 #include "../GClasses/GXML.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MStore.h"
 #include "NRealmProtocol.h"
 #ifdef WIN32

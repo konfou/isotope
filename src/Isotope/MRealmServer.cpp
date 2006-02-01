@@ -10,12 +10,13 @@
 */
 
 #include "MRealmServer.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "NRealmProtocol.h"
 #include "../GClasses/GXML.h"
 #include "../GClasses/GArray.h"
 #include "../GClasses/GSocket.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GHttp.h"
 #include "MRealm.h"
 #ifdef WIN32
 #include <windows.h>
@@ -28,13 +29,13 @@
 #include "MObject.h"
 #include "Controller.h"
 
-MRealmServer::MRealmServer(const char* szPath, MGameServer* pGameServer)
+MRealmServer::MRealmServer(const char* szUrl, MGameServer* pGameServer)
 {
-	int nLen = strlen(szPath);
-	m_szPath = new char[nLen + 1];
-	strcpy(m_szPath, szPath);
+	int nLen = strlen(szUrl);
+	m_szUrl = new char[nLen + 1];
+	strcpy(m_szUrl, szUrl);
 	m_szBase = new char[nLen + 1];
-	strcpy(m_szBase, szPath);
+	strcpy(m_szBase, szUrl);
 	int n;
 	for(n = nLen - 1; n >= 0 && m_szBase[n] != '/' && m_szBase[n] != '\\'; n--)
 		m_szBase[n] = '\0';
@@ -48,35 +49,40 @@ MRealmServer::MRealmServer(const char* szPath, MGameServer* pGameServer)
 MRealmServer::~MRealmServer()
 {
 	delete(m_pRealm);
-	delete(m_szPath);
+	delete(m_szUrl);
 	delete(m_szBase);
 	delete(m_pRemoteVar);
 	delete(m_pScriptEngine);
 	delete(m_pErrorHandler);
 }
 
-void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pMapTag, Controller* pController, MRealm* pRealm)
+bool MRealmServer::LoadScript(GHttpClient* pHttpClient, const char* szUrl, GXMLTag* pMapTag, Controller* pController, MRealm* pRealm)
 {
 	int nBufSize;
-	Holder<char*> hBuf(GFile::LoadFileToBuffer(szFilename, &nBufSize));
-	const char* pFile = hBuf.Get();
+	char* pFile = Controller::DownloadFile(pHttpClient, szUrl, &nBufSize, true, 30, NULL, NULL);
 	if(!pFile)
-		GameEngine::ThrowError("Failed to load script file: %s", szFilename);
-	m_pScriptEngine = new MScriptEngine(szFilename, pFile, nBufSize, m_pErrorHandler, pMapTag, NULL, pController, pRealm);
+	{
+		fprintf(stderr, "*** Failed to load script file: %s\n", szUrl);
+		return false;
+	}
+	Holder<char*> hFile(pFile);
+	m_pScriptEngine = new MScriptEngine(szUrl, pFile, nBufSize, m_pErrorHandler, pMapTag, NULL, pController, pRealm);
+	return true;
 }
 
-/*static*/ MRealmServer* MRealmServer::LoadRealm(const char* szFilename, MGameServer* pGameServer, Controller* pController)
+/*static*/ MRealmServer* MRealmServer::LoadRealm(const char* szUrl, MGameServer* pGameServer, Controller* pController)
 {
 	// Download the file
+	GHttpClient httpClient;
+	httpClient.SetClientName("Isotope Server/1.0");
 	int nSize;
-	Holder<char*> hFile(GFile::LoadFileToBuffer(szFilename, &nSize));
-	char* szFile = hFile.Get();
+	char* szFile = Controller::DownloadFile(&httpClient, szUrl, &nSize, false, 30, NULL, NULL);
 	if(!szFile)
 	{
-		char szCurDir[512];
-		getcwd(szCurDir, 512);
-		GameEngine::ThrowError("Failed to load file \"%s\".  (CurDir=\"%s\")\n", szFilename, szCurDir);
+		fprintf(stderr, "*** Failed to load URL: %s\n", szUrl);
+		return NULL;
 	}
+	Holder<char*> hFile(szFile);
 
 	// Parse the XML
 	int nLine, nCol;
@@ -84,24 +90,38 @@ void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pMapTag, Controll
 	Holder<GXMLTag*> hModelTag(GXMLTag::FromString(szFile, nSize, &szError, NULL, &nLine, &nCol));
 	GXMLTag* pModelTag = hModelTag.Get();
 	if(!pModelTag)
-		GameEngine::ThrowError("Failed to parse XML file \"%s\" at line %d. %s", szFilename, nLine, szError);
+	{
+		fprintf(stderr, "*** Failed to parse XML file \"%s\" at line %d. %s\n", szUrl, nLine, szError);
+		return NULL;
+	}
 
 	// Make the realm server
-	Holder<MRealmServer*> hRS(new MRealmServer(szFilename, pGameServer));
+	Holder<MRealmServer*> hRS(new MRealmServer(szUrl, pGameServer));
 	MRealmServer* pRS = hRS.Get();
 
 	// Make the new realm
 	pRS->m_pRealm = new MRealm(pGameServer);
 
 	// Load the script
-	GXMLAttribute* pAttrScript = pModelTag->GetAttribute("Script");
+	GXMLTag* pGameTag = pModelTag->GetChildTag("Game");
+	if(!pGameTag)
+	{
+		fprintf(stderr, "*** Expected a <Game> tag in the realm file: %s\n", szUrl);
+		return NULL;
+	}
+	GXMLAttribute* pAttrScript = pGameTag->GetAttribute("script");
 	if(!pAttrScript)
-		GameEngine::ThrowError("Expected a \"Script\" attribute in file: %s", szFilename);
+	{
+		
+		fprintf(stderr, "*** Expected a \"script\" attribute in the realm file: %s\n", szUrl);
+		return NULL;
+	}
 	const char* szScriptName = pAttrScript->GetValue();
 	GTEMPBUF(pFullScriptName, strlen(pRS->m_szBase) + strlen(szScriptName) + 5);
 	strcpy(pFullScriptName, pRS->m_szBase);
 	strcat(pFullScriptName, szScriptName);
-	pRS->LoadScript(pFullScriptName, pModelTag, pController, pRS->m_pRealm);
+	if(!pRS->LoadScript(&httpClient, pFullScriptName, pModelTag, pController, pRS->m_pRealm))
+		return NULL;
 
 	// Make the remote var
 	delete(pRS->m_pRemoteVar);
@@ -116,31 +136,40 @@ void MRealmServer::LoadScript(const char* szFilename, GXMLTag* pMapTag, Controll
 	return hRS.Drop();
 }
 
-void MRealmServer::SendUpdates(NSendMeUpdatesPacket* pPacketIn, NRealmServerConnection* pConnection, double time)
+void MRealmServer::SendUpdates(int nConnection, NRealmServerConnection* pConnection, MClientRecord* pRecord, double time)
 {
-	if(pPacketIn->GetTime() > m_dLatestSentUpdates)
-		m_dLatestSentUpdates = pPacketIn->GetTime();
-	NUpdateObjectPacket packetOut;
+	double dLastSentUpdatesTime = pRecord->dLastSentUpdatesTime;
+	if(time - dLastSentUpdatesTime < UPDATE_REQUEST_RATE)
+		return;
+	pRecord->dLastSentUpdatesTime = time;
+	m_dLatestSentUpdates = time;
+	NUpdateRealmObjectPacket packetOut;
 	double dObjectTime;
+	double dTimeAdjustment = pRecord->dTimeDelta;
+	double dOldTime;
 	MObject* pOb;
 	int n;
 	for(n = m_pRealm->GetObjectCount() - 1; n >= 0; n--)
 	{
 		pOb = m_pRealm->GetObj(n);
 		dObjectTime = pOb->GetTime();
-		if(dObjectTime > pPacketIn->GetTime())
+		if(dObjectTime > dLastSentUpdatesTime)
 		{
+			GAssert(pOb->SanityCheck(), "Sanity check failed in MRealmServer::SendUpdates");
+			dOldTime = pOb->GetTime();
+//fprintf(stderr, "Client<--Server Client:%d Object:%d Type:%s Client time:%f, Server time:%f\n", nConnection, pOb->GetUid(), pOb->GetTypeName(), dOldTime - dTimeAdjustment, dOldTime);
+			pOb->SetTime(dOldTime - dTimeAdjustment);
 			packetOut.SetObject(pOb);
-			pConnection->SendPacket(&packetOut, pPacketIn->GetConnection());
+			pConnection->SendPacket(&packetOut, nConnection);
+			pOb->SetTime(dOldTime);
 		}
-		else if(time - dObjectTime > 60) // todo: unmagic this value
-			m_pRealm->RemoveObject(pPacketIn->GetConnection(), pOb->GetUid()); // Throw out objects that haven't been updated for a long time
+		else if(time - dObjectTime > 30) // todo: unmagic this value, or even better, dynamically adjust it according to server load
+			m_pRealm->RemoveObject(nConnection, pOb->GetUid()); // Throw out objects that haven't been updated for a long time
 	}
-
 	packetOut.SetObject(NULL);
 }
 
-void MRealmServer::UpdateObject(NUpdateObjectPacket* pPacket, double time, MClientRecord* pRecord)
+void MRealmServer::UpdateRealmObject(NUpdateRealmObjectPacket* pPacket, double time, MClientRecord* pRecord)
 {
 	// todo: check whether client has permission to update this object
 	// todo: check whether the update is acceptable (ie, does it break physical laws or go back in time relative to previous updates?)
@@ -160,21 +189,29 @@ void MRealmServer::UpdateObject(NUpdateObjectPacket* pPacket, double time, MClie
 		dAdjustedTime = time;
 		pRecord->dTimeDelta = time - dObjectTime;
 	}
-	if(dAdjustedTime <= m_dLatestSentUpdates)
+	else if(dAdjustedTime <= m_dLatestSentUpdates)
 	{
-		//pOb->Update(m_dLatestSentUpdates + .000001);
-		pOb->SetTime(m_dLatestSentUpdates + .000001);
-		if(m_dLatestSentUpdates - dAdjustedTime > 4) // todo: unmagic this time interval (how far the client is allowed to get behind the server and still be allowed to updates objects)
+		if(m_dLatestSentUpdates - dAdjustedTime > 4) // todo: unmagic this time interval
 		{
-			printf("Client got waaay behind\n");
-			pRecord->dTimeDelta = 86400;
+			fprintf(stderr, "Client %d got more than 4 seconds behind\n", pPacket->GetConnection());
+			pRecord->dTimeDelta = time + 6 - dObjectTime; // todo: unmagic this time interval
 		}
+		dAdjustedTime = m_dLatestSentUpdates + .000001;
 	}
 
 	// Update the object
-	printf("Client updated object %d\n", pOb->GetUid());
+//fprintf(stderr, "Client-->Server Client:%d Object:%d Type:%s Client time:%f Server time:%f\n", pPacket->GetConnection(), pOb->GetUid(), pOb->GetTypeName(), pOb->GetTime(), dAdjustedTime);
+	pOb->SetTime(dAdjustedTime);
 	pPacket->SetObject(NULL);
+	GAssert(pOb->SanityCheck(), "Object failed sanity check in MRealmServer::UpdateRealmObject");
 	m_pRealm->ReplaceObject(pPacket->GetConnection(), pOb);
+}
+
+void MRealmServer::RemoveRealmObject(NRemoveRealmObjectPacket* pPacket, MClientRecord* pRecord)
+{
+	// todo: check whether client has permission to remove this object
+	unsigned int uid = pPacket->GetUid();
+	m_pRealm->RemoveObject(pPacket->GetConnection(), uid);
 }
 
 void MRealmServer::ReceiveObject(NSendObjectPacket* pPacket, int nConnection)
@@ -189,7 +226,7 @@ void MRealmServer::ReceiveObject(NSendObjectPacket* pPacket, int nConnection)
 
 // -------------------------------------------------------------------------
 
-MGameServer::MGameServer(const char* szBasePath, Controller* pController)
+MGameServer::MGameServer(Controller* pController)
 : Model()
 {
 	m_pController = pController;
@@ -200,13 +237,6 @@ MGameServer::MGameServer(const char* szBasePath, Controller* pController)
 	m_nLoadCheckPos = 0;
 	m_pRealmServers = new GPointerArray(32);
 	m_pClients = new GPointerArray(64);
-	m_nBasePathLen = strlen(szBasePath);
-	if(m_nBasePathLen <= 0)
-		GameEngine::ThrowError("Base path invalid: %s", szBasePath);
-	m_szBasePath = new char[m_nBasePathLen + 1];
-	strcpy(m_szBasePath, szBasePath);
-	if(m_szBasePath[m_nBasePathLen - 1] == '/' || m_szBasePath[m_nBasePathLen - 1] == '\\')
-		m_szBasePath[--m_nBasePathLen] = '\0';
 	fprintf(stderr, "Server waiting for clients to connect...\n");
 }
 
@@ -271,8 +301,12 @@ void MGameServer::ProcessPacket(NRealmPacket* pPacket, double time)
 			SendUpdates((NSendMeUpdatesPacket*)pPacket, time);
 			break;
 
-		case NRealmPacket::UPDATE_OBJECT:
-			UpdateObject((NUpdateObjectPacket*)pPacket, time);
+		case NRealmPacket::UPDATE_REALM_OBJECT:
+			UpdateRealmObject((NUpdateRealmObjectPacket*)pPacket, time);
+			break;
+
+		case NRealmPacket::REMOVE_REALM_OBJECT:
+			RemoveRealmObject((NRemoveRealmObjectPacket*)pPacket);
 			break;
 
 		case NRealmPacket::SEND_OBJECT:
@@ -280,7 +314,7 @@ void MGameServer::ProcessPacket(NRealmPacket* pPacket, double time)
 			break;
 
 		default:
-			GAssert(false, "Unrecognized packet type");
+			printf("*** Unrecognized packet type: %d\n", (int)pPacket->GetPacketType());
 	}
 }
 
@@ -289,39 +323,43 @@ MRealmServer* MGameServer::FindOrLoadRealmServer(const char* szUrl)
 	if(szUrl[0] == '\0')
 		return NULL;
 
-	// Parse the URL to extract the local path
-	GTEMPBUF(szPath, m_nBasePathLen + strlen(szUrl) + 1);
-	strcpy(szPath, m_szBasePath);
-	GSocket::ParseURL(szUrl, NULL, NULL, szPath + m_nBasePathLen, NULL, NULL);
-	fprintf(stderr, "Client requested connection to: %s (local path: %s)\n", szUrl, szPath);
+	int n;
+	for(n = 0; szUrl[n] != '\0'; n++)
+	{
+		if(szUrl[n] == '?')
+			((char*)szUrl)[n] = '\0'; // todo: this is a hack--fix it properly
+	}
 
 	// See if it's already been loaded
-	int n;
-	for(n = 0; n < m_pRealmServers->GetSize(); n++)
+	for(n = 0; n < m_pRealmServers->GetSize(); n++) // todo: use a hash table instead
 	{
 		MRealmServer* pRS = (MRealmServer*)m_pRealmServers->GetPointer(n);
-		if(stricmp(pRS->GetPath(), szPath) == 0)
+		if(stricmp(pRS->GetUrl(), szUrl) == 0)
 			return pRS;
 	}
 
 	// Load it
-	// todo: catch exceptions here
 	MRealmServer* pRS = NULL;
 	try
 	{
-		pRS = MRealmServer::LoadRealm(szPath, this, m_pController);
+		pRS = MRealmServer::LoadRealm(szUrl, this, m_pController);
 	}
 	catch(const char* szMessage)
 	{
-		fprintf(stderr, "Error while loading realm: %s\n", szMessage);
+		fprintf(stderr, "*** Error while loading realm: %s\n", szMessage);
+	}
+	catch(const wchar_t* /*wszMessage*/)
+	{
+		fprintf(stderr, "*** Caught an exception in the form of a Unicode string\n");
 	}
 	catch(...)
 	{
+		fprintf(stderr, "*** Caught an exception of an unknown type\n");
 	}
 	if(!pRS)
 		return NULL;
 	m_pRealmServers->AddPointer(pRS);
-	fprintf(stderr, "Loaded new realm: %s\n", pRS->GetPath());
+	fprintf(stderr, "Loaded new realm: %s\n", pRS->GetUrl());
 	return pRS;
 }
 
@@ -344,7 +382,7 @@ MClientRecord* MGameServer::GetClientRecord(int n, bool bCreateIfNotFound)
 
 MRealmServer* MGameServer::GetRealmServer(int nConnection)
 {
-	GAssert(nConnection > 0, "out of range");
+	GAssert(nConnection >= 0, "connection out of range");
 	MClientRecord* pRecord = GetClientRecord(nConnection, false);
 	if(pRecord)
 		return pRecord->pRealmServer;
@@ -354,45 +392,76 @@ MRealmServer* MGameServer::GetRealmServer(int nConnection)
 
 void MGameServer::ConnectToRealm(NSetPathPacket* pPacketIn)
 {
-	MRealmServer* pRS = FindOrLoadRealmServer(pPacketIn->GetPath());
+	int nConnection = pPacketIn->GetConnection();
+	const char* szUrl = pPacketIn->GetPath();
+	MRealmServer* pRS = FindOrLoadRealmServer(szUrl);
 	if(!pRS)
 	{
-		GAssert(false, "todo: send not found packet");
+		fprintf(stderr, "*** Client %d requested a connection to bogus realm: %s\n", nConnection, szUrl);
+		// todo: drop the connection
+		//m_pConnection->
 		return;
 	}
-	int nConnection = pPacketIn->GetConnection();
 	MClientRecord* pRecord = GetClientRecord(nConnection, true);
 	pRecord->pRealmServer = pRS;
-	pRecord->dTimeDelta = 86400; // 86400 = number of seconds in a day
+	pRecord->dTimeDelta = 1e10;
+	fprintf(stderr, "Client %d has connected to realm: %s\n", nConnection, szUrl);
 }
 
 void MGameServer::SendUpdates(NSendMeUpdatesPacket* pPacketIn, double time)
 {
-	MRealmServer* pRS = GetRealmServer(pPacketIn->GetConnection());
-	if(!pRS)
-	{
-		GAssert(false, "path not set yet--todo: handle this case");
-		return;
-	}
-	pRS->SendUpdates(pPacketIn, m_pConnection, time);
-}
-
-void MGameServer::UpdateObject(NUpdateObjectPacket* pPacket, double time)
-{
-	int nConnection = pPacket->GetConnection();
+	int nConnection = pPacketIn->GetConnection();
+//fprintf(stderr, "Client %d wants updates\n", nConnection);
 	MClientRecord* pRecord = GetClientRecord(nConnection, false);
 	if(!pRecord)
 	{
-		GAssert(false, "path not set yet--todo: handle this case");
+		fprintf(stderr, "*** An unknown client tried to request updates\n");
 		return;
 	}
 	MRealmServer* pRS = pRecord->pRealmServer;
 	if(!pRS)
 	{
-		GAssert(false, "path not set yet--todo: handle this case");
+		fprintf(stderr, "*** Client requested updates, but hasn't successfully connected to a particular realm yet\n");
 		return;
 	}
-	pRS->UpdateObject(pPacket, time, pRecord);
+	pRS->SendUpdates(nConnection, m_pConnection, pRecord, time);
+}
+
+void MGameServer::UpdateRealmObject(NUpdateRealmObjectPacket* pPacket, double time)
+{
+	int nConnection = pPacket->GetConnection();
+//fprintf(stderr, "Received an object from client: %d\n", nConnection);
+	MClientRecord* pRecord = GetClientRecord(nConnection, false);
+	if(!pRecord)
+	{
+		fprintf(stderr, "*** An unknown client tried to update an object\n");
+		return;
+	}
+	MRealmServer* pRS = pRecord->pRealmServer;
+	if(!pRS)
+	{
+		fprintf(stderr, "*** Client tried to update an object, but hasn't successfully connected to a particular realm yet\n");
+		return;
+	}
+	pRS->UpdateRealmObject(pPacket, time, pRecord);
+}
+
+void MGameServer::RemoveRealmObject(NRemoveRealmObjectPacket* pPacket)
+{
+	int nConnection = pPacket->GetConnection();
+	MClientRecord* pRecord = GetClientRecord(nConnection, false);
+	if(!pRecord)
+	{
+		fprintf(stderr, "*** An unknown client tried to remove a realm object\n");
+		return;
+	}
+	MRealmServer* pRS = pRecord->pRealmServer;
+	if(!pRS)
+	{
+		fprintf(stderr, "*** Client tried to remove an object, but hasn't successfully connected to a particular realm yet\n");
+		return;
+	}
+	pRS->RemoveRealmObject(pPacket, pRecord);
 }
 
 void MGameServer::ReceiveObject(NSendObjectPacket* pPacket)
@@ -401,13 +470,13 @@ void MGameServer::ReceiveObject(NSendObjectPacket* pPacket)
 	MClientRecord* pRecord = GetClientRecord(nConnection, false);
 	if(!pRecord)
 	{
-		GAssert(false, "path not set yet--todo: handle this case");
+		fprintf(stderr, "*** An unknown client tried to send an object to the server\n");
 		return;
 	}
 	MRealmServer* pRS = pRecord->pRealmServer;
 	if(!pRS)
 	{
-		GAssert(false, "path not set yet--todo: handle this case");
+		fprintf(stderr, "*** Client tried to send an object to the server, but hasn't successfully connected to a particular realm yet\n");
 		return;
 	}
 	pRS->ReceiveObject(pPacket, nConnection);
@@ -417,9 +486,7 @@ void MGameServer::ReceiveObject(NSendObjectPacket* pPacket)
 {
 	if(!pNew || !pOld || nConnection <= 0)
 		return true;
-	// todo: if the server load is high, just return true
-
-	return pNew->m_pScriptEngine->CallVerify(nConnection, pOld, pNew);
+	return pNew->m_pScriptEngine->CallVerify(nConnection, pOld, pNew); // todo: if the server load is high, just return true
 }
 
 /*virtual*/ void MGameServer::SendObject(GObject* pObj, int nConnection)
@@ -432,3 +499,14 @@ void MGameServer::ReceiveObject(NSendObjectPacket* pPacket)
 	packet.SetObject(pObj);
 	m_pConnection->SendPacket(&packet, nConnection);
 }
+
+void MGameServer::OnLoseConnection(int nConnection)
+{
+	fprintf(stderr, "Client %d has disconnected\n", nConnection);
+}
+
+void MGameServer::BootClient(int nConnection)
+{
+	m_pConnection->Disconnect(nConnection);
+}
+

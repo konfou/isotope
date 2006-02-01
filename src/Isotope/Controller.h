@@ -52,6 +52,7 @@ public:
 		CLIENT,
 		KEYPAIR,
 		PUZGEN,
+		PUZSEARCHENGINE,
 	};
 
 	enum ControlModes
@@ -164,6 +165,9 @@ public:
 	void SetSkyImage(GString* pID);
 	void SetGroundImage(GString* pID);
 	void MakeChatCloud(const wchar_t* wszText);
+	void GoBack();
+	void ShowMediaHtmlPage(const char* szPage);
+	void ShowWebPage(const char* szUrl);
 
 protected:
 	//void GetArrowKeyVector(float* pdx, float* pdy);

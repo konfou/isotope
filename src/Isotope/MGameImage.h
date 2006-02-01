@@ -123,6 +123,7 @@ public:
 
 	void load(Engine* pEngine, EVar* pFilename);
 	const char* GetID();
+	void munge(Engine* pEngine, EVar* pStyle, EVar* pExtent);
 
 protected:
 	void makeTextImageHelper(Engine* pEngine, const char* szText);

@@ -12,7 +12,8 @@
 #include "View.h"
 #include "ViewPort.h"
 #include "../GClasses/GArray.h"
-#include "GameEngine.h"
+#include "../GClasses/GXML.h"
+#include "Main.h"
 
 View::View()
 {
@@ -33,20 +34,42 @@ View::~View()
 
 void View::SetScreenSize(int x, int y)
 {
-#ifdef WIN32
+	// Determine whether to use full screen or windowed mode
+#ifdef _DEBUG
 	m_bFullScreen = false;
-#else // WIN32
-	m_bFullScreen = false;
-#endif // !WIN32
+#else // _DEBUG
+	m_bFullScreen = true;
+#endif // !_DEBUG
+	GXMLTag* pConfigTag = GameEngine::GetConfig();
+	GXMLTag* pStartTag = pConfigTag->GetChildTag("Start");
+	if(pStartTag)
+	{
+		GXMLAttribute* pFullScreenAttr = pStartTag->GetAttribute("fullscreen");
+		if(pFullScreenAttr && stricmp(pFullScreenAttr->GetValue(), "true") != 0)
+			m_bFullScreen = false;
+	}
+
+	// Make the display flags
 	unsigned int flags = 
-		SDL_HWSURFACE |
+//      * Don't add SDL_HWSURFACE to these flags. Why? It may seem counter-intuitive, but
+//      * it's actually faster without it because we draw each pixel individually and it
+//      * takes a long time to push each pixel over the bus directly into video ram, and
+//      * it's faster to let SDL just push the whole back-buffer into video ram in one shot.
+//      * Besides, this flag seems to cause bad flicker problems in Windows in full-screen
+//      * mode because it draw to the front-buffer instead of the back buffer. I think this
+//      * is due to a bug in NVidia's driver that fails to sync up with the vertical
+//      * refresh rate properly, but I'm not sure.
+//		SDL_HWSURFACE |
+		SDL_SWSURFACE |
+//      * This flag seems to make the screen go black in Windows. I haven't yet determined
+//      * whether it has any beneficial effect on Linux so it's commented out for now.
+//		SDL_DOUBLEBUF |
+//      * I don't know what this flag does
 		SDL_ANYFORMAT;
 	if(m_bFullScreen)
 		flags |= SDL_FULLSCREEN;
-#ifdef WIN32
-	else
-#endif // WIN32
-		flags |= SDL_DOUBLEBUF; // There's a bug in SDL where double-buffering doesn't work with full screen mode on Windows
+
+	// Make the display
 	m_pScreen = SDL_SetVideoMode(x, y, 32, flags);
 	if(!m_pScreen)
 	{

@@ -13,7 +13,7 @@
 #include "MAnimation.h"
 #include "../GClasses/GXML.h"
 #include "../GClasses/GHashTable.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MGameClient.h"
 #include "MStore.h"
 #include "MScriptEngine.h"

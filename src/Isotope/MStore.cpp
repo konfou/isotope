@@ -10,7 +10,7 @@
 */
 
 #include "MStore.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MAnimation.h"
 #include "VWave.h"
 #include "../GClasses/GArray.h"

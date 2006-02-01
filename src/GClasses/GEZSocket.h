@@ -15,7 +15,7 @@
 #include "GSocket.h"
 
 // This class is designed to make network communication really easy
-class GEZSocketServer : public GSocket
+class GEZSocketServer : public GSocketServerBase
 {
 protected:
 	GPointerArray* m_pBuffers;
@@ -26,7 +26,7 @@ protected:
 	virtual bool Receive(unsigned char *pBuf, int len, int nConnectionNumber);
 	void QueueMessage(unsigned char* pBuf, int nLen, int nConnectionNumber);
 
-	GEZSocketServer(int nMaxPacketSize);
+	GEZSocketServer(bool bUDP, int nMaxPacketSize, int nPort, int nMaxConnections);
 
 public:
 	// Host a TCP socket
@@ -53,7 +53,7 @@ public:
 // --------------------------------------------------------------------------
 
 // This class is designed to make network communication really easy
-class GEZSocketClient : public GSocket
+class GEZSocketClient : public GSocketClientBase
 {
 protected:
 	unsigned char* m_pBuffer;
@@ -62,10 +62,10 @@ protected:
 	GPointerQueue* m_pMessageQueue;
 	GSpinLock* m_pMessageQueueLock;
 
-	virtual bool Receive(unsigned char *pBuf, int len, int nConnectionNumber);
+	virtual bool Receive(unsigned char *pBuf, int len);
 	void QueueMessage(unsigned char* pBuf, int nLen);
 
-	GEZSocketClient(int nMaxPacketSize);
+	GEZSocketClient(bool bUDP, int nMaxPacketSize);
 
 public:
 	// Connect to a TCP socket
@@ -101,7 +101,7 @@ protected:
 	GPointerArray* m_pClientPassphrases;
 	GIntArray* m_nClientPassphraseSizes;
 
-	GSecureSocketServer(int nMaxPacketSize, GRand* pRand);
+	GSecureSocketServer(int nMaxPacketSize, GRand* pRand, int nPort);
 
 public:
 	// nRandomDataSize should be cryptographic random data four times the size you want your keys to be

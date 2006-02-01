@@ -10,12 +10,13 @@
 */
 
 #include "MObject.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "Model.h"
 #include "MStore.h"
 #include "MAnimation.h"
 #include "../GClasses/GString.h"
 #include "../Gasp/BuiltIns/GaspFloat.h"
+#include "../Gasp/Engine/EType.h"
 #include "../GClasses/GBillboardCamera.h"
 #include "MGameClient.h"
 #include "MRealm.h"
@@ -47,6 +48,7 @@ MObject::MObject(MScriptEngine* pScriptEngine)
 	GAssert(m_vh.m_szID = "MObject.m_vh", "");
 	m_pScriptEngine = pScriptEngine;
 	m_flags = MOB_Tangible;
+	m_nPivotHeight = 0;
 }
 
 MObject::~MObject()
@@ -162,4 +164,30 @@ float MObject::GetDistanceSquared(float x, float y)
 	x -= x1;
 	y -= y1;
 	return x * x + y * y;
+}
+
+bool MObject::IsChatCloud()
+{
+	GObject* pOb = m_vh.GetGObject();
+	if(!pOb)
+		return false;
+	if(strcmp(pOb->GetType()->GetName(), "ChatCloud") == 0)
+		return true;
+	return false;
+}
+
+const char* MObject::GetTypeName()
+{
+	return m_vh.GetGObject()->GetType()->GetName();
+}
+
+bool MObject::SanityCheck()
+{
+	ObjectObject* pOb = (ObjectObject*)m_vh.GetGObject();
+	if(!pOb)
+		return false; // MObject wraps NULL
+	double dTime = GetTime();
+	if(dTime < 1137777000 /*The year 2006*/ || dTime > 2147483647 /*The year 2038*/)
+		return false; // time out of range. 86400 = number of seconds in a day
+	return true;
 }

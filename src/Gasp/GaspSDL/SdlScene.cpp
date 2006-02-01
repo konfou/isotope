@@ -88,7 +88,8 @@ void SdlView::render(G3DObject* pObj3D, Point3D* pCameraPos, int nFrames, int nC
 		if(nBackdropFrames > 0)
 			pBackdropImage = &pBackdrops[n * nBackdropFrames / nFrames];
 		m_pSphereFrames[n] = new GPreRendered3DScreen(nCircumference >> 2);
-		m_pSphereFrames[n]->Render(pObj3D, pCameraPos, nAllowedSubRays, n, nFrames, dLightThreshold, pBackdropImage);
+GAssert(false, "todo: uncomment the next line");
+//		m_pSphereFrames[n]->Render(pObj3D, pCameraPos, nAllowedSubRays, n, nFrames, dLightThreshold, pBackdropImage);
 	}
 }
 
@@ -222,6 +223,8 @@ void SdlScene::load(Engine* pEngine, EVar* pFilename)
 
 void SdlScene::renderHelper(Engine* pEngine, EVar* pFilename)
 {
+GAssert(false, "todo: uncomment this method");
+/*
 	// Load the XML file
 	GXMLTag* pRootTag;
 	Holder<GXMLTag*> hTag(NULL);
@@ -302,10 +305,13 @@ void SdlScene::renderHelper(Engine* pEngine, EVar* pFilename)
 		m_pViews[n].render(pObj3D, &cameraPos, nFrames, nCircumference, pBackdropFrames, pBackdropTag->GetChildTagCount());
 		n++;
 	}
+*/
 }
 
 void SdlScene::GetBestView(Engine* pEngine, Point3D* pFocusPoint)
 {
+GAssert(false, "todo: uncomment this method");
+/*
 	if(m_nViews <= 0)
 		pEngine->ThrowSdlError(L"There's nothing to view in this scene");
 
@@ -329,10 +335,13 @@ void SdlScene::GetBestView(Engine* pEngine, Point3D* pFocusPoint)
 	v.FromAToB(&m_pCurrentView->m_cameraPos, pFocusPoint);
 	m_camera.FromVector(&v);
 	m_camera.dScale = 1; // todo: recalculate the scale somehow
+*/
 }
 
 void SdlScene::draw(Engine* pEngine, EVar* pFrame, EVar* pFocusPoint, EVar* pFrameNumber)
 {
+GAssert(false, "todo: uncomment this method");
+/*
 	// Convert the focus point
 	Point3D focusPoint;
 	focusPoint.x = ((IntObject*)pFocusPoint->pObjectObject->arrFields[0])->m_value;
@@ -356,5 +365,6 @@ void SdlScene::draw(Engine* pEngine, EVar* pFrame, EVar* pFocusPoint, EVar* pFra
 
 	// Blit the scene
 	pSdlFrame->blit(0, 0, pImage, 0, 0, pImage->GetWidth(), pImage->GetHeight());
+*/
 }
 

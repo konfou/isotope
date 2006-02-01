@@ -12,7 +12,7 @@
 #include "VWave.h"
 #include "../SDL/SDL.h"
 #include "../GClasses/GMacros.h"
-#include "GameEngine.h"
+#include "Main.h"
 #ifdef WIN32
 #include <windows.h>
 #else // WIN32

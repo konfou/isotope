@@ -31,6 +31,8 @@ machine GameMachine
 	method reportStats(Array:nameValuePairs)
 	method setSkyImage(String:id)
 	method setGroundImage(String:id)
+	method setPivotHeight(Integer:id, Integer:height)
+	method addMerit(String:skill, Bool:correct, Float:level, Float:amount)
 }
 
 machine GImage
@@ -47,6 +49,7 @@ machine GImage
 	method &invert()
 	method &glow()
 	method !newCopy(GImage:that)
+	method &munge(Integer:style, Float:extent)
 }
 
 interface IObject
@@ -120,6 +123,11 @@ class RealmObject(Object)
 		!this.sx.new()
 		!this.sy.new()
 		!this.sz.new()
+	}
+
+	method &setPivotHeight(Integer:height)
+	{
+		!GameMachine:gm.setPivotHeight(this.uid, height)
 	}
 }
 
@@ -424,6 +432,85 @@ class AnimatedLink(RealmObject)
 
 	method &onGetFocus()
 	{
+	}
+
+	method &onLoseFocus()
+	{
+	}
+
+	method verify(&Bool:ok, Integer:client, RealmObject:newObj)
+	{
+	}
+}
+
+class PaletteItem(RealmObject)
+{
+	!GImage:image
+	!GImage:image2
+	!Bool:selected
+	!Scenery:shadow
+	!String:shadowID
+
+	method !new(String:imageID, String:ImageID2)
+	{
+		!this.allocate()
+		&this.init()
+		!GameMachine:gm.getImage(!this.image, imageID)
+		!this.image2.newCopy(this.image)
+		&this.image2.glow()
+		!this.shadowID.new()
+		&this.shadowID.copy(ImageID2)
+		!this.selected.new()
+	}
+
+	method &update(Float:time)
+	{
+	}
+
+	method getFrame(!GImage:i, &Rect:r, Float:cameraDirection)
+	{
+		if(this.selected = Bool.false)
+		{
+			!i.set(this.image)
+			i.getRect(&r)
+		}
+		else
+		{
+			!i.set(this.image2)
+			i.getRect(&r)
+		}
+	}
+
+	method &doAction(Float:x, Float:y)
+	{
+	}
+
+	method &onGetFocus()
+	{
+		if(this.selected = Bool.false)
+		{
+			!this.shadow.new(this.shadowID)
+			&this.shadow.x.copy(this.x)
+			&this.shadow.y.copy(this.y)
+			&this.shadow.z.copy(0)
+			&this.shadow.sx.copy(200)
+			&this.shadow.sy.copy(200)
+			&this.shadow.sz.copy(200)
+			!GameMachine:gm.getTime(&this.shadow.time)
+			gm.addObject(this.shadow)
+			&this.selected.copy(Bool.true)
+			&this.shadow.x.copy(200)
+			&this.shadow.y.copy(0)
+			!GameMachine:gm.playSound("stapler")
+		}
+		else
+		{
+			&this.selected.copy(Bool.false)
+			&this.shadow.x.copy(this.x)
+			&this.shadow.y.copy(this.y)
+			!GameMachine:rm.removeObject(this.shadow.uid)
+			!GameMachine:gm.playSound("cork_pop")
+		}
 	}
 
 	method &onLoseFocus()

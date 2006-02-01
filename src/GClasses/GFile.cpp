@@ -121,7 +121,7 @@ bool GFile::CpyFile(const char* szSrcPath, const char* szDestPath)
 		return NULL;
 	int nFileSize = filelength(fileno(pFile));
 	*pnSize = nFileSize;
-	Holder<char*> hBuffer(new char[nFileSize + 1]);
+	ArrayHolder<char*> hBuffer(new char[nFileSize + 1]);
 	GAssert(hBuffer.Get(), "out of memory");
 	int nBytesRead = fread(hBuffer.Get(), sizeof(char), nFileSize, pFile);
 	int err = ferror(pFile);

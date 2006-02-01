@@ -100,8 +100,7 @@ double GPolynomial::Eval(double* pVariables)
 
 double GPolynomial::MeasureMeanSquareError(GArffRelation* pRelation, GArffData* pData, int nOutputAttr)
 {
-	GArffAttribute* pAttr = pRelation->GetAttribute(nOutputAttr);
-	GAssert(!pAttr->IsInput(), "expected an output attribute");
+	GAssert(!pRelation->GetAttribute(nOutputAttr)->IsInput(), "expected an output attribute");
 	int nInputs = pRelation->GetInputCount();
 	double dSum = 0;
 	double* pRow;
@@ -170,8 +169,7 @@ inline double RandomDouble()
 
 /*static*/ GPolynomial* GPolynomial::FitData(GArffRelation* pRelation, GArffData* pData, int nOutputAttr, int nControlPoints)
 {
-	GArffAttribute* pAttr = pRelation->GetAttribute(nOutputAttr);
-	GAssert(!pAttr->IsInput(), "expected an output attribute");
+	GAssert(!pRelation->GetAttribute(nOutputAttr)->IsInput(), "expected an output attribute");
 	int nInputs = pRelation->GetInputCount();
 	GPolynomial* pPolynomial = new GPolynomial(nInputs, nControlPoints);
 	double dBestError = pPolynomial->MeasureMeanSquareError(pRelation, pData, nOutputAttr);
@@ -211,8 +209,7 @@ inline double RandomDouble()
 
 /*static*/ GPolynomial* GPolynomial::DivideData(GArffRelation* pRelation, GArffData* pData, int nOutputAttr, int nControlPoints)
 {
-	GArffAttribute* pAttr = pRelation->GetAttribute(nOutputAttr);
-	GAssert(!pAttr->IsInput(), "expected an output attribute");
+	GAssert(!pRelation->GetAttribute(nOutputAttr)->IsInput(), "expected an output attribute");
 	int nInputs = pRelation->GetInputCount();
 	GAssert(nInputs > 1, "Not enough inputs for this technique");
 	GPolynomial* pPolynomial = new GPolynomial(nInputs - 1, nControlPoints);

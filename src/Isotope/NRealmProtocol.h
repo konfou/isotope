@@ -21,6 +21,7 @@
 
 #define MAX_PACKET_SIZE 16384
 #define DEFAULT_PORT 4748
+#define UPDATE_REQUEST_RATE .2 // the rate (in seconds) at which clients are allowed to request updates
 
 class GEZSocketServer;
 class GEZSocketClient;
@@ -32,8 +33,12 @@ class MScriptEngine;
 class VarHolder;
 class Engine;
 class GObject;
+class NRealmClientSocket;
+class NRealmServerSocket;
 
-// This is the base class of all communication packets for this protocol
+// This is the base class of all communication packets for this protocol. WARNING: be very careful
+// when writing the deserialize method for your new packet or else you may open a buffer overrun
+// security hole on the server!
 class NRealmPacket
 {
 public:
@@ -41,8 +46,9 @@ public:
 	{
 		SET_PATH,
 		SEND_ME_UPDATES,
-		UPDATE_OBJECT,
+		UPDATE_REALM_OBJECT,
 		SEND_OBJECT,
+		REMOVE_REALM_OBJECT,
 	};
 
 protected:
@@ -93,15 +99,12 @@ class NSendMeUpdatesPacket : public NRealmPacket
 {
 friend class NRealmPacket;
 protected:
-	double m_time;
 
 public:
 	NSendMeUpdatesPacket();
 	virtual ~NSendMeUpdatesPacket();
 
 	virtual RealmPacketType GetPacketType() { return SEND_ME_UPDATES; }
-	void SetTime(double time) { m_time = time; }
-	double GetTime() { return m_time; }
 
 protected:
 	static NSendMeUpdatesPacket* Deserialize(const unsigned char* pData, int nSize);
@@ -111,28 +114,50 @@ protected:
 
 
 
+// This packet tells the server to remove a particular object from the realm
+class NRemoveRealmObjectPacket : public NRealmPacket
+{
+friend class NRealmPacket;
+protected:
+	unsigned int m_uid;
+
+public:
+	NRemoveRealmObjectPacket();
+	virtual ~NRemoveRealmObjectPacket();
+
+	virtual RealmPacketType GetPacketType() { return REMOVE_REALM_OBJECT; }
+	void SetUid(unsigned int uid) { m_uid = uid; }
+	unsigned int GetUid() { return m_uid; }
+
+protected:
+	static NRemoveRealmObjectPacket* Deserialize(const unsigned char* pData, int nSize);
+	virtual int Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuffer, int nBufferSize);
+};
+
+
+
 
 // This packet basically contains a serialized MObject, and it says "Here's the latest
 // info I've got about this object".  The client should send these to the server whenever
 // it (the client) makes changes to an object (like if the avatar changes directions).
 // The server will also send these to the clients on request.
-class NUpdateObjectPacket : public NRealmPacket
+class NUpdateRealmObjectPacket : public NRealmPacket
 {
 friend class NRealmPacket;
 protected:
 	MObject* m_pObject;
 
 public:
-	NUpdateObjectPacket();
-	virtual ~NUpdateObjectPacket();
+	NUpdateRealmObjectPacket();
+	virtual ~NUpdateRealmObjectPacket();
 
-	virtual RealmPacketType GetPacketType() { return UPDATE_OBJECT; }
+	virtual RealmPacketType GetPacketType() { return UPDATE_REALM_OBJECT; }
 	MObject* GetMObject() { return m_pObject; }
 	void SetObject(MObject* pObject) { m_pObject = pObject; }
 
 protected:
 	virtual int Serialize(MScriptEngine* pScriptEngine, unsigned char* pBuffer, int nBufferSize);
-	static NUpdateObjectPacket* Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize);
+	static NUpdateRealmObjectPacket* Deserialize(MScriptEngine* pScriptEngine, const unsigned char* pData, int nSize);
 };
 
 
@@ -162,11 +187,11 @@ protected:
 
 
 // This class wraps the server's socket connection.  It provides a channel through which the server
-// waits for new connections from new clients, and communicates with them when the connect.
+// waits for new connections from new clients, and communicates with them when they connect.
 class NRealmServerConnection
 {
 protected:
-	GEZSocketServer* m_pSocket;
+	NRealmServerSocket* m_pSocket;
 	GPointerQueue* m_pQueue;
 	unsigned char m_pBuf[MAX_PACKET_SIZE];
 	MGameServer* m_pServer;
@@ -178,7 +203,11 @@ public:
 	NRealmPacket* GetNextPacket();
 	void SendPacket(NRealmPacket* pPacket, int nConnection);
 	void ReportBadPacket(int nConnection);
+	void OnCloseConnection(int nConnection);
+	void Disconnect(int nConnection);
 };
+
+
 
 
 
@@ -189,7 +218,7 @@ public:
 class NRealmClientConnection
 {
 protected:
-	GEZSocketClient* m_pSocket;
+	NRealmClientSocket* m_pSocket;
 	GPointerQueue* m_pQueue;
 	unsigned char m_pBuf[MAX_PACKET_SIZE];
 	MGameClient* m_pGameClient;
@@ -200,6 +229,7 @@ public:
 
 	NRealmPacket* GetNextPacket();
 	void SendPacket(NRealmPacket* pPacket);
+	void OnCloseConnection();
 };
 
 #endif // __NREALMPROTOCOL_H__

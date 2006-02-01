@@ -70,6 +70,7 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GQueue.cpp\
                    $(GCLASSES_PATH)/GRand.cpp\
                    $(GCLASSES_PATH)/GRayTrace.cpp\
+                   $(GCLASSES_PATH)/GRibParser.cpp\
                    $(GCLASSES_PATH)/GRiddle.cpp\
                    $(GCLASSES_PATH)/GSDL.cpp\
                    $(GCLASSES_PATH)/GSearch.cpp\
@@ -141,6 +142,7 @@ GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GQueue.h\
                    $(GCLASSES_PATH)/GRand.h\
                    $(GCLASSES_PATH)/GRayTrace.h\
+                   $(GCLASSES_PATH)/GRibParser.h\
                    $(GCLASSES_PATH)/GRiddle.h\
                    $(GCLASSES_PATH)/GSDL.h\
                    $(GCLASSES_PATH)/GSearch.h\

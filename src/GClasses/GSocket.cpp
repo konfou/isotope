@@ -9,14 +9,6 @@
 	see http://www.gnu.org/copyleft/lesser.html
 */
 
-#ifdef WIN32
-// This next line is only needed because Visual Studio 6.0
-// comes with some really old libraries. If you have an updated
-// Platform SDK or Visual Studio 7.0 or later, you should comment
-// out the next line
-#define OLD_NAME_RESOLUTION
-#endif // WIN32
-
 #include "GSocket.h"
 #include <time.h>
 #include "GSpinLock.h"
@@ -195,6 +187,40 @@ void gsocket_LogError()
 	ThrowError(wszMsg);
 }
 
+inline void SetSocketToBlockingMode(SOCKET s)
+{
+	unsigned long ulMode = 0;
+#ifdef WIN32
+	if(ioctlsocket(s, FIONBIO, &ulMode) != 0)
+#else // WIN32
+	if(ioctl(s, FIONBIO, &ulMode) != 0)
+#endif // !WIN32
+	{
+		gsocket_LogError();
+	}
+}
+
+inline void SetSocketToNonBlockingMode(SOCKET s)
+{
+	unsigned long ulMode = 1;
+#ifdef WIN32
+	if(ioctlsocket(s, FIONBIO, &ulMode) != 0)
+#else // WIN32
+	if(ioctl(s, FIONBIO, &ulMode) != 0)
+#endif // WIN32
+		gsocket_LogError();
+}
+
+inline void CloseSocket(SOCKET s)
+{
+#ifdef WIN32
+	closesocket(s);
+#else
+	close(s);
+#endif // WIN32
+}
+
+
 #ifdef WIN32
 bool gsocket_InitWinSock()
 {
@@ -228,83 +254,34 @@ bool gsocket_InitWinSock()
 }
 #endif // WIN32
 
-//////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
 
-GSocket::GSocket()
+GSocketClientBase::GSocketClientBase(bool bUDP)
 {
-	m_pHostSockets = NULL;
-	m_pHostListenThreads = NULL;
 	m_hListenThread = BAD_HANDLE;
-	m_hConnectionAccepterThread = BAD_HANDLE;
 	m_s = INVALID_SOCKET;
-	m_pMutexSocketNumber = new GSpinLock();
 	m_bKeepListening = true;
-	m_nListenThreadCount = 0;
-	m_bKeepAccepting = true;
-	m_nAcceptorThreadCount = 0;
-	m_bUDP = false;
-}
-
-GSocket::~GSocket()
-{
-	m_bKeepAccepting = false;
-	m_bKeepListening = false;
-	JoinAcceptorThread();
-	JoinAllListenThreads();
-
-	// Disconnect the connection
-	if(m_s != INVALID_SOCKET)
-	{
-		shutdown(m_s, 2);
-#ifdef WIN32		
-		closesocket(m_s);
-#else
-		close(m_s);
-#endif
-		m_s = INVALID_SOCKET;
-	}
-
-	// Disconnect all the connections
-	if(m_pHostSockets)
-	{
-		int nSockets = m_pHostSockets->GetSize();
-		int n;
-		SOCKET Sock;
-		for(n = 0; n < nSockets; n++)
-		{
-			Sock = m_pHostSockets->GetSocket(n);
-			if(Sock != INVALID_SOCKET)
-			{
-				shutdown(Sock, 2);
-#ifdef WIN32				
-				closesocket(Sock);
-#else
-				close(m_s);
+	m_bUDP = bUDP;
+#ifdef WIN32
+	if(!gsocket_InitWinSock())
+		throw "Error initializing WinSock";
 #endif // WIN32
-				m_pHostSockets->SetSocket(n, INVALID_SOCKET);
-			}
-		}
-	}
-
-	// Delete the Host Arrays
-	delete(m_pHostSockets);
-	delete(m_pHostListenThreads);
-	delete(m_pMutexSocketNumber);
 }
 
-void GSocket::JoinAllListenThreads()
+GSocketClientBase::~GSocketClientBase()
+{
+	Disconnect();
+}
+
+void GSocketClientBase::JoinListenThread()
 {
 	m_bKeepListening = false;
 	time_t tStart;
 	time_t tNow;
 	time(&tStart);
-	while(m_nListenThreadCount > 0)
+	while(m_hListenThread != BAD_HANDLE)
 	{
-#ifdef WIN32
-		Sleep(0);
-#else // WIN32
-		usleep(0);
-#endif // else WIN32
+		GThread::sleep(0);
 		time(&tNow);
 		if(tNow - tStart > 4)
 		{
@@ -312,59 +289,20 @@ void GSocket::JoinAllListenThreads()
 			break;
 		}
 	}
-	m_bKeepListening = true;
 }
 
-void GSocket::JoinListenThread(int nConnectionNumber)
+void GSocketClientBase::JoinListenThread(int nConnectionNumber)
 {
 	GAssert(false, "Error, not implemented yet");
 }
 
-void GSocket::JoinAcceptorThread()
+void GSocketClientBase::Listen()
 {
-	m_bKeepAccepting = false;
-	time_t tStart;
-	time_t tNow;
-	time(&tStart);
-	while(m_nAcceptorThreadCount > 0)
-	{
-#ifdef WIN32		
-		Sleep(0);
-#else // WIN32
-		usleep(0);
-#endif // else WIN32
-		time(&tNow);
-		if(tNow - tStart > 4)
-		{
-			GAssert(false, "Error, took too long for the acceptor thread to exit");
-			break;
-		}
-	}
-}
-
-void GSocket::Listen()
-{
-	int nSocketNumber = m_nSocketNumber;
-	m_nListenThreadCount++;
-	m_pMutexSocketNumber->Unlock();
 	char szReceiveBuff[520];
-	SOCKET s;
-	if(nSocketNumber < 1)
-		s = m_s;
-	else
-		s = m_pHostSockets->GetSocket(nSocketNumber - 1);
+	SOCKET s = m_s;
 
 	// Mark the socket as blocking so we can call "recv" which is a blocking operation
-	unsigned long ulMode = 0;
-#ifdef WIN32
-	if(ioctlsocket(s, FIONBIO, &ulMode) != 0)
-#else
-	if(ioctl(s, FIONBIO, &ulMode) != 0)
-#endif // WIN32
-	{
-		gsocket_LogError();
-		return;
-	}
+	SetSocketToBlockingMode(s);
 
 	// Start receiving messages
 	unsigned long dwBytesReadyToRead;
@@ -384,18 +322,14 @@ void GSocket::Listen()
 		{
 			nBytesRead = recv(s, szReceiveBuff, 512, 0); // read from the queue (This blocks until there is some to read or connection is closed, but we already know there is something to read)
 			if(nBytesRead > 0) // recv reads in as much data as is currently available up to the size of the buffer
-				Receive((unsigned char*)szReceiveBuff, nBytesRead, nSocketNumber);
+				Receive((unsigned char*)szReceiveBuff, nBytesRead);
 			else
 				break; // The socket has been closed
 		}
 		else
 		{
 			// There's nothing to receive, so let's sleep for a while
-#ifdef WIN32
-			Sleep(50);
-#else // WIN32
-			usleep(50);
-#endif // else WIN32
+			GThread::sleep(50);
 		}
 	}
 
@@ -412,273 +346,24 @@ void GSocket::Listen()
 	}
 #endif // WIN32
 
-	OnLoseConnection(nSocketNumber);
-	if(nSocketNumber < 1)
-	{
-		m_hListenThread = BAD_HANDLE;
-		shutdown(m_s, 2);
-#ifdef WIN32
-		closesocket(m_s);
-#else
-		close(m_s);
-#endif // WIN32
-		m_s = INVALID_SOCKET;
-	}
-
-	else
-	{
-		if(m_pHostListenThreads->GetSize() < nSocketNumber)
-		{
-#ifdef WIN32
-			Sleep(100);
-#else // WIN32
-			usleep(100);
-#endif // else WIN32
-		}
-		m_pHostListenThreads->SetHandle(nSocketNumber - 1, BAD_HANDLE);
-		shutdown(m_pHostSockets->GetSocket(nSocketNumber - 1), 2);
-#ifdef WIN32
-		closesocket(m_pHostSockets->GetSocket(nSocketNumber - 1));
-#else
-		close(m_s);
-#endif // WIN32		
-		m_pHostSockets->SetSocket(nSocketNumber - 1, INVALID_SOCKET);
-	}
-	m_pMutexSocketNumber->Lock("Listen Thread: About to decrement thread count");
-	m_nListenThreadCount--;
-	m_pMutexSocketNumber->Unlock();
-}
-
-int GSocket::GetFirstAvailableSocketNumber()
-{
-	if(!m_pHostSockets)
-		m_pHostSockets = new GSocketArray(16);
-	if(!m_pHostListenThreads)
-		m_pHostListenThreads = new GHandleArray(16);
-
-	// Find the first empty Handle slot for the listening thread
-	int nSize = m_pHostListenThreads->GetSize();
-	int nSocketNumber = -1;
-	int n;
-	for(n = 0; n < nSize; n++)
-	{
-		if(m_pHostListenThreads->GetHandle(n) == BAD_HANDLE)
-		{
-			nSocketNumber = n + 1;
-			break;
-		}
-	}
-
-	// Add a new slot if we couldn't find one
-	if(nSocketNumber < 0)
-	{
-		m_pHostListenThreads->AddHandle(BAD_HANDLE);
-		nSocketNumber = nSize + 1;
-	}
-
-	// Make sure there is a corresponding slot in the socket array
-	while(m_pHostSockets->GetSize() < nSocketNumber)
-		m_pHostSockets->AddSocket(INVALID_SOCKET);
-
-	return nSocketNumber;
+	OnCloseConnection();
+	shutdown(m_s, 2);
+	CloseSocket(m_s);
+	m_s = INVALID_SOCKET;
+	m_hListenThread = BAD_HANDLE;
 }
 
 unsigned int ListenThread(void* pData)
 {
-	((GSocket*)pData)->Listen();
+	((GSocketClientBase*)pData)->Listen();
 	return 0;
 }
 
-unsigned int ConnectionAcceptorThread(void* pData)
+/*virtual*/ void GSocketClientBase::OnCloseConnection()
 {
-	((GSocket*)pData)->ConnectionAccepter();
-	return 0;
 }
 
-void GSocket::ConnectionAccepter()
-{
-	m_nAcceptorThreadCount++;
-	GAssert(m_nAcceptorThreadCount == 1, "Why are there multiple acceptor threads?");
-	if(!m_pHostSockets)
-		m_pHostSockets = new GSocketArray(16);
-	if(!m_pHostListenThreads)
-		m_pHostListenThreads = new GHandleArray(16);
-#ifdef WIN32
-	GWindows::YieldToWindows();
-	int n;
-#else // WIN32
-	socklen_t n;
-#endif // else WIN32
-	while(m_bKeepAccepting)
-	{
-		// Accept the first connection waiting in the queue to be accepted
-		// The socket should be marked non-blocking at this point, so this will
-		// return immediately if there are not connections ready to be accepted
-		n = sizeof(struct sockaddr);
-		SOCKET s = accept(m_s, (struct sockaddr*)&m_sHostAddrIn, &n);
-		if(s == INVALID_SOCKET)
-		{
-#ifdef WIN32
-			if(WSAGetLastError() == WSAEWOULDBLOCK)
-#else // WIN32
-			if(errno == EAGAIN)
-#endif // else WIN32
-			{
-				// There are no connections ready to be accepted, so let's sleep for .5 seconds
-#ifdef WIN32
-				GWindows::YieldToWindows();
-				Sleep(500);
-#else // WIN32
-				usleep(500);
-#endif // else WIN32
-			}
-			else
-			{
-				// Something went wrong
-				gsocket_LogError();
-				break;
-			}
-		}
-		else
-		{
-			int nSocketNumber = GetFirstAvailableSocketNumber();
-			m_pHostSockets->SetSocket(nSocketNumber - 1, s);
-			m_pMutexSocketNumber->Lock("Connection Acceptor Thread: About to spawn listen thread");
-			m_nSocketNumber = nSocketNumber;
-			HANDLE h = GThread::SpawnThread(ListenThread, this);
-			if(h == BAD_HANDLE)
-			{
-				GAssert(false, "Failed to spawn listening thread\n");
-				m_hConnectionAccepterThread = BAD_HANDLE;
-				m_pMutexSocketNumber->Unlock();
-				break;
-			}
-			m_pHostListenThreads->SetHandle(nSocketNumber - 1, h);
-
-			// WARNING: the accept function will return as soon as it gets
-			//         an ACK packet back from the client, but the connection
-			//         isn't actually established until more data is
-			//         received.  Therefore, if you try to send data immediately
-			//         (which someone might want to do in OnAcceptConnetion, the
-			//         data might be lost since the connection might not be
-			//         fully open.
-			OnAcceptConnection(nSocketNumber);
-		}
-	}
-	m_nAcceptorThreadCount--;
-	m_hConnectionAccepterThread = BAD_HANDLE;
-}
-
-bool GSocket::GoIntoHostMode(unsigned short nListenPort, int nMaxConnections)
-{
-	// Make the Socket
-	m_s = socket(AF_INET, m_bUDP ? SOCK_DGRAM : SOCK_STREAM, 0);
-	if(m_s == INVALID_SOCKET)
-	{
-		gsocket_LogError();
-		return false; 
-	}
-
-	// Put the socket into non-blocking mode (so the call to "accept" will return immediately
-	// if there are no connections in the queue ready to be accepted)
-	unsigned long ulMode = 1;
-#ifdef WIN32
-	if(ioctlsocket(m_s, FIONBIO, &ulMode) != 0)
-#else // WIN32
-	if(ioctl(m_s, FIONBIO, &ulMode) != 0)
-#endif // WIN32
-	{
-		gsocket_LogError();
-		return false;
-	}
-
-	// Tell the socket that it's okay to reuse an old crashed socket that hasn't timed out yet
-	int flag;
-	flag = 1;
-#ifdef WIN32
-	setsockopt(m_s, SOL_SOCKET, SO_REUSEADDR, (const char*)&flag, sizeof(flag)); 
-#else
-	setsockopt(m_s, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)); 
-#endif // WIN32
-
-	// Prepare the socket for accepting
-	memset(&m_sHostAddrIn, '\0', sizeof(SOCKADDR_IN));
-	m_sHostAddrIn.sin_family = AF_INET;
-	m_sHostAddrIn.sin_port = htons(nListenPort);
-	m_sHostAddrIn.sin_addr.s_addr = htonl(INADDR_ANY);
-	if(bind(m_s, (struct sockaddr*)&m_sHostAddrIn, sizeof(SOCKADDR)))
-	{
-		gsocket_LogError();
-		return false;
-	}
-	if(m_bUDP)
-	{
-		// Spawn the listen thread
-		m_pMutexSocketNumber->Lock("GSocket::GoIntoHostMode");
-		int nSocketNumber = GetFirstAvailableSocketNumber();
-		m_nSocketNumber = nSocketNumber;
-		HANDLE h = GThread::SpawnThread(ListenThread, this);
-		if(h == BAD_HANDLE)
-		{
-			GAssert(false, "Failed to spawn listening thread\n");
-			m_hConnectionAccepterThread = BAD_HANDLE;
-			m_pMutexSocketNumber->Unlock();
-			return false;
-		}
-		m_pHostListenThreads->SetHandle(nSocketNumber - 1, h);
-	}
-	else
-	{
-		if(listen(m_s, nMaxConnections))
-		{
-			gsocket_LogError();
-			return false;
-		}
-
-		// Spawn the connection acceptor thread
-		m_hConnectionAccepterThread = GThread::SpawnThread(ConnectionAcceptorThread, this);
-		if(m_hConnectionAccepterThread == BAD_HANDLE)
-		{
-			GAssert(false, "Error spawning Connection Accepter\n");
-			return false;
-		}
-#ifdef WIN32
-		Sleep(0);
-#else // WIN32
-		usleep(0);
-#endif // else WIN32
-	}
-
-	return true;
-}
-
-bool GSocket::Init(bool bUDP, bool bIAmTheServer, u_short nPort, int nMaxConnections)
-{
-	m_bUDP = bUDP;
-
-#ifdef WIN32
-	if(!gsocket_InitWinSock())
-		return false;
-#endif // WIN32
-
-	m_bIAmTheServer = bIAmTheServer;
-
-	if(bIAmTheServer)
-	{
-		if(nPort == 0)
-		{
-			GAssert(false, "You must specify a valid port for a host socket\n");
-			return false;
-		}
-
-		if(!GoIntoHostMode(nPort, nMaxConnections))
-			return false;
-	}
-
-	return true;
-}
-
-bool GSocket::IsThisAnIPAddress(const char* szHost)
+bool GSocketClientBase::IsThisAnIPAddress(const char* szHost)
 {
 	int n;
 	for(n = 0; szHost[n] != '.' && szHost[n] != '\0'; n++)
@@ -699,7 +384,8 @@ bool GSocket::IsThisAnIPAddress(const char* szHost)
 
 
 // This is for parsing a URL
-/*static*/ void GSocket::ParseURL(const char* szBuff, char* szProtocall, char* szHost, char* szLoc, char* szPort, char* szParams)
+//static
+void GSocketClientBase::ParseURL(const char* szBuff, char* szProtocall, char* szHost, char* szLoc, char* szPort, char* szParams)
 {
 	char cTmp;
 	GTEMPBUF(szURL, strlen(szBuff) + 1);
@@ -777,7 +463,8 @@ bool GSocket::IsThisAnIPAddress(const char* szHost)
 	// Throw out whatever's left
 }
 
-/*static*/ int GSocket::ParseUrlParams(const char* szParams, int nMaxParams, char** pNames, int* pNameLengths, char** pValues, int* pValueLengths)
+//static
+int GSocketClientBase::ParseUrlParams(const char* szParams, int nMaxParams, char** pNames, int* pNameLengths, char** pValues, int* pValueLengths)
 {
 	if(*szParams == '?')
 		szParams++;
@@ -808,7 +495,7 @@ bool GSocket::IsThisAnIPAddress(const char* szHost)
 	}
 }
 
-in_addr GSocket::StringToAddr(const char* szURL)
+in_addr GSocketClientBase::StringToAddr(const char* szURL)
 {
 	// Extract the host and port from the URL
 	GTEMPBUF(szHost, strlen(szURL));
@@ -843,7 +530,7 @@ in_addr GSocket::StringToAddr(const char* szURL)
 	}
 }
 
-unsigned short GSocket::StringToPort(const char* szURL)
+unsigned short GSocketClientBase::StringToPort(const char* szURL)
 {
 	char szPort[256];
 	ParseURL(szURL, NULL, NULL, NULL, szPort, NULL);
@@ -855,100 +542,10 @@ unsigned short GSocket::StringToPort(const char* szURL)
 	return(nPort);
 }
 
-#ifdef OLD_NAME_RESOLUTION
-
-bool GSocket::Connect(in_addr nAddr, u_short nPort, short nFamily)
-{
-	if(m_bIAmTheServer)
-	{
-		GAssert(false, "You can only call Connect for a Client socket\n");
-		return false;
-	}
-
-	// Make the address structure
-	SOCKADDR_IN sa;
-	sa.sin_family = nFamily;
-	sa.sin_port = htons(nPort); // convert port to Big-Endian
-	sa.sin_addr = nAddr;
-
-	// Terminate the listening thread
-	JoinAllListenThreads();
-	m_hListenThread = BAD_HANDLE;
-
-	// Disconnect from previous connection if any
-	if(m_s != INVALID_SOCKET)
-	{
-		shutdown(m_s, 2);
-#ifdef WIN32
-		closesocket(m_s);
-#else
-		close(m_s);
-#endif // WIN32
-		m_s = INVALID_SOCKET;
-	}
-
-	// Make the socket
-//printf("Connecting to %d.%d.%d.%d on port %d... ", ((unsigned char*)&nAddr)[0], ((unsigned char*)&nAddr)[1], ((unsigned char*)&nAddr)[2], ((unsigned char*)&nAddr)[3], nPort);
-	m_s = socket(AF_INET, m_bUDP ? SOCK_DGRAM : SOCK_STREAM, 0);
-	if(m_s == INVALID_SOCKET)
-	{
-//printf("Failed.\n");
-		gsocket_LogError();
-		return false;
-	}
-//printf("OK.\n");
-
-	// Connect
-	if(connect(m_s, (struct sockaddr*)&sa, sizeof(SOCKADDR)))
-	{
-#ifdef WIN32
-		int n = WSAGetLastError();
-		switch(n)
-		{
-			case WSAECONNREFUSED:	break;
-			default:	gsocket_LogError();		break;
-		}
-#endif
-		return false;
-	}
-
-	// Spawn the listener thread
-	m_pMutexSocketNumber->Lock("Connect: About to spawn listen thread");
-	m_nSocketNumber = 0;
-	m_hListenThread = GThread::SpawnThread(ListenThread, this);
-	if(m_hListenThread == BAD_HANDLE)
-	{
-		GAssert(false, "Failed to spawn listening thread\n");
-		gsocket_LogError();
-		m_pMutexSocketNumber->Unlock();
-		return false;
-	}
-#ifdef WIN32
-	Sleep(0);
-#else // WIN32
-	usleep(0);
-#endif // else WIN32
-	
-	return true;
-}
-/*
-bool GSocket::Connect(const char* szURL)
-{
-	return Connect(StringToAddr(szURL), StringToPort(szURL));
-}
-*/
-bool GSocket::Connect(const char* szAddr, unsigned short nPort)
-{
-	return Connect(StringToAddr(szAddr), nPort);
-}
-
-#else // OLD_NAME_RESOLUTION
-
-bool GSocket::Connect(const char* szURL, unsigned short nPort)
+bool GSocketClientBase::Connect(const char* szURL, unsigned short nPort)
 {
 	// *** If you use VisualStudio 6.0 and you get an error that says 'hints' uses undefined struct 'addrinfo'
-	// *** on the next code line then you either need to update your Platform SDK or uncomment the
-	// *** #define OLD_NAME_RESOLUTION at the top of this file. Updating your Platform SDK is a better solution.
+	// *** on the next code line then you need to update your Platform SDK.
 	struct addrinfo hints, *res, *res0;
 	int error;
 
@@ -974,11 +571,7 @@ bool GSocket::Connect(const char* szURL, unsigned short nPort)
 
 		if(connect(m_s, res->ai_addr, res->ai_addrlen) < 0)
 		{
-#ifdef WIN32
-			closesocket(m_s);
-#else // WIN32
-			close(m_s);
-#endif // !WIN32
+			CloseSocket(m_s);
 			m_s = INVALID_SOCKET;
 //printf("Failed.\n");
 			continue;
@@ -988,82 +581,535 @@ bool GSocket::Connect(const char* szURL, unsigned short nPort)
 		break;  // we got a connection
 	}
 	freeaddrinfo(res0);
-	if(m_s < 0)
+	if(m_s == INVALID_SOCKET)
 	{
 		// todo: handle the error
 		return false;
 	}
 
 	// Spawn the listener thread
-	m_pMutexSocketNumber->Lock("Connect: About to spawn listen thread");
-	m_nSocketNumber = 0;
 	m_hListenThread = GThread::SpawnThread(ListenThread, this);
 	if(m_hListenThread == BAD_HANDLE)
 	{
 		GAssert(false, "Failed to spawn listening thread\n");
 		gsocket_LogError();
-		m_pMutexSocketNumber->Unlock();
 		return false;
 	}
-#ifdef WIN32
-	Sleep(0);
-#else // WIN32
-	usleep(0);
-#endif // else WIN32
+	GThread::sleep(0);
 	
 	return true;
 }
 
-#endif // !OLD_NAME_RESOLUTION
-
-void GSocket::Disconnect(int nConnectionNumber)
+void GSocketClientBase::Disconnect()
 {
-	if(nConnectionNumber == 0)
-	{
-		// Terminate the listening thread
-		JoinAllListenThreads();
-		m_hListenThread = BAD_HANDLE;
+	JoinListenThread();
 
-		// Disconnect from previous connection if any
+	// Disconnect the connection
+	if(m_s != INVALID_SOCKET)
+	{
 		shutdown(m_s, 2);
-#ifdef WIN32
-		closesocket(m_s);
-#else
-		close(m_s);
-#endif // WIN32
+		CloseSocket(m_s);
 		m_s = INVALID_SOCKET;
 	}
-	else
-	{
-		// Terminate the listening thread
-		GAssert(m_pHostListenThreads, "No array of listen thread handles defined");
-		JoinListenThread(nConnectionNumber);
-		m_pHostListenThreads->SetHandle(nConnectionNumber - 1, BAD_HANDLE);
+}
 
-		GAssert(m_pHostSockets, "No array of sockets defined");
-		SOCKET Sock;
-		Sock = m_pHostSockets->GetSocket(nConnectionNumber - 1);
+bool GSocketClientBase::Send(const unsigned char *pBuff, int len)
+{
+	if(send(m_s, (const char*)pBuff, len, 0) == SOCKET_ERROR)
+	{
+#ifdef WIN32		
+		int n = WSAGetLastError();
+		switch(n)
+		{
+			case WSAECONNABORTED:	break;
+			case WSAECONNRESET:		break;
+			default:	gsocket_LogError();		break;
+		}
+#endif // WIN32
+		return false;
+	}
+
+	return true;
+}
+
+bool GSocketClientBase::IsConnected()
+{
+	if(m_hListenThread == BAD_HANDLE)
+		return false;
+	else
+		return true;
+}
+
+SOCKET GSocketClientBase::GetSocketHandle()
+{
+	return m_s;
+}
+
+in_addr GSocketClientBase::GetMyIPAddr()
+{
+	struct sockaddr sAddr;
+#ifdef WIN32
+	int l;
+#else // WIN32
+	unsigned int l;
+#endif // else WIN32
+	l = sizeof(SOCKADDR);
+	if(getsockname(m_s, &sAddr, &l))
+	{
+		gsocket_LogError();
+	}
+	if(sAddr.sa_family != AF_INET)
+		GAssert(false, "Error, family is not AF_INET\n");
+	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
+	return pInfo->sin_addr;
+}
+
+char* GSocketClientBase::GetMyIPAddr(char* szBuff, int nBuffSize)
+{
+	GString::StrCpy(szBuff, inet_ntoa(GetMyIPAddr()), nBuffSize);
+	return szBuff;
+}
+
+u_short GSocketClientBase::GetMyPort()
+{
+	SOCKADDR sAddr;
+#ifdef WIN32
+	int l;
+#else // WIN32
+	unsigned int l;
+#endif // else WIN32
+	l = sizeof(SOCKADDR);
+	if(getsockname(m_s, &sAddr, &l))
+	{
+		gsocket_LogError();
+	}
+	if(sAddr.sa_family != AF_INET)
+		GAssert(false, "Error, family is not AF_INET\n");
+	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
+	return htons(pInfo->sin_port);
+}
+
+char* GSocketClientBase::GetMyName(char* szBuff, int nBuffSize)
+{
+	SOCKADDR sAddr;
+#ifdef WIN32
+	int l;
+#else // WIN32
+	unsigned int l;
+#endif // else WIN32
+	l = sizeof(SOCKADDR);
+	if(getsockname(m_s, &sAddr, &l))
+	{
+		gsocket_LogError();
+	}
+	if(sAddr.sa_family != AF_INET)
+		GAssert(false, "Error, family is not AF_INET\n");
+	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
+	HOSTENT* namestruct = gethostbyaddr((const char*)&pInfo->sin_addr, 4, pInfo->sin_family);
+	if(!namestruct)
+	{
+		GAssert(false, "Error calling gethostbyaddr\n");
+	}
+	GString::StrCpy(szBuff, namestruct->h_name, nBuffSize);
+	return(szBuff);
+}
+
+in_addr GSocketClientBase::GetTheirIPAddr()
+{
+	struct sockaddr sAddr;
+#ifdef WIN32
+	int l;
+#else // WIN32
+	unsigned int l;
+#endif // else WIN32
+	l = sizeof(SOCKADDR);
+//	if(nConnectionNumber == 0)
+//	{
+		if(getpeername(m_s, &sAddr, &l))
+			gsocket_LogError();
+//	}
+//	else
+//	{
+//		if(getpeername(m_pHostSockets->GetSocket(nConnectionNumber - 1), &sAddr, &l))
+//			gsocket_LogError();
+//	}
+	if(sAddr.sa_family != AF_INET)
+		GAssert(false, "Error, family is not AF_INET\n");
+	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
+	return pInfo->sin_addr;
+}
+
+char* GSocketClientBase::GetTheirIPAddr(char* szBuff, int nBuffSize)
+{
+	GString::StrCpy(szBuff, inet_ntoa(GetTheirIPAddr()), nBuffSize);
+	return szBuff;
+}
+
+u_short GSocketClientBase::GetTheirPort()
+{
+	SOCKADDR sAddr;
+#ifdef WIN32
+	int l;
+#else // WIN32
+	unsigned int l;
+#endif // else WIN32
+	l = sizeof(SOCKADDR);
+//	if(nConnectionNumber == 0)
+//	{
+		if(getpeername(m_s, &sAddr, &l))
+			gsocket_LogError();
+//	}
+//	else
+//	{
+//		if(getpeername(m_pHostSockets->GetSocket(nConnectionNumber - 1), &sAddr, &l))
+//			gsocket_LogError();
+//	}
+	if(sAddr.sa_family != AF_INET)
+		GAssert(false, "Error, family is not AF_INET\n");
+	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
+	return htons(pInfo->sin_port);
+}
+
+char* GSocketClientBase::GetTheirName(char* szBuff, int nBuffSize)
+{
+	SOCKADDR sAddr;
+#ifdef WIN32
+	int l;
+#else // WIN32
+	unsigned int l;
+#endif // else WIN32
+	l = sizeof(SOCKADDR);
+//	if(nConnectionNumber == 0)
+//	{
+		if(getpeername(m_s, &sAddr, &l))
+			gsocket_LogError();
+//	}
+//	else
+//	{
+//		if(getpeername(m_pHostSockets->GetSocket(nConnectionNumber - 1), &sAddr, &l))
+//			gsocket_LogError();
+//	}
+	if(sAddr.sa_family != AF_INET)
+		GAssert(false, "Error, family is not AF_INET\n");
+	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
+	HOSTENT* namestruct = gethostbyaddr((const char*)&pInfo->sin_addr, 4, pInfo->sin_family);
+	if(!namestruct)
+	{
+		GAssert(false, "Error calling gethostbyaddr\n");
+	}
+	GString::StrCpy(szBuff, namestruct->h_name, nBuffSize);
+	return(szBuff);
+}
+
+// ------------------------------------------------------------------------------
+
+GSocketServerBase::GSocketServerBase(bool bUDP, int nPort, int nMaxConnections)
+{
+	m_hWorkerThread = BAD_HANDLE;
+	m_socketConnectionListener = INVALID_SOCKET;
+	m_bKeepWorking = true;
+	m_bUDP = false;
+	m_szReceiveBuffer = new char[2048];
+	m_pConnections = new GSocketArray(16);
+	Init(bUDP, nPort, nMaxConnections);
+}
+
+GSocketServerBase::~GSocketServerBase()
+{
+	JoinWorkerThread();
+
+	// Disconnect the connection
+	if(m_socketConnectionListener != INVALID_SOCKET)
+	{
+		shutdown(m_socketConnectionListener, 2);
+		CloseSocket(m_socketConnectionListener);
+		m_socketConnectionListener = INVALID_SOCKET;
+	}
+
+	// Disconnect all the connections
+	int nCount = m_pConnections->GetSize();
+	int n;
+	SOCKET Sock;
+	for(n = 0; n < nCount; n++)
+	{
+		Sock = m_pConnections->GetSocket(n);
 		if(Sock != INVALID_SOCKET)
 		{
 			shutdown(Sock, 2);
-#ifdef WIN32
-			closesocket(Sock);
-#else
-			close(m_s);
-#endif // WIN32
-			m_pHostSockets->SetSocket(nConnectionNumber - 1, INVALID_SOCKET);
+			CloseSocket(Sock);
+			m_pConnections->SetSocket(n, INVALID_SOCKET);
+		}
+	}
+
+	// Delete the Host Arrays
+	delete(m_pConnections);
+	delete(m_szReceiveBuffer);
+}
+
+void GSocketServerBase::JoinWorkerThread()
+{
+	m_bKeepWorking = false;
+	time_t tStart;
+	time_t tNow;
+	time(&tStart);
+	while(m_hWorkerThread != BAD_HANDLE)
+	{
+		GThread::sleep(0);
+		time(&tNow);
+		if(tNow - tStart > 4)
+		{
+			GAssert(false, "Error, took too long for the worker thread to exit");
+			break;
 		}
 	}
 }
 
-bool GSocket::Send(const unsigned char *pBuff, int len, int nConnectionNumber)
+int GSocketServerBase::GetFirstAvailableConnectionNumber()
 {
-	GAssert(m_bIAmTheServer ? nConnectionNumber > 0 : nConnectionNumber == 0, "Bad Connection Number");
+	// Find the first empty Handle slot for the listening thread
+	int nSize = m_pConnections->GetSize();
+	int nSocketNumber = -1;
+	int n;
+	for(n = 0; n < nSize; n++)
+	{
+		if(m_pConnections->GetSocket(n) == INVALID_SOCKET)
+		{
+			nSocketNumber = n;
+			break;
+		}
+	}
+
+	// Add a new slot if we couldn't find one
+	if(nSocketNumber < 0 && m_pConnections->GetSize() < m_nMaxConnections)
+	{
+		nSocketNumber = nSize;
+		m_pConnections->AddSocket(INVALID_SOCKET);
+	}
+
+	return nSocketNumber;
+}
+
+SOCKET GSocketServerBase::RefreshSocketSet()
+{
+	// Clear the set
+	FD_ZERO(&m_socketSet);
+
+	// Add the connection listener socket so that select() will return if a new connection comes in
+	SOCKET highSocket = m_socketConnectionListener;
+	FD_SET(m_socketConnectionListener, &m_socketSet);
+
+	// Add all the current connections to the set
+	int nCount = m_pConnections->GetSize();
 	SOCKET s;
-	if(nConnectionNumber < 1)
-		s = m_s;
-	else
-		s = m_pHostSockets->GetSocket(nConnectionNumber - 1);
+	int n;
+	for(n = 0; n < nCount; n++)
+	{
+		s = m_pConnections->GetSocket(n);
+		if(s != INVALID_SOCKET)
+		{
+			FD_SET(s, &m_socketSet);
+			if(s > highSocket)
+				highSocket = s;
+		}
+	}
+	return highSocket;
+}
+
+void GSocketServerBase::HandleNewConnection()
+{
+	// Accept the connection
+	SOCKET s;
+	SOCKADDR_IN sHostAddrIn;
+	socklen_t nStructSize = sizeof(struct sockaddr);
+	s = accept(m_socketConnectionListener, (struct sockaddr*)&sHostAddrIn, &nStructSize);
+
+	// Set the connection to non-blocking mode
+	SetSocketToNonBlockingMode(s);
+
+	// Find a place for the new socket
+	int nConnection = GetFirstAvailableConnectionNumber();
+	if(nConnection < 0)
+	{
+		GAssert(false, "no room for this connection");
+
+		// Why did we accept the connection if we don't have room for it? So we
+		// can close it so it won't keep bugging us about accepting it.
+		CloseSocket(s);
+		return;
+	}
+	m_pConnections->SetSocket(nConnection, s);
+	// WARNING: the accept function will return as soon as it gets
+	//         an ACK packet back from the client, but the connection
+	//         isn't actually established until more data is
+	//         received.  Therefore, if you try to send data immediately
+	//         (which someone might want to do in OnAcceptConnetion, the
+	//         data might be lost since the connection might not be
+	//         fully open.
+	OnAcceptConnection(nConnection);
+}
+
+unsigned int ServerWorkerThread(void* pData)
+{
+	((GSocketServerBase*)pData)->ServerWorker();
+	return 0;
+}
+
+void GSocketServerBase::ServerWorker()
+{
+#ifdef WIN32
+	GWindows::YieldToWindows();
+#endif // else WIN32
+	int n, nCount, nBytes;
+	struct timeval timeout;
+	int nReadySocketCount; // the number of sockets ready for reading
+	SOCKET s, highSocket;
+	while(m_bKeepWorking)
+	{
+		// We need to refresh the socket set each time we loop because select() changes the set
+		highSocket = RefreshSocketSet();
+
+		// Check which sockets are ready for reading
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+		nReadySocketCount = select(highSocket + 1, &m_socketSet, NULL, NULL, &timeout);
+		// Handle errors
+		if(nReadySocketCount < 0)
+		{
+			gsocket_LogError();
+			break;
+		}
+
+		// Read from the ready sockets
+		if(nReadySocketCount > 0)
+		{
+			// Check the connection listener socket for incoming connections
+			if(FD_ISSET(m_socketConnectionListener, &m_socketSet))
+			{
+				HandleNewConnection();
+			}
+
+			// Check each connection socket for incoming data
+			nCount = m_pConnections->GetSize();
+			for(n = 0; n < nCount; n++)
+			{
+				s = m_pConnections->GetSocket(n);
+				if(s != INVALID_SOCKET && FD_ISSET(s, &m_socketSet))
+				{
+					// The recv() function blocks until there is some to read or connection is closed, but we already know there is something to read
+					nBytes = recv(s, m_szReceiveBuffer, 2048, 0);
+					if(nBytes > 0)
+					{
+						Receive((unsigned char*)m_szReceiveBuffer, nBytes, n);
+					}
+					else
+					{
+						// The socket was closed or an error occurred. Either way, close the socket
+						OnCloseConnection(n);
+						CloseSocket(s);
+						m_pConnections->SetSocket(n, INVALID_SOCKET); // todo: do we need a mutex protecting m_pConnections?
+						ReduceConnectionList();
+					}
+				}
+			}
+		}
+		else
+			GThread::sleep(100);
+	}
+	m_hWorkerThread = BAD_HANDLE;
+}
+
+void GSocketServerBase::Init(bool bUDP, int nPort, int nMaxConnections)
+{
+	m_nMaxConnections = nMaxConnections;
+#ifdef WIN32
+	if(!gsocket_InitWinSock())
+		throw "failed to init WinSock";
+#endif // WIN32
+
+	GAssert(nPort > 0, "invalid port number");
+	if(m_bUDP)
+	{
+		GAssert(false, "UDP not implemented yet");
+	}
+	m_bUDP = bUDP;
+
+	// Make the Socket
+	m_socketConnectionListener = socket(AF_INET, m_bUDP ? SOCK_DGRAM : SOCK_STREAM, 0);
+	if(m_socketConnectionListener == INVALID_SOCKET)
+	{
+		gsocket_LogError();
+		throw "faled to make a socket";
+	}
+
+	// Put the socket into non-blocking mode (so the call to "accept" will return immediately
+	// if there are no connections in the queue ready to be accepted)
+	SetSocketToNonBlockingMode(m_socketConnectionListener);
+
+	// Tell the socket that it's okay to reuse an old crashed socket that hasn't timed out yet
+	int flag = 1;
+	setsockopt(m_socketConnectionListener, SOL_SOCKET, SO_REUSEADDR, (const char*)&flag, sizeof(flag)); 
+
+	// Prepare the socket for accepting
+	memset(&m_sHostAddrIn, '\0', sizeof(SOCKADDR_IN));
+	m_sHostAddrIn.sin_family = AF_INET;
+	m_sHostAddrIn.sin_port = htons((u_short)nPort);
+	m_sHostAddrIn.sin_addr.s_addr = htonl(INADDR_ANY);
+	if(bind(m_socketConnectionListener, (struct sockaddr*)&m_sHostAddrIn, sizeof(SOCKADDR)))
+	{
+		gsocket_LogError();
+		throw "failed to bind a socket";
+	}
+
+	// Start listening for connections
+	if(listen(m_socketConnectionListener, nMaxConnections))
+	{
+		gsocket_LogError();
+		throw "Failed to listen on a socket";
+	}
+
+	// Spawn the worker thread
+	m_hWorkerThread = GThread::SpawnThread(ServerWorkerThread, this);
+	if(m_hWorkerThread == BAD_HANDLE)
+	{
+		GAssert(false, "Error spawning server worker thread");
+		throw "Failed to spawn worker thread";
+	}
+
+	// Give the worker thread a chance to awake
+	GThread::sleep(0);
+}
+
+void GSocketServerBase::ReduceConnectionList()
+{
+	// todo: do we need a mutex protecting m_pConnections?
+	while(true)
+	{
+		int n = m_pConnections->GetSize();
+		if(n <= 0)
+			break;
+		if(m_pConnections->GetSocket(n - 1) != INVALID_SOCKET)
+			break;
+		m_pConnections->DeleteCell(n - 1);
+	}
+}
+
+void GSocketServerBase::Disconnect(int nConnectionNumber)
+{
+	GAssert(nConnectionNumber >= 0 && nConnectionNumber < m_pConnections->GetSize(), "connection out of range");
+	SOCKET s = m_pConnections->GetSocket(nConnectionNumber);
+	if(s != INVALID_SOCKET)
+	{
+		OnCloseConnection(nConnectionNumber);
+		shutdown(s, 2);
+		m_pConnections->SetSocket(nConnectionNumber, INVALID_SOCKET);
+		CloseSocket(s);
+		ReduceConnectionList();
+	}
+}
+
+bool GSocketServerBase::Send(const unsigned char *pBuff, int len, int nConnectionNumber)
+{
+	SOCKET s = m_pConnections->GetSocket(nConnectionNumber);
 	GAssert(s != SOCKET_ERROR, "Bad socket");
 	if(send(s, (const char*)pBuff, len, 0) == SOCKET_ERROR)
 	{
@@ -1082,21 +1128,23 @@ bool GSocket::Send(const unsigned char *pBuff, int len, int nConnectionNumber)
 	return true;
 }
 
-void GSocket::OnLoseConnection(int nSocketNumber)
+void GSocketServerBase::OnCloseConnection(int nConnection)
 {
 
 }
 
-void GSocket::OnAcceptConnection(int nSocketNumber)
+void GSocketServerBase::OnAcceptConnection(int nConnection)
 {
 
 }
 
-bool GSocket::IsConnected(int nConnectionNumber)
+bool GSocketServerBase::IsConnected(int nConnectionNumber)
 {
+	GAssert(false, "Not implemented yet");
+	/*
 	if(nConnectionNumber == 0)
 	{
-		if(m_hListenThread == BAD_HANDLE)
+		if(m_hWorkerThread == BAD_HANDLE)
 			return false;
 		else
 			return true;
@@ -1110,104 +1158,19 @@ bool GSocket::IsConnected(int nConnectionNumber)
 		else
 			return true;
 	}
+	*/
+	return false;
 }
 
-SOCKET GSocket::GetSocketHandle(int nConnectionNumber)
+SOCKET GSocketServerBase::GetSocketHandle(int nConnectionNumber)
 {
-	if(nConnectionNumber < 1)
-		return m_s;
+	if(nConnectionNumber < 0)
+		return m_socketConnectionListener;
 	else
-		return m_pHostSockets->GetSocket(nConnectionNumber - 1);
-
+		return m_pConnections->GetSocket(nConnectionNumber);
 }
 
-in_addr GSocket::GetMyIPAddr()
-{
-	if(m_bIAmTheServer)
-		GAssert(false, "Error, this currently only works with client sockets");
-	struct sockaddr sAddr;
-#ifdef WIN32
-	int l;
-#else // WIN32
-	unsigned int l;
-#endif // else WIN32
-	l = sizeof(SOCKADDR);
-	if(getsockname(m_s, &sAddr, &l))
-	{
-		gsocket_LogError();
-	}
-	if(sAddr.sa_family != AF_INET)
-		GAssert(false, "Error, family is not AF_INET\n");
-	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
-	return pInfo->sin_addr;
-}
-
-char* GSocket::GetMyIPAddr(char* szBuff, int nBuffSize)
-{
-	if(m_bIAmTheServer)
-	{
-		GAssert(false, "Error, this currently only works with client sockets");
-		return NULL;
-	}
-	GString::StrCpy(szBuff, inet_ntoa(GetMyIPAddr()), nBuffSize);
-	return szBuff;
-}
-
-u_short GSocket::GetMyPort()
-{
-	if(m_bIAmTheServer)
-	{
-		GAssert(false, "Error, this currently only works with client sockets");
-		return 0;
-	}
-	SOCKADDR sAddr;
-#ifdef WIN32
-	int l;
-#else // WIN32
-	unsigned int l;
-#endif // else WIN32
-	l = sizeof(SOCKADDR);
-	if(getsockname(m_s, &sAddr, &l))
-	{
-		gsocket_LogError();
-	}
-	if(sAddr.sa_family != AF_INET)
-		GAssert(false, "Error, family is not AF_INET\n");
-	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
-	return htons(pInfo->sin_port);
-}
-
-char* GSocket::GetMyName(char* szBuff, int nBuffSize)
-{
-	if(m_bIAmTheServer)
-	{
-		GAssert(false, "Error, this currently only works with client sockets");
-		return NULL;
-	}
-	SOCKADDR sAddr;
-#ifdef WIN32
-	int l;
-#else // WIN32
-	unsigned int l;
-#endif // else WIN32
-	l = sizeof(SOCKADDR);
-	if(getsockname(m_s, &sAddr, &l))
-	{
-		gsocket_LogError();
-	}
-	if(sAddr.sa_family != AF_INET)
-		GAssert(false, "Error, family is not AF_INET\n");
-	SOCKADDR_IN* pInfo = (SOCKADDR_IN*)&sAddr;
-	HOSTENT* namestruct = gethostbyaddr((const char*)&pInfo->sin_addr, 4, pInfo->sin_family);
-	if(!namestruct)
-	{
-		GAssert(false, "Error calling gethostbyaddr\n");
-	}
-	GString::StrCpy(szBuff, namestruct->h_name, nBuffSize);
-	return(szBuff);
-}
-
-in_addr GSocket::GetTheirIPAddr(int nConnectionNumber)
+in_addr GSocketServerBase::GetTheirIPAddr(int nConnectionNumber)
 {
 	struct sockaddr sAddr;
 #ifdef WIN32
@@ -1218,12 +1181,12 @@ in_addr GSocket::GetTheirIPAddr(int nConnectionNumber)
 	l = sizeof(SOCKADDR);
 	if(nConnectionNumber == 0)
 	{
-		if(getpeername(m_s, &sAddr, &l))
+		if(getpeername(m_socketConnectionListener, &sAddr, &l))
 			gsocket_LogError();
 	}
 	else
 	{
-		if(getpeername(m_pHostSockets->GetSocket(nConnectionNumber - 1), &sAddr, &l))
+		if(getpeername(m_pConnections->GetSocket(nConnectionNumber), &sAddr, &l))
 			gsocket_LogError();
 	}
 	if(sAddr.sa_family != AF_INET)
@@ -1232,13 +1195,13 @@ in_addr GSocket::GetTheirIPAddr(int nConnectionNumber)
 	return pInfo->sin_addr;
 }
 
-char* GSocket::GetTheirIPAddr(char* szBuff, int nBuffSize, int nConnectionNumber)
+char* GSocketServerBase::GetTheirIPAddr(char* szBuff, int nBuffSize, int nConnectionNumber)
 {
 	GString::StrCpy(szBuff, inet_ntoa(GetTheirIPAddr(nConnectionNumber)), nBuffSize);
 	return szBuff;
 }
 
-u_short GSocket::GetTheirPort(int nConnectionNumber)
+u_short GSocketServerBase::GetTheirPort(int nConnectionNumber)
 {
 	SOCKADDR sAddr;
 #ifdef WIN32
@@ -1249,12 +1212,12 @@ u_short GSocket::GetTheirPort(int nConnectionNumber)
 	l = sizeof(SOCKADDR);
 	if(nConnectionNumber == 0)
 	{
-		if(getpeername(m_s, &sAddr, &l))
+		if(getpeername(m_socketConnectionListener, &sAddr, &l))
 			gsocket_LogError();
 	}
 	else
 	{
-		if(getpeername(m_pHostSockets->GetSocket(nConnectionNumber - 1), &sAddr, &l))
+		if(getpeername(m_pConnections->GetSocket(nConnectionNumber), &sAddr, &l))
 			gsocket_LogError();
 	}
 	if(sAddr.sa_family != AF_INET)
@@ -1263,7 +1226,7 @@ u_short GSocket::GetTheirPort(int nConnectionNumber)
 	return htons(pInfo->sin_port);
 }
 
-char* GSocket::GetTheirName(char* szBuff, int nBuffSize, int nConnectionNumber)
+char* GSocketServerBase::GetTheirName(char* szBuff, int nBuffSize, int nConnectionNumber)
 {
 	SOCKADDR sAddr;
 #ifdef WIN32
@@ -1274,12 +1237,12 @@ char* GSocket::GetTheirName(char* szBuff, int nBuffSize, int nConnectionNumber)
 	l = sizeof(SOCKADDR);
 	if(nConnectionNumber == 0)
 	{
-		if(getpeername(m_s, &sAddr, &l))
+		if(getpeername(m_socketConnectionListener, &sAddr, &l))
 			gsocket_LogError();
 	}
 	else
 	{
-		if(getpeername(m_pHostSockets->GetSocket(nConnectionNumber - 1), &sAddr, &l))
+		if(getpeername(m_pConnections->GetSocket(nConnectionNumber), &sAddr, &l))
 			gsocket_LogError();
 	}
 	if(sAddr.sa_family != AF_INET)
@@ -1293,3 +1256,4 @@ char* GSocket::GetTheirName(char* szBuff, int nBuffSize, int nConnectionNumber)
 	GString::StrCpy(szBuff, namestruct->h_name, nBuffSize);
 	return(szBuff);
 }
+

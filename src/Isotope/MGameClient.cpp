@@ -10,7 +10,7 @@
 */
 
 #include "../GClasses/GArray.h"
-#include "GameEngine.h"
+#include "Main.h"
 #include "MGameClient.h"
 #include "NRealmProtocol.h"
 #include "MRealm.h"
@@ -22,14 +22,17 @@
 #include "../GClasses/GSocket.h"
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GFile.h"
+#include "../GClasses/GTime.h"
 #include "Controller.h"
 #include "MScriptEngine.h"
 #include "MStore.h"
 #include "MObject.h"
 #include "MGameImage.h"
+#include "MAnimation.h"
 #include "MSpot.h"
 #include "MStatCollector.h"
 #include "VPanel.h"
+#include "LPS.h"
 #ifdef WIN32
 #	include <direct.h>
 #else // WIN32
@@ -47,7 +50,7 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_pConnection = NULL;
 	m_pCurrentRealm = NULL;
 	m_pCurrentRealm = NULL;
-	m_nextUpdateTime = 0;
+	m_lastUpdateRequestTime = 0;
 	m_pClosestObject = NULL;
 //#ifdef _DEBUG
 	m_dFrameRateTime = 0;
@@ -69,8 +72,8 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	m_pRemoteVar = NULL;
 	m_bFirstPerson = false;
 	m_pSelectedObjects = new GPointerArray(64);
-	m_bLoner = true;
 	m_pPanel = pPanel;
+	m_pLearnerModel = new LPSLearnerModel();
 }
 
 /*virtual*/ MGameClient::~MGameClient()
@@ -85,6 +88,7 @@ MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GX
 	delete(m_pSelectedObjects);
 	delete(m_pStatCollector);
 	delete(m_pPanel);
+	delete(m_pLearnerModel);
 }
 
 void MGameClient::UnloadRealm()
@@ -136,6 +140,7 @@ void MGameClient::SetRemoteFolder(const char* szUrl)
 		m_szRemoteFolder[n] = '\0';
 	}
 	CondensePath(m_szRemoteFolder);
+	printf("Remote base path: %s\n", m_szRemoteFolder);
 }
 
 void MGameClient::LoadRealmPhase1(GXMLTag* pMap, const char* szUrl)
@@ -143,32 +148,47 @@ void MGameClient::LoadRealmPhase1(GXMLTag* pMap, const char* szUrl)
 	delete(m_pMap);
 	m_pMap = pMap;
 
-	// Parse the URL
-	int nLen = strlen(szUrl);
-	GTEMPBUF(pHost, nLen + 1);
-	GTEMPBUF(pProtocol, nLen + 1);
-	GSocket::ParseURL(szUrl, pProtocol, pHost, NULL, NULL, NULL);
+	// Extract the base URL
 	SetRemoteFolder(szUrl);
-
-	// Set the multiplayer flag
-	GXMLAttribute* pAttrMultiplayer = m_pMap->GetAttribute("Multiplayer");
-	if(!pAttrMultiplayer)
-		GameEngine::ThrowError("Expected a \"Multiplayer\" attribute in the realm file");
-	if(stricmp(pAttrMultiplayer->GetValue(), "true") == 0)
-		m_bLoner = false;
-	else
-		m_bLoner = true;
 
 	// Create the Realm
 	m_pCurrentRealm = new MRealm(this);
 
-	// Connect to the server
-	if(!m_bLoner)
+	// Connect to the multiplayer server (if this is a multiplayer realm)
+	delete(m_pConnection);
+	m_pConnection = NULL;
+	const char* pServerName = NULL;
+	GXMLTag* pGameTag = m_pMap->GetChildTag("Game");
+	if(pGameTag)
 	{
-		m_pConnection = new NRealmClientConnection(this, pHost);
-		NSetPathPacket packet(szUrl);
-		m_pConnection->SendPacket(&packet);
+		GXMLAttribute* pAttrMultiplayer = pGameTag->GetAttribute("Server");
+		if(pAttrMultiplayer)
+		{
+			pServerName = pAttrMultiplayer->GetValue();
+			if(strlen(pServerName) <= 0)
+				pServerName = NULL;
+		}
+		else
+			pServerName = NULL;
 	}
+	if(pServerName)
+	{
+		printf("Connecting to multiplayer server: %s\n", pServerName);
+		try
+		{
+			m_pConnection = new NRealmClientConnection(this, pServerName);
+			NSetPathPacket packet(szUrl);
+			m_pConnection->SendPacket(&packet);
+		}
+		catch(...)
+		{
+			printf("*** Failed to connect. Proceeding in loner mode.\n");
+			delete(m_pConnection);
+			m_pConnection = NULL;
+		}
+	}
+	else
+		printf("No multiplayer server specified. Proceeding in loner mode.\n");
 }
 
 void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngine* pScriptEngine, double time, int nScreenVerticalCenter, MImageStore* pImageStore, MAnimationStore* pAnimationStore, MSoundStore* pSoundStore, MSpotStore* pSpotStore, const char* szMusicFilename)
@@ -183,11 +203,15 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 	// Make the remote var
 	delete(m_pRemoteVar);
 	m_pRemoteVar = NULL;
-	GXMLAttribute* pRemoteAttr = m_pMap->GetAttribute("Remote");
-	if(pRemoteAttr)
+	GXMLTag* pGameTag = m_pMap->GetChildTag("Game");
+	if(pGameTag)
 	{
-		m_pRemoteVar = new VarHolder(m_pScriptEngine->GetEngine());
-		m_pScriptEngine->MakeRemoteObject(m_pRemoteVar, pRemoteAttr->GetValue());
+		GXMLAttribute* pRemoteAttr = pGameTag->GetAttribute("Remote");
+		if(pRemoteAttr)
+		{
+			m_pRemoteVar = new VarHolder(m_pScriptEngine->GetEngine());
+			m_pScriptEngine->MakeRemoteObject(m_pRemoteVar, pRemoteAttr->GetValue());
+		}
 	}
 
 	// Load the realm boundaries and terrain map
@@ -197,14 +221,14 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 	char* szSpot = NULL;
 	int nLen = strlen(szUrl);
 	GTEMPBUF(pParams, nLen + 1);
-	GSocket::ParseURL(szUrl, NULL, NULL, NULL, NULL, pParams);
+	GSocketClientBase::ParseURL(szUrl, NULL, NULL, NULL, NULL, pParams);
 	if(strlen(pParams) > 0)
 	{
 		char* szName;
 		int nNameLen;
 		char* szValue;
 		int nValueLen;
-		if(GSocket::ParseUrlParams(pParams, 1, &szName, &nNameLen, &szValue, &nValueLen) > 0)
+		if(GSocketClientBase::ParseUrlParams(pParams, 1, &szName, &nNameLen, &szValue, &nValueLen) > 0)
 		{
 			if(nNameLen == 4 && strnicmp(szName, "spot", 4) == 0)
 			{
@@ -225,10 +249,10 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 
 	// Set the point of view
 	m_bFirstPerson = false;
-	GXMLTag* pCameraTag = m_pMap->GetChildTag("Camera");
-	if(pCameraTag)
+	GXMLTag* pViewTag = m_pMap->GetChildTag("View");
+	if(pViewTag)
 	{
-		GXMLAttribute* pAttrPointOfView = pCameraTag->GetAttribute("PointOfView");
+		GXMLAttribute* pAttrPointOfView = pViewTag->GetAttribute("PointOfView");
 		if(pAttrPointOfView)
 		{
 			if(stricmp(pAttrPointOfView->GetValue(), "FirstPerson") == 0)
@@ -261,11 +285,20 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 		strcat(szAvatarAnimActionID, "action");
 		m_pAnimationStore->AddAnimation(m_pScriptEngine, m_pImageStore, szAvatarAnimActionID);
 
+		// Compute the width and height
+		int nAvatarAnimIndex = m_pAnimationStore->GetIndex(szAvatarAnimID);
+		VarHolder* pAnimVar = m_pAnimationStore->GetVarHolder(nAvatarAnimIndex);
+		MAnimation* pAnim = (MAnimation*)pAnimVar->GetGObject();
+		GRect r;
+		pAnim->GetFrame(&r);
+		float fAvatarWidth = (float)2.0 * r.w;
+		float fAvatarHeight = (float)2.0 * r.h;
+
 		// Construct the avatar object
 		const char* pParams[2];
 		pParams[0] = szAvatarAnimID;
 		pParams[1] = szAvatarAnimActionID;
-		m_pAvatar = m_pScriptEngine->NewObject("Avatar", x, y, 0, 250, 250, 250, pParams, 2);
+		m_pAvatar = m_pScriptEngine->NewObject("Avatar", x, y, 0, fAvatarWidth, fAvatarWidth, fAvatarHeight, pParams, 2);
 		m_pAvatar->SetTime(time);
 		m_pAvatar->SetTangible(false);
 		m_pCurrentRealm->ReplaceObject(0, m_pAvatar);
@@ -276,20 +309,20 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 
 	// Make the camera
 	m_pCamera = new GBillboardCamera(nScreenVerticalCenter);
-	if(pCameraTag)
+	if(pViewTag)
 	{
 		// Yaw
-		GXMLAttribute* pAttrYaw = pCameraTag->GetAttribute("Yaw");
+		GXMLAttribute* pAttrYaw = pViewTag->GetAttribute("Yaw");
 		if(pAttrYaw)
 			m_pCamera->SetDirection((float)atof(pAttrYaw->GetValue()));
 
 		// Pitch
-		GXMLAttribute* pAttrPitch = pCameraTag->GetAttribute("Pitch");
+		GXMLAttribute* pAttrPitch = pViewTag->GetAttribute("Pitch");
 		if(pAttrPitch)
 			m_pCamera->AjustHorizonHeight((float)atof(pAttrPitch->GetValue()), nScreenVerticalCenter);
 
 		// Zoom
-		GXMLAttribute* pAttrZoom = pCameraTag->GetAttribute("Zoom");
+		GXMLAttribute* pAttrZoom = pViewTag->GetAttribute("Zoom");
 		if(pAttrZoom)
 			m_pCamera->AjustZoom((float)atof(pAttrZoom->GetValue()), nScreenVerticalCenter);
 
@@ -351,7 +384,7 @@ MObject* MGameClient::MakeIntangibleGlobalObject(const char* szID, float x, floa
 void MGameClient::Update(double time)
 {
 	// Synchronize with server
-	if(!m_bLoner)
+	if(m_pConnection)
 		SynchronizeWithServer(time);
 
 	// Update all the objects
@@ -468,9 +501,10 @@ void MGameClient::MakeChatCloud(const char* szText)
 
 void MGameClient::NotifyServerAboutObjectUpdate(MObject* pOb)
 {
-	if(m_bLoner)
+	if(!m_pConnection)
 		return;
-	NUpdateObjectPacket packet;
+//printf("Client-->Server\t%s\t%d\t%f\n", pOb->GetTypeName(), pOb->GetUid(), pOb->GetTime());
+	NUpdateRealmObjectPacket packet;
 	packet.SetObject(pOb);
 	m_pConnection->SendPacket(&packet);
 	packet.SetObject(NULL);
@@ -491,12 +525,11 @@ void MGameClient::SynchronizeWithServer(double time)
 	}
 
 	// Ask for more updates
-	if(time - m_nextUpdateTime > .1) // todo: unmagic this time interval
+	if(time - m_lastUpdateRequestTime > UPDATE_REQUEST_RATE)
 	{
 		NSendMeUpdatesPacket packet;
-		packet.SetTime(m_nextUpdateTime);
 		m_pConnection->SendPacket(&packet);
-		//m_nextUpdateTime = time;
+		m_lastUpdateRequestTime = time;
 	}
 }
 
@@ -512,8 +545,8 @@ void MGameClient::ProcessPacket(NRealmPacket* pPacket)
 			GAssert(false, "Why is the server asking the client for updates?");
 			break;
 
-		case NRealmPacket::UPDATE_OBJECT:
-			UpdateObject((NUpdateObjectPacket*)pPacket);
+		case NRealmPacket::UPDATE_REALM_OBJECT:
+			UpdateRealmObject((NUpdateRealmObjectPacket*)pPacket);
 			break;
 
 		case NRealmPacket::SEND_OBJECT:
@@ -521,28 +554,41 @@ void MGameClient::ProcessPacket(NRealmPacket* pPacket)
 			break;
 
 		default:
-			GAssert(false, "Unrecognized packet type");
+			printf("Unrecognized packet type\n");
 	}
 }
 
-void MGameClient::UpdateObject(NUpdateObjectPacket* pPacket)
+void MGameClient::UpdateRealmObject(NUpdateRealmObjectPacket* pPacket)
 {
 	MObject* pOb = pPacket->GetMObject();
+//printf("Client<--Server\t%s\t%d\t%f\n", pOb->GetTypeName(), pOb->GetUid(), pOb->GetTime());
 	if(!pOb)
 	{
 		GAssert(false, "no object");
 		return;
 	}
-	if(pOb->GetTime() > m_nextUpdateTime)
-		m_nextUpdateTime = pOb->GetTime();
 	if(m_pAvatar && pOb->GetUid() == m_pAvatar->GetUid())
 	{
-		// todo: determine whether it's necessary to update the avatar
+		// we're not concerned about cheaters, so there's no need to override the
+		// client regarding the state of his own avatar. If we ever decide to get
+		// all paranoid about cheating, then we should remove this special case.
 	}
 	else
 	{
 		pPacket->SetObject(NULL);
+#ifdef _DEBUG
+		double dTimeDelta = pOb->GetTime() - GTime::GetTime();
+		if(dTimeDelta < -30)
+			printf("*** Received an update for an object %f seconds old\n", dTimeDelta);
+		else if(dTimeDelta > 30)
+			printf("*** Received an update for an object %f seconds in the future\n", dTimeDelta);
+#endif // _DEBUG
 		m_pCurrentRealm->ReplaceObject(pPacket->GetConnection(), pOb);
+		if(pOb->IsChatCloud())
+		{
+			const char* szText = MScriptEngine::GetChatCloudText(pOb);
+			m_pPanel->AddChatMessage(szText);
+		}
 	}
 }
 
@@ -804,4 +850,24 @@ void MGameClient::SetAccountVar(const char* szName, const char* szValue)
 void MGameClient::ReportStats(GPointerArray* pNameValuePairs)
 {
 	m_pStatCollector->ReportStats(pNameValuePairs);
+}
+
+void MGameClient::TellServerYoureLeaving()
+{
+	if(!m_pConnection)
+		return;
+	NRemoveRealmObjectPacket packet;
+	packet.SetUid(m_pAvatar->GetUid());
+	m_pConnection->SendPacket(&packet);
+}
+
+void MGameClient::OnLoseConnection()
+{
+	printf("Connection with multiplayer server closed\n");
+}
+
+void MGameClient::AddMerit(const wchar_t* wszSkill, bool bCorrect, double dAbilityLevel, double dAmount)
+{
+	ConvertUnicodeToAnsi(wszSkill, szSkill);
+	m_pLearnerModel->PushData(szSkill, dAbilityLevel, dAmount, bCorrect);
 }

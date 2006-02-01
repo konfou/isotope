@@ -13,6 +13,7 @@
 #define __MREALMSERVER_H__
 
 #include "Model.h"
+#include <stdio.h>
 
 #define SERVER_LOAD_CHECKS 50
 
@@ -25,12 +26,14 @@ class MGameServer;
 struct MClientRecord;
 class VarHolder;
 class NSendObjectPacket;
+class GHttpClient;
+
 
 // An MRealmServer is a daemon for a single realm
 class MRealmServer
 {
 protected:
-	char* m_szPath;
+	char* m_szUrl;
 	char* m_szBase;
 	MRealm* m_pRealm;
 	double m_dLatestSentUpdates;
@@ -38,29 +41,50 @@ protected:
 	IsotopeErrorHandler* m_pErrorHandler;
 	VarHolder* m_pRemoteVar;
 
-	MRealmServer(const char* szPath, MGameServer* pGameServer);
+	MRealmServer(const char* szUrl, MGameServer* pGameServer);
 public:
 	~MRealmServer();
 
-	static MRealmServer* LoadRealm(const char* szFilename, MGameServer* pGameServer, Controller* pController);
-	const char* GetPath() { return m_szPath; }
+	static MRealmServer* LoadRealm(const char* szUrl, MGameServer* pGameServer, Controller* pController);
+	const char* GetUrl() { return m_szUrl; }
 	MScriptEngine* GetScriptEngine() { return m_pScriptEngine; }
-	void SendUpdates(NSendMeUpdatesPacket* pPacketIn, NRealmServerConnection* pConnection, double time);
-	void UpdateObject(NUpdateObjectPacket* pPacket, double time, MClientRecord* pRecord);
+	void SendUpdates(int nConnection, NRealmServerConnection* pConnection, MClientRecord* pRecord, double time);
+	void UpdateRealmObject(NUpdateRealmObjectPacket* pPacket, double time, MClientRecord* pRecord);
+	void RemoveRealmObject(NRemoveRealmObjectPacket* pPacket, MClientRecord* pRecord);
 	void ReceiveObject(NSendObjectPacket* pPacket, int nConnection);
 
 protected:
-	void LoadScript(const char* szFilename, GXMLTag* pMapTag, Controller* pController, MRealm* pRealm);
+	bool LoadScript(GHttpClient* pHttpClient, const char* szUrl, GXMLTag* pMapTag, Controller* pController, MRealm* pRealm);
 };
+
+
+
+
+
+
 
 struct MClientRecord
 {
 	MRealmServer* pRealmServer;
-	double dTimeDelta;
+	double dTimeDelta; // The difference between the client's clock and the server's clock
+	double dLastSentUpdatesTime; // This can be used to detect dead clients since it is updated whenever the client requests updates (whether or not there are any updates to send)
+
+	MClientRecord()
+	{
+		pRealmServer = NULL;
+		dLastSentUpdatesTime = 0;
+	}
 };
 
-// This class represents a collection of MRealmServer objects.  This is the model when the application
-// is running in server mode.
+
+
+
+
+
+
+
+// This class represents a collection of MRealmServer objects.  This is the model
+// when the application is running in server mode.
 class MGameServer : public Model
 {
 friend class MRealmServer;
@@ -71,11 +95,9 @@ protected:
 	int m_nLoadCheckPos;
 	GPointerArray* m_pRealmServers;
 	GPointerArray* m_pClients;
-	char* m_szBasePath;
-	int m_nBasePathLen;
 
 public:
-	MGameServer(const char* szBasePath, Controller* pController);
+	MGameServer(Controller* pController);
 	virtual ~MGameServer();
 
 	virtual void Update(double time);
@@ -84,6 +106,7 @@ public:
 	virtual void SendObject(GObject* pObj, int nConnection);
 	float MeasureLoad();
 	MRealmServer* GetRealmServer(int nConnection);
+	void OnLoseConnection(int nConnection);
 
 protected:
 	MClientRecord* GetClientRecord(int n, bool bCreateIfNotFound);
@@ -91,8 +114,10 @@ protected:
 	void ConnectToRealm(NSetPathPacket* pPacketIn);
 	MRealmServer* FindOrLoadRealmServer(const char* szUrl);
 	void SendUpdates(NSendMeUpdatesPacket* pPacket, double time);
-	void UpdateObject(NUpdateObjectPacket* pPacket, double time);
+	void UpdateRealmObject(NUpdateRealmObjectPacket* pPacket, double time);
 	void ReceiveObject(NSendObjectPacket* pPacket);
+	void RemoveRealmObject(NRemoveRealmObjectPacket* pPacket);
+	void BootClient(int nConnection);
 };
 
 #endif // __MREALMSERVER_H__

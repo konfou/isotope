@@ -1,3 +1,14 @@
+/*
+	Copyright (C) 2006, Edumetrics Institute
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	see http://www.gnu.org/copyleft/gpl.html
+*/
+
 #include "LPS.h"
 #include "../GClasses/GArray.h"
 #include "../GClasses/GXML.h"
@@ -5,55 +16,58 @@
 
 LPSLearnerModel::LPSLearnerModel()
 {
-	m_pSubstantiveProcesses = new GPointerArray(16);
+	m_pSkills = new GPointerArray(16);
 }
 
 LPSLearnerModel::~LPSLearnerModel()
 {
-	int nCount = m_pSubstantiveProcesses->GetSize();
+	int nCount = m_pSkills->GetSize();
 	int n;
 	for(n = 0; n < nCount; n++)
-		delete((LPSSubstantiveProcess*)m_pSubstantiveProcesses->GetPointer(n));
-	delete(m_pSubstantiveProcesses);
+		delete((LPSThinkingSkill*)m_pSkills->GetPointer(n));
+	delete(m_pSkills);
 }
 
-int LPSLearnerModel::GetSubstantiveProcessCount()
+int LPSLearnerModel::GetThinkingSkillCount()
 {
-	return m_pSubstantiveProcesses->GetSize();
+	return m_pSkills->GetSize();
 }
 
-LPSSubstantiveProcess* LPSLearnerModel::GetSubstantiveProcess(int n)
+LPSThinkingSkill* LPSLearnerModel::GetThinkingSkill(int n)
 {
-	return (LPSSubstantiveProcess*)m_pSubstantiveProcesses->GetPointer(n);
+	return (LPSThinkingSkill*)m_pSkills->GetPointer(n);
 }
 
-void LPSLearnerModel::PushData(const char* szSubstantiveProcess, double dAbilityLevel, double dEvidence, bool bSuccessful)
+void LPSLearnerModel::PushData(const char* szThinkingSkill, double dAbilityLevel, double dEvidence, bool bSuccessful)
 {
-	int nCount = m_pSubstantiveProcesses->GetSize();
+	int nCount = m_pSkills->GetSize();
 	int n;
 	for(n = 0; n < nCount; n++)
 	{
-		LPSSubstantiveProcess* pSubstantiveProcess = (LPSSubstantiveProcess*)m_pSubstantiveProcesses->GetPointer(n);
-		if(stricmp(pSubstantiveProcess->GetName(), szSubstantiveProcess) == 0)
+		LPSThinkingSkill* pSkill = (LPSThinkingSkill*)m_pSkills->GetPointer(n);
+		if(stricmp(pSkill->GetName(), szThinkingSkill) == 0)
 		{
-			pSubstantiveProcess->PushEvidence(dAbilityLevel, dEvidence, bSuccessful);
+			pSkill->PushEvidence(dAbilityLevel, dEvidence, bSuccessful);
 			break;
 		}
 	}
+	if(n >= nCount)
+		fprintf(stderr, "*** Unrecognized thinking skill: %s\n", szThinkingSkill);
 }
+
 
 // --------------------------------------------------------------------------------------------
 
 
 
-LPSSubstantiveProcess::LPSSubstantiveProcess(const char* szName)
+LPSThinkingSkill::LPSThinkingSkill(const char* szName)
 {
 	m_pAttainments = new GPointerArray(32);
 	m_szName = new char[strlen(szName) + 1];
 	strcpy(m_szName, szName);
 }
 
-LPSSubstantiveProcess::~LPSSubstantiveProcess()
+LPSThinkingSkill::~LPSThinkingSkill()
 {
 	int nCount = m_pAttainments->GetSize();
 	int n;
@@ -63,7 +77,7 @@ LPSSubstantiveProcess::~LPSSubstantiveProcess()
 	delete(m_szName);
 }
 
-void LPSSubstantiveProcess::PushEvidence(double dAbilityLevel, double dEvidence, bool bSuccessful)
+void LPSThinkingSkill::PushEvidence(double dAbilityLevel, double dEvidence, bool bSuccessful)
 {
 	int nCount = m_pAttainments->GetSize();
 	int n;
@@ -77,7 +91,7 @@ void LPSSubstantiveProcess::PushEvidence(double dAbilityLevel, double dEvidence,
 	}
 }
 
-double LPSSubstantiveProcess::CalculateLearnerPosition()
+double LPSThinkingSkill::CalculateLearnerPosition()
 {
 	int nCount = m_pAttainments->GetSize();
 	int n;
@@ -118,9 +132,9 @@ LPSEvidence::~LPSEvidence()
 
 
 
-LPSAttainment::LPSAttainment(LPSSubstantiveProcess* pSubstantiveProcess, double dAbilityLevel)
+LPSAttainment::LPSAttainment(LPSThinkingSkill* pSkill, double dAbilityLevel)
 {
-	m_pSubstantiveProcess = pSubstantiveProcess;
+	m_pSkill = pSkill;
 	m_dAbilityLevel = dAbilityLevel;
 	m_pTube = NULL;
 }
