@@ -36,7 +36,8 @@ VOnScreenPanel::VOnScreenPanel(Controller* pController, int w, int h)
 	m_pUrlBar = new GWidgetTextBox(this, 50, 0, w - 50, 20);
 	m_pChatBox = new GWidgetListBox(this, w - 300, 20, 300, h - 40);
 	m_pChatEnter = new GWidgetTextBox(this, w - 300, 130, 300, 20);
-	m_pAbilityChart = new GWidgetPolarChart(this, 315, 20, 130, 130, 20);
+	m_pAbilityChart = new GWidgetPolarBarGraph(this, 315, 20, 130, 130, 4);
+	LoadChartValues();
 	m_pAbilitySlider = new GWidgetVertSlider(this, 230, 20, 20, 130);
 	m_pAbilityBar = new GWidgetProgressBar(this, 250, 20, 20, 130);
 	m_pWarpButton = new GWidgetImageButton(this, 275, 100, GetGlobalImage("button-warp"));
@@ -48,12 +49,6 @@ VOnScreenPanel::VOnScreenPanel(Controller* pController, int w, int h)
 	m_pThinkingSkill = new GWidgetTextLabel(this, h + 50, 50, w - 300 - (h + 50), 16, &s, 0xffccccff);
 	m_pThinkingSkill->SetBackgroundColor(0xff000044);
 */
-
-	// Bogus values
-	m_pAbilityChart->SetValue(1, (float).15);
-	m_pAbilityChart->SetValue(2, (float).85);
-	m_pAbilityChart->SetValue(4, (float).75);
-	m_pAbilityChart->SetSelected(0);
 
 	m_pHistory = new GPointerArray(16);
 	m_bDirty = true;
@@ -70,6 +65,42 @@ VOnScreenPanel::VOnScreenPanel(Controller* pController, int w, int h)
 	delete(m_pHistory);
 }
 
+void VOnScreenPanel::LoadChartValues()
+{
+	// todo: these are bogus values--load real values instead
+	m_pAbilityChart->SetValue(0, (float).25);
+	m_pAbilityChart->SetValue(1, (float).99);
+	m_pAbilityChart->SetValue(2, (float).75);
+	m_pAbilityChart->SetSelected(0);
+}
+
+const wchar_t* VOnScreenPanel::GetSkillName(int nSkill)
+{
+	// todo: this data should probably be embedded in some config file somewhere
+	switch(nSkill)
+	{
+		case 0:	return L"Induction_Distribution";
+		case 1:	return L"Induction_Multiple_Rules";
+		case 2:	return L"Induction_Figural_Complexity";
+		case 3:	return L"Induction_Rule_Difficulty";
+		default: return L"<Unknown skill>";
+	}
+}
+
+void VOnScreenPanel::DoWarp()
+{
+	int nSkill = m_pAbilityChart->GetSelection();
+	const wchar_t* wszSkill = GetSkillName(nSkill);
+	double dAbilityLevel = (double)m_pAbilitySlider->GetPos();
+	char* szUrl = m_pController->GetPuzzleUrl(wszSkill, dAbilityLevel);
+	Holder<char*> hUrl(szUrl);
+	if(szUrl)
+		SetUrl(szUrl);
+	else
+		SetUrl("http://Puzzle_Search_Engine_Failed"); // todo: handle this better
+	GoToUrl();
+}
+
 /*virtual*/ void VOnScreenPanel::OnReleaseTextButton(GWidgetTextButton* pButton)
 {
 	if(pButton == m_pBackButton)
@@ -81,7 +112,7 @@ VOnScreenPanel::VOnScreenPanel(Controller* pController, int w, int h)
 /*virtual*/ void VOnScreenPanel::OnReleaseImageButton(GWidgetImageButton* pButton)
 {
 	if(pButton == m_pWarpButton)
-		m_pController->ShowMediaHtmlPage("warp.html");
+		DoWarp();
 	else if(pButton == m_pHelpButton)
 		m_pController->ShowMediaHtmlPage("help.html");
 	else if(pButton == m_pKeysButton)
@@ -97,28 +128,12 @@ VOnScreenPanel::VOnScreenPanel(Controller* pController, int w, int h)
 	m_bDirty = true;
 }
 
-/*virtual*/ void VOnScreenPanel::OnChangePolarChartSelection(GWidgetPolarChart* pChart)
+/*virtual*/ void VOnScreenPanel::OnChangePolarBarGraphSelection(GWidgetPolarBarGraph* pChart)
 {
 	float f = m_pAbilityChart->GetSelectedValue();
 	m_pAbilityBar->SetProgress(f);
 	float fDifficulty = MIN((float)1, f + (float).03);
 	m_pAbilitySlider->SetPos(fDifficulty);
-/*	int nAbility = m_pAbilityChart->GetSelection();
-	switch(nAbility)
-	{
-		case 0:	m_pThinkingSkill->SetText("Induction Rule Difficulty"); break;
-		case 1:	m_pThinkingSkill->SetText("Induction Number of Rules"); break;
-		case 2:	m_pThinkingSkill->SetText("Induction Figural Complexity"); break;
-		case 3:	m_pThinkingSkill->SetText("Induction Memory Management"); break;
-		case 4:	m_pThinkingSkill->SetText("Hidden Figures Speed"); break;
-		case 5:	m_pThinkingSkill->SetText("Hidden Figures Level of Obfuscation"); break;
-		case 6:	m_pThinkingSkill->SetText("Deduction Simple Elimination"); break;
-		case 7:	m_pThinkingSkill->SetText("Deduction Memory"); break;
-		case 8:	m_pThinkingSkill->SetText("Reading Vocabulary"); break;
-		case 9:	m_pThinkingSkill->SetText("Reading Enunciation"); break;
-		case 10: m_pThinkingSkill->SetText("Reading Fluidity"); break;
-		case 11: m_pThinkingSkill->SetText("Arithmetic Addition"); break;
-	}*/
 	m_bDirty = true;
 }
 

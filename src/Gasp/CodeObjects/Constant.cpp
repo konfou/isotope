@@ -14,12 +14,8 @@
 #include "../Engine/TagNames.h"
 #include "../../GClasses/GXML.h"
 #include "../../GClasses/GQueue.h"
+#include "../../GClasses/GMacros.h"
 #include "Project.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 COConstant::COConstant(int nLine, int nCol, int nWid, const char* szName, const char* szValue)
 : CodeObject(nLine, nCol, nWid)

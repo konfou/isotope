@@ -2,24 +2,25 @@
 # PATHS AND NAMES
 ################
 TARGET_PATH = ../../bin
-TARGET_NAME_OPT = Isotope.exe
-TARGET_NAME_DBG = IsotopeDbg.exe
+TARGET_NAME_OPT = Isotope
+TARGET_NAME_DBG = IsotopeDbg
 OBJ_PATH = ../../obj/obj
 ISOTOPE_PATH = .
 UNAME = $(shell uname -s)
-CFLAGS = $(shell sdl-config --cflags)
 DBG_LIBRARIES = ../../lib/GaspEngineDbg.a ../../lib/GaspLibDbg.a ../../lib/GaspSdlDbg.a ../../lib/GClassesDbg.a
 OPT_LIBRARIES = ../../lib/GaspEngine.a ../../lib/GaspLib.a ../../lib/GaspSdl.a ../../lib/GClasses.a
 ifeq ($(UNAME),Darwin)
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -no-cpp-precomp
-OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -no-cpp-precomp
-DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --libs) /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib /sw/lib/libpng.3.1.2.5.dylib
-OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib /sw/lib/libpng.3.1.2.5.dylib
+CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE
+DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
+OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
+DBG_LFLAGS = $(DBG_LIBRARIES) /usr/local/lib/libSDLmain.a -framework OpenGL -framework AGL -framework AudioToolbox -framework AudioUnit -framework IOKit -lstdc++ -framework Cocoa -framework Carbon -framework QuickTime /usr/local/lib/libpng.a /usr/local/lib/libSDL_mixer.a -lz /usr/local/lib/libvorbis.a /usr/local/lib/libvorbisfile.a /usr/local/lib/libogg.a /usr/local/lib/libSDL.a
+OPT_LFLAGS = $(OPT_LIBRARIES) /usr/local/lib/libSDLmain.a -framework OpenGL -framework AGL -framework AudioToolbox -framework AudioUnit -framework IOKit -lstdc++ -framework Cocoa -framework Carbon -framework QuickTime /usr/local/lib/libpng.a /usr/local/lib/libSDL_mixer.a -lz /usr/local/lib/libvorbis.a /usr/local/lib/libvorbisfile.a /usr/local/lib/libogg.a /usr/local/lib/libSDL.a
 else
+CFLAGS = $(shell sdl-config --cflags)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) -lSDL_mixer $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
-OPT_LFLAGS = $(OPT_LIBRARIES) -lSDL_mixer $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
+DBG_LFLAGS = $(DBG_LIBRARIES) -lSDL_mixer $(shell sdl-config --static-libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
+OPT_LFLAGS = $(OPT_LIBRARIES) -lSDL_mixer $(shell sdl-config --static-libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
 endif
 
 ################
@@ -37,6 +38,7 @@ ISOTOPE_SOURCES =   $(ISOTOPE_PATH)/AutoUpdate.cpp\
                     $(ISOTOPE_PATH)/MKeyPair.cpp\
                     $(ISOTOPE_PATH)/MObject.cpp\
                     $(ISOTOPE_PATH)/Model.cpp\
+                    $(ISOTOPE_PATH)/MPuzSearchEngine.cpp\
                     $(ISOTOPE_PATH)/MRealm.cpp\
                     $(ISOTOPE_PATH)/MRealmServer.cpp\
                     $(ISOTOPE_PATH)/MScriptEngine.cpp\
@@ -69,6 +71,7 @@ ISOTOPE_HEADER =    $(ISOTOPE_PATH)/AutoUpdate.h\
                     $(ISOTOPE_PATH)/MKeyPair.h\
                     $(ISOTOPE_PATH)/MObject.h\
                     $(ISOTOPE_PATH)/Model.h\
+                    $(ISOTOPE_PATH)/MPuzSearchEngine.h\
                     $(ISOTOPE_PATH)/MRealm.h\
                     $(ISOTOPE_PATH)/MRealmServer.h\
                     $(ISOTOPE_PATH)/MScriptEngine.h\

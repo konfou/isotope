@@ -14,13 +14,9 @@
 #include "Method.h"
 #include "../../GClasses/GArray.h"
 #include "../../GClasses/GXML.h"
+#include "../../GClasses/GMacros.h"
 #include "../Engine/TagNames.h"
 #include "Project.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include <wchar.h>
 
 COInterface::COInterface(int nLine, int nCol, int nWid, const char* szName, COFile* pFile, COProject* pCOProject)

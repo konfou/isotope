@@ -4,6 +4,7 @@
 #include "GXML.h"
 #include "GArray.h"
 #include <math.h>
+#include <stdlib.h>
 
 struct GNaiveBayesInputAttr
 {

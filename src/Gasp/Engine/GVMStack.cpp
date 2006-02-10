@@ -288,13 +288,22 @@ void GVMStack::DumpStack(GString* pString, GVM* pVM, int nMaxObjectDepth, bool b
 
 			case VT_RETURN_POSITION:
 				nMethod = pVM->FindWhichMethodThisIsIn(pInstrPointer);
-				pMethod = pLibrary->GetEMethod(nMethod);
-				pString->Add(pMethod->GetClass()->GetName());
-				pString->Add(L".");
-				pSig = pMethod->GetSignature()->GetString();
-				pString->Add(pSig);
-				pString->Add(L"\n");
-				nParam = pMethod->CountParams() - 1;
+				if(nMethod >= 0)
+				{
+					pMethod = pLibrary->GetEMethod(nMethod);
+					pString->Add(pMethod->GetClass()->GetName());
+					pString->Add(L".");
+					pSig = pMethod->GetSignature()->GetString();
+					pString->Add(pSig);
+					pString->Add(L"\n");
+					nParam = pMethod->CountParams() - 1;
+				}
+				else
+				{
+					GAssert(false, "corrupted stack");
+					pString->Add(L"<Corrupted Stack>\n");
+					return;
+				}
 				pInstrPointer = (unsigned char*)pVar->pOb;
 				break;
 

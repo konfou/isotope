@@ -221,10 +221,14 @@ bool TestGSmallArray(ClassTests* pThis)
 		sa._AddCellByRef(&cTmp);
 	}
 	for(n = 0; n < 50; n++)
-		sa._InsertCellByRef(0, &n);
+	{
+		char c = n;
+		sa._InsertCellByRef(0, &c);
+	}
 	for(n = 0; n < 50; n++)
 	{
-		if(*(char*)sa._GetCellRef(n) != (char)(49 - n))
+		char* pData = (char*)sa._GetCellRef(n);
+		if(*pData != (char)(49 - n))
 			return false;
 	}
 	for(n = 50; n < 1050; n++)
@@ -504,6 +508,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 	GEZSocketServer* pServer = hServer.Get();
 	if(!pServer)
 		return false;
+
 	Holder<GEZSocketClient*> hClient(bGash ? GEZSocketClient::ConnectToGashSocket("localhost", TEST_SOCKET_PORT, 5000) : GEZSocketClient::ConnectToTCPSocket("localhost", TEST_SOCKET_PORT));
 	GEZSocketClient* pClient = hClient.Get();
 	if(!pClient)
@@ -514,7 +519,9 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 	char szBuf[5000];
 	for(i = 0; i < 5000; i++)
 		szBuf[i] = (char)i;
+
 	pClient->Send(szBuf, 5000);
+
 #ifdef WIN32
 	GWindows::YieldToWindows();
 #endif // WIN32
@@ -526,24 +533,22 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 		GWindows::YieldToWindows();
 #endif // WIN32
 	}
+
 	pClient->Send(szBuf, 5000);
 #ifdef WIN32
 	GWindows::YieldToWindows();
 #endif // WIN32
 
 	// Wait for the data to arrive
+
 	int nTimeout;
 	for(nTimeout = 500; nTimeout > 0; nTimeout--)
 	{
 		if(pServer->GetMessageCount() == 52)
 			break;
-#ifdef WIN32			
-		GWindows::YieldToWindows();
-		Sleep(50);
-#else // WIN32
-		usleep(50);
-#endif // else WIN32
+		GThread::sleep(50);
 	}
+
 	if(pServer->GetMessageCount() != 52)
 		return false;
 
@@ -559,6 +564,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 		if(pData[122] != (char)122)
 			return false;
 	}
+
 	for(i = 10; i < 60; i++)
 	{
 		ArrayHolder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
@@ -575,6 +581,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 		GWindows::YieldToWindows();
 #endif // WIN32
 	}
+
 	{
 		ArrayHolder<unsigned char*> hData = pServer->GetNextMessage(&nSize, &nConnection);
 		unsigned char* pData = hData.Get();
@@ -591,12 +598,7 @@ bool TestGEZSocketSerial(ClassTests* pThis, bool bGash)
 	{
 		if(pClient->GetMessageCount() == 50)
 			break;
-#ifdef WIN32			
-		GWindows::YieldToWindows();
-		Sleep(50);
-#else // WIN32
-		usleep(50);
-#endif // else WIN32
+		GThread::sleep(50);
 	}
 	if(pClient->GetMessageCount() != 50)
 		return false;
@@ -655,11 +657,7 @@ bool TestGEZSocketParallel(ClassTests* pThis)
 		if(!hData.Get())
 		{
 			i--;
-#ifdef WIN32
-			Sleep(0);
-#else // WIN32
-			usleep(0);
-#endif // !WIN32
+			GThread::sleep(0);
 			continue;
 		}
 		if(nSize != 1025)
@@ -756,14 +754,14 @@ static struct ClassTest testTable[] =
 	{"GArray", TestGArray},
 	{"GAVLTree", TestGAvlTree},
 	{"GBezier", TestBezier},
-	{"GBigNumber", TestGBigNumber},
+	{"GBigNumber", TestGBigNumber}, // never finishes on the mac FIXME
 	{"GCompress", TestGCompress},
 	{"GDataBase", TestDataBase},
 	{"GEZSocket", TestGEZSocket},
 	{"GHashTable", TestGHashTable},
 	{"GLList", TestGLList},
 	{"GFourier", TestGFourier},
-//	{"GMatrix", TestMatrix},
+	{"GMatrix", TestMatrix}, // fails on the mac. FIXME
 	{"GPolynomial", TestPolynomial},
 	{"GPrecalculatedTrigTable", TestGPrecalculatedTrigTable},
 	{"GQueue", TestGQueue},

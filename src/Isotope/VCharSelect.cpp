@@ -148,7 +148,7 @@ VCharSelect::VCharSelect(GRect* pRect, Controller* pController)
 
 	char szMusicPath[512];
 	strcpy(szMusicPath, GameEngine::GetAppPath());
-	strcat(szMusicPath, "/media/music/Hydrate-Kenny_Beltrey.ogg");
+	strcat(szMusicPath, "media/music/Hydrate-Kenny_Beltrey.ogg");
 	m_audioPlayer.PlayBackgroundMusic(szMusicPath);
 }
 

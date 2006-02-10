@@ -14,15 +14,14 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
+#ifdef WIN32
+#	include <malloc.h>
+#else // WIN32
+#	include <alloca.h>
+#endif // !WIN32
 #ifndef WIN32
-#include <sys/stat.h>
-#include <cassert>
+#	include <sys/stat.h>
+#	include <cassert>
 #endif // !WIN32
 
 // ********************************************
@@ -159,7 +158,7 @@ public:
 #ifdef WIN32
 #define GTEMPBUF(pBuf, nSize)								\
 	GTempBufHelper pBuf##__(nSize);							\
-	char* pBuf = (((nSize) <= MAX_STACK_TEMP_BUFFER) ? (char*)_alloca(nSize) : pBuf##__.m_pBuf);
+	char* pBuf = (((nSize) <= MAX_STACK_TEMP_BUFFER) ? (char*)alloca(nSize) : pBuf##__.m_pBuf);
 #else
 #define GTEMPBUF(pBuf, nSize)								\
 	GTempBufHelper pBuf##__(nSize);							\

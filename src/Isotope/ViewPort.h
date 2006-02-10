@@ -12,7 +12,7 @@
 #ifndef __VIEWPORT_H__
 #define __VIEWPORT_H__
 
-#include "../SDL/SDL.h"
+#include <SDL/SDL.h>
 #include "../GClasses/GMacros.h"
 #include "../GClasses/GImage.h"
 

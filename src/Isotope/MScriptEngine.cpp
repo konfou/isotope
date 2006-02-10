@@ -14,6 +14,7 @@
 #include "../GClasses/GString.h"
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GXML.h"
+#include "../GClasses/GMacros.h"
 #include "../GClasses/GFile.h"
 #include "../Gasp/BuiltIns/GaspStream.h"
 #include "../Gasp/BuiltIns/GaspFloat.h"
@@ -35,11 +36,6 @@
 #include "MRealm.h"
 #include "MGameImage.h"
 #include "Controller.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #ifdef WIN32
 #include <windows.h>
 #include <direct.h>

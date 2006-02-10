@@ -13,7 +13,7 @@
 #include "GArff.h"
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
+#include "GMacros.h"
 
 GSupervisedLearner::GSupervisedLearner(GArffRelation* pRelation)
 {

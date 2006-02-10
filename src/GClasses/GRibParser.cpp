@@ -1088,10 +1088,10 @@ bool RibParser::handlePointsGeneralPolygons( const RibData& data )
 		double *curr_pt = &points[ ipt*4 ];
 		matrixMultiplyPoint( curr_pt, curr_transform, curr_pt );
 	}
-	// TODO: Make a triangle mesh.
+
 	// There are a couple of different ways of storing a polygonal mesh.
 	// We've implemented a subset of Renderman's pointsGeneralPolygons command.
-	// The basic idea is that you have an array of loops, an array of the number of vertices in each loop, 
+	// The basic idea is that you have an array of loops, an array of the number of vertices in each loop,
 	//     an array of those vertices, and then the data for the vertices.
 	// The data consists of points, and then optionally normals and texture coordinates.
 	// The index for a given vertex is the same for vertices, points, and texture coordinates, so a single vertex only has one normal
@@ -1100,7 +1100,7 @@ bool RibParser::handlePointsGeneralPolygons( const RibData& data )
 	// On to what you'll actually need to do.
 	//
 	// The data you'll need is stored in the following variables:
-	// 
+	//
 	// npolys: The number of polygons
 	// npoints: The number of points
 	// nnormals: The number of normals
@@ -1116,40 +1116,46 @@ bool RibParser::handlePointsGeneralPolygons( const RibData& data )
 	//              You might be able to get some speed out of not dividing out w, especially for large meshes.
 	//              In the sample files for the class, none of them are homogeneous, so this is only really for loading other files.
 	//
-	// Below is an example of making a triangle mesh, but you can do it however is best for your data structures.
-        // This is probably not an optimal design, but one that I used so that I could handle extremely large scenes.
-/*
-        Material *material = getMaterial();
-        Trimesh *mesh = new Trimesh( material );
-        mesh->setSizes( npoints, npolys, nnormals, ntexcoords );
+        GRayTraceMaterial *material = getMaterial();
+        GRayTraceTriMesh *mesh = new GRayTraceTriMesh(material, npoints, npolys, nnormals, ntexcoords);
 
-
-        // Fill the mesh with the data.
+	// Points
+	GRayTraceVector v;
         for (uint ipt = 0; ipt < npoints; ipt++)
-                mesh->vert(ipt).setValues( &points[ ipt * 4 ] );
-        for (uint ipt = 0; ipt < nnormals; ipt++)
-                mesh->normal(ipt).setValues( &normals[ ipt * 3 ] );
-        for (uint ipt = 0; ipt < ntexcoords; ipt++)
-                mesh->texCoord(ipt).setValues( &texcoords[ ipt * 2 ] );
-
-
-        // Fill in the connectivity
-        for( uint ipoly = 0; ipoly < npolys; ipoly++ ) 
         {
-                Triangle& t = mesh->tri( ipoly );
-                vector< uint > & idx = vertex_indices[ ipoly ];
-                t.v[ 0 ] = idx[ 0 ];
-                t.v[ 1 ] = idx[ 1 ];
-                t.v[ 2 ] = idx[ 2 ];
-        }
+		v.m_vals[0] = points[ipt * 4];
+		v.m_vals[1] = points[ipt * 4 + 1];
+		v.m_vals[2] = points[ipt * 4 + 2];
+	        mesh->SetPoint(ipt, &v);
+	}
 
+	// Normals
+        for (uint ipt = 0; ipt < nnormals; ipt++)
+        {
+		v.m_vals[0] = normals[ipt * 3];
+		v.m_vals[1] = normals[ipt * 3 + 1];
+		v.m_vals[2] = normals[ipt * 3 + 2];
+	        mesh->SetNormal(ipt, &v);
+	}
+
+	// Texture coords
+        for (uint ipt = 0; ipt < ntexcoords; ipt++)
+	        mesh->SetTextureCoord(ipt, texcoords[ipt * 2], texcoords[ipt * 2 + 1]);
+
+        // Triangles
+        for( uint ipoly = 0; ipoly < npolys; ipoly++ ) 
+	{
+                vector< uint > & idx = vertex_indices[ ipoly ];
+		mesh->SetTriangle(ipoly, idx[0], idx[1], idx[2]);
+	}
 
         // Add to the scene
-        scene->add( mesh );
+        m_pScene->AddObject( mesh );
         // It might also be a light source
-        if ( material && material->isLightSource() )
-                scene->addShapeLight( mesh );
-*/
+// TODO: supported shape lights
+//        if ( material && material->isLightSource() )
+//                scene->addShapeLight( mesh );
+
 	// Clean up the allocated memory.
 	if ( points != NULL )
 		delete[] points;

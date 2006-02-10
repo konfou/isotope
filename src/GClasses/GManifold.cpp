@@ -19,6 +19,7 @@ struct GSquisherNeighbor
 struct GSquisherData
 {
 	int m_nCycle;
+	bool m_bAdjustable;
 };
 
 GSquisher::GSquisher(int nDataPoints, int nDimensions, int nNeighbors)
@@ -44,9 +45,11 @@ GSquisher::~GSquisher()
 	delete(m_pQ);
 }
 
-void GSquisher::SetDataPoint(int n, double* pValues)
+void GSquisher::SetDataPoint(int n, double* pValues, bool bAdjustable)
 {
 	memcpy(&m_pData[n * m_nRecordSize + m_nValueIndex], pValues, sizeof(double) * m_nDimensions);
+	struct GSquisherData* pData = (struct GSquisherData*)&m_pData[n * m_nRecordSize + m_nDataIndex];
+	pData->m_bAdjustable = bAdjustable;
 }
 
 void GSquisher::SetData(GArffRelation* pRelation, GArffData* pData)
@@ -61,7 +64,7 @@ void GSquisher::SetData(GArffRelation* pRelation, GArffData* pData)
 		pRow = pData->GetRow(n);
 		for(i = 0; i < nInputs; i++)
 			pInputs[i] = pRow[pRelation->GetInputIndex(i)];
-		SetDataPoint(n, pInputs);
+		SetDataPoint(n, pInputs, true);
 	}
 }
 
@@ -271,7 +274,7 @@ double GSquisher::CalculateDataPointError(unsigned char* pDataPoint)
 		dTheta *= dTheta;
 		dTheta = MAX((double)0, dTheta - .01);
 		pNeighborData = (struct GSquisherData*)(pNeighbors[n].m_pNeighbor + m_nDataIndex);
-		if(pNeighborData->m_nCycle != pDataPointData->m_nCycle)
+		if(pNeighborData->m_nCycle != pDataPointData->m_nCycle && pNeighborData->m_bAdjustable)
 		{
 			dDist /= m_nSmoothingAdvantage;
 			dTheta /= m_nSmoothingAdvantage;
@@ -342,8 +345,7 @@ double GSquisher::SquishPass(int nSeedDataPoint)
 			pValues[i] *= m_dSquishingRate;
 	}
 
-	// Pick a random data point and correct outward in a breadth-first mannner
-	//int nSeedDataPoint = (int)(GBits::GetRandomUint() % m_nDataPoints); // m_nDataPoints / 2;
+	// Start at the seed point and correct outward in a breadth-first mannner
 	m_pQ->Push(&m_pData[nSeedDataPoint * m_nRecordSize]);
 	int nVisitedNodes = 0;
 	int nSteps = 0;
@@ -365,9 +367,11 @@ double GSquisher::SquishPass(int nSeedDataPoint)
 			m_pQ->Push(pNeighbors[n].m_pNeighbor);
 
 		// Ajust this data point
-//if(nVisitedNodes > 1)
-		nSteps += AjustDataPoint(pDataPoint, m_nTargetDimensions, &dError);
-		dTotalError += dError;
+		if(pData->m_bAdjustable)
+		{
+			nSteps += AjustDataPoint(pDataPoint, m_nTargetDimensions, &dError);
+			dTotalError += dError;
+		}
 	}
 	//GAssert(nVisitedNodes * 1.25 > m_nDataPoints, "manifold appears poorly sampled");
 	if(nSteps * 3 < m_nDataPoints)

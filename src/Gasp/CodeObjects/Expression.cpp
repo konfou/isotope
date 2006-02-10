@@ -20,15 +20,11 @@
 #include "../Engine/EvalExprResult.h"
 #include "../../GClasses/GXML.h"
 #include "../../GClasses/GQueue.h"
+#include "../../GClasses/GMacros.h"
 #include "Operator.h"
 #include "VarRef.h"
 #include "Call.h"
 #include "../Engine/InstrSet.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 inline void EatLeadingWhitespace(const char** pszExpression, int* pnLen)
 {

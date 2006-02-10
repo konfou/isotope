@@ -11,14 +11,9 @@
 
 #include <stdio.h>
 #ifdef WIN32
-#include <io.h>
-#include <direct.h>
+#	include <io.h>
+#	include <direct.h>
 #endif // WIN32
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include "Error.h"
 #include "GCompiler.h"
 #include "Disassembler.h"

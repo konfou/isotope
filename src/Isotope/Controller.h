@@ -12,7 +12,7 @@
 #ifndef __CONTROLLER_H__
 #define __CONTROLLER_H__
 
-#include "../SDL/SDL.h"
+#include <SDL/SDL.h>
 
 class GameEngine;
 class GPointerArray;
@@ -122,13 +122,7 @@ public:
 	void SetMode(ControlModes newMode);
 
 	// Main Menu Function
-	void ToggleTerrain();
-
-	// Main Menu Function
-	void MakeScreenSmaller();
-
-	// Main Menu Function
-	void MakeScreenBigger();
+	void ToggleFullScreen();
 
 	// Main Menu Function
 	void ViewScript();
@@ -151,10 +145,14 @@ public:
 	// seconds.  pProgressCallback will report progress periodically if it's not NULL.
 	static char* DownloadFile(GHttpClient* pSocket, const char* szUrl, int* pnSize, bool bThrow, double dTimeout, DownloadFileProgressCallback pProgressCallback, void* pThis);
 
+	// Queries the puzzle search engine to obtain a URL to a puzzle that teaches
+	// the specified thinking skill with the specified ability level. You must
+	// delete the buffer this returns.
+	char* GetPuzzleUrl(const wchar_t* wszSkill, double dAbilityLevel);
+
 	void MakeServerView(MGameServer* pServer);
 	void MakeNewCharView();
 	void CancelMakeNewChar();
-	void AddObject(const char* szFilename);
 	void CreateNewCharacter(const char* szAvatarID, const char* szUsername, const char* szPassword);
 	void RemoveAccount(const char* szUsername, const char* szPassword);
 	void LogIn(GXMLTag* pAccountRefTag, const char* szPassword);
@@ -172,6 +170,7 @@ public:
 protected:
 	//void GetArrowKeyVector(float* pdx, float* pdy);
 
+	View* LazyGetView();
 	void DoControl(double dTimeDelta);
 	void ControlThirdPerson(double dTimeDelta);
 	void ControlFirstPerson(double dTimeDelta);

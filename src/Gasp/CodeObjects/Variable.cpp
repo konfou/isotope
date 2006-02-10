@@ -15,12 +15,8 @@
 #include "Class.h"
 #include "Interface.h"
 #include "../../GClasses/GXML.h"
+#include "../../GClasses/GMacros.h"
 #include "../../GClasses/GQueue.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include "Operator.h"
 
 COVariable::COVariable(int nLine, int nCol, int nWid, const char* szName, COType* pType, bool bVarIsReadOnly, bool bObjIsReadOnly, bool bAutoAlloc)

@@ -18,6 +18,7 @@
 #include "GObject.h"
 #include "../Engine/EClass.h"
 #include "../BuiltIns/GaspStream.h"
+#include "../../GClasses/GMacros.h"
 
 void ObjectObject::toStream(Engine* pEngine, EVar* pOutBlob, EVar* pOutRefs)
 {

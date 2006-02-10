@@ -19,7 +19,7 @@ View::View()
 {
 	m_nScreenWidth = 800;
 	m_nScreenHeight = 600;
-	SetScreenSize(m_nScreenWidth, m_nScreenHeight);
+	SetScreenSize();
 	m_pViewPorts = new GPointerArray(8);
 	m_dLastFullRefreshTime = 0;
 	m_pTopView = NULL;
@@ -32,7 +32,7 @@ View::~View()
 	delete(m_pViewPorts);
 }
 
-void View::SetScreenSize(int x, int y)
+void View::SetScreenSize()
 {
 	// Determine whether to use full screen or windowed mode
 #ifdef _DEBUG
@@ -49,6 +49,16 @@ void View::SetScreenSize(int x, int y)
 			m_bFullScreen = false;
 	}
 
+	SetVideoMode();
+
+	m_screenRect.x = 5;
+	m_screenRect.y = 5;
+	m_screenRect.w = m_pScreen->w - 10;
+	m_screenRect.h = m_pScreen->h - 10;
+}
+
+void View::SetVideoMode()
+{
 	// Make the display flags
 	unsigned int flags = 
 //      * Don't add SDL_HWSURFACE to these flags. Why? It may seem counter-intuitive, but
@@ -70,30 +80,24 @@ void View::SetScreenSize(int x, int y)
 		flags |= SDL_FULLSCREEN;
 
 	// Make the display
-	m_pScreen = SDL_SetVideoMode(x, y, 32, flags);
+	m_pScreen = SDL_SetVideoMode(m_nScreenWidth, m_nScreenHeight, 32, flags);
 	if(!m_pScreen)
 	{
 		GAssert(false, SDL_GetError());
 		GameEngine::ThrowError("failed to create SDL screen");
 	}
-	m_screenRect.x = 5;
-	m_screenRect.y = 5;
-	m_screenRect.w = m_pScreen->w - 10;
-	m_screenRect.h = m_pScreen->h - 10;
 }
 
-void View::MakeScreenSmaller()
+void View::ToggleFullScreen()
 {
-	m_nScreenWidth = (int)(m_nScreenWidth / 1.25);
-	m_nScreenHeight = (int)(m_nScreenHeight / 1.25);
-	SetScreenSize(m_nScreenWidth, m_nScreenHeight);
+	m_bFullScreen = !m_bFullScreen;
+	SetVideoMode();
 }
 
-void View::MakeScreenBigger()
+void View::MakeWindowed()
 {
-	m_nScreenWidth = (int)(m_nScreenWidth * 1.25);
-	m_nScreenHeight = (int)(m_nScreenHeight* 1.25);
-	SetScreenSize(m_nScreenWidth, m_nScreenHeight);
+	if(m_bFullScreen)
+		ToggleFullScreen();
 }
 
 void View::PushViewPort(ViewPort* pViewPort)
@@ -131,17 +135,20 @@ void View::OnChar(char c)
 
 void View::OnMouseDown(int x, int y)
 {
-	m_pTopView->OnMouseDown(x, y);
+	if(m_pTopView)
+		m_pTopView->OnMouseDown(x, y);
 }
 
 void View::OnMouseUp(int x, int y)
 {
-	m_pTopView->OnMouseUp(x, y);
+	if(m_pTopView)
+		m_pTopView->OnMouseUp(x, y);
 }
 
 bool View::OnMousePos(int x, int y)
 {
-	m_pTopView->OnMousePos(x, y);
+	if(m_pTopView)
+		m_pTopView->OnMousePos(x, y);
 	return false;
 }
 

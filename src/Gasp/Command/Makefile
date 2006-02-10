@@ -2,25 +2,26 @@
 # PATHS AND NAMES
 ################
 TARGET_PATH = ../../../bin
-TARGET_NAME_OPT = Gasp.exe
-TARGET_NAME_DBG = GaspDbg.exe
+TARGET_NAME_OPT = Gasp
+TARGET_NAME_DBG = GaspDbg
 OBJ_PATH = ../../../obj/obj
 COMMAND_PATH = .
 TEST_PATH = ../Test
 UNAME = $(shell uname -s)
-CFLAGS = $(shell sdl-config --cflags)
 DBG_LIBRARIES = ../../../lib/GaspEngineDbg.a ../../../lib/GaspLibDbg.a ../../../lib/GaspSdlDbg.a ../../../lib/GClassesDbg.a
 OPT_LIBRARIES = ../../../lib/GaspEngine.a ../../../lib/GaspLib.a ../../../lib/GaspSdl.a ../../../lib/GClasses.a
 ifeq ($(UNAME),Darwin)
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -no-cpp-precomp
-OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -no-cpp-precomp
-DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --libs) /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib /sw/lib/libpng.3.1.2.5.dylib
-OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib /sw/lib/libpng.3.1.2.5.dylib
+CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE
+DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
+OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
+DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --static-libs) /usr/local/lib/libpng.a -lz
+OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --static-libs) /usr/local/lib/libpng.a -lz 
 else
+CFLAGS = $(shell sdl-config --cflags)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
-DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
-OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
+DBG_LFLAGS = $(DBG_LIBRARIES) $(shell sdl-config --static-libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
+OPT_LFLAGS = $(OPT_LIBRARIES) $(shell sdl-config --static-libs) /usr/lib/libGL.so.1 /usr/lib/libpng.so
 endif
 
 ################
@@ -122,8 +123,8 @@ $(TEST_OBJECTS_DBG) : $(OBJ_PATH)/%.dbg.o : $(TEST_PATH)/%.cpp $(ALL_HEADERS)
 clean :
 	rm -f $(ALL_OBJECTS_OPT)
 	rm -f $(ALL_OBJECTS_DBG)
-	rm -f $(TARGET_PATH)/Gasp.exe
-	rm -f $(TARGET_PATH)/GaspDbg.exe
+	rm -f $(TARGET_PATH)/Gasp
+	rm -f $(TARGET_PATH)/GaspDbg
 	$(MAKE) -C ../Engine clean
 	$(MAKE) -C ../MachineObjects clean
 	$(MAKE) -C ../GaspSDL clean

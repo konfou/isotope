@@ -24,11 +24,7 @@
 #include "../Engine/EvalExprResult.h"
 #include "../../GClasses/GXML.h"
 #include "../../GClasses/GQueue.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
+#include "../../GClasses/GMacros.h"
 #include <wchar.h>
 
 

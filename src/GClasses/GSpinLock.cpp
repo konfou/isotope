@@ -12,11 +12,10 @@
 #include "GSpinLock.h"
 #include <time.h>
 #include "GMacros.h"
-#ifdef WIN32
-#include "GWindows.h"
-#else // WIN32
-#include <unistd.h>
-#endif // !WIN32
+#include "GThread.h"
+#ifdef DARWIN
+#include <libkern/OSAtomic.h>
+#endif
 
 GSpinLock::GSpinLock()
 {
@@ -44,10 +43,7 @@ static inline unsigned int testAndSet(unsigned int* pDWord)
 	return dwRetVal;
 #else // WIN32
 #ifdef DARWIN
-	// todo: this is a hack.  Fix it.
-	unsigned int nRet = *pDWord;
-	*pDWord = 1;
-	return nRet;
+	return (int)!OSSpinLockTry((OSSpinLock *)pDWord);
 #else // DARWIN
 	unsigned int dwRetVal;
 	__asm__ __volatile__
@@ -74,12 +70,7 @@ void GSpinLock::Lock(const char* szUniqueStaticStringToIdentifyWhoLockedIt)
 		tCurrentTime = time(&t);
 		GAssert(tCurrentTime - tStartTime < 10, "Blocked for 10 seconds!");
 #endif // _DEBUG
-#ifdef WIN32
-		Sleep(0);
-		GWindows::YieldToWindows();
-#else
-		usleep(0);
-#endif // !WIN32
+		GThread::sleep(0);
 	}
 #ifdef _DEBUG
 	m_szUniqueStaticStringToIdentifyWhoLockedIt = szUniqueStaticStringToIdentifyWhoLockedIt;
@@ -91,6 +82,10 @@ void GSpinLock::Unlock()
 #ifdef _DEBUG
 	m_szUniqueStaticStringToIdentifyWhoLockedIt = "<Not Locked>";
 #endif // _DEBUG
+#ifdef DARWIN
+	OSSpinLockUnlock((OSSpinLock *)&m_dwLocked);
+#else
 	m_dwLocked = 0;
+#endif
 }
 

@@ -12,7 +12,7 @@
 #ifndef __VIEW_H__
 #define __VIEW_H__
 
-#include "../SDL/SDL.h"
+#include <SDL/SDL.h>
 #include "../GClasses/GRayTrace.h"
 
 class ViewPort;
@@ -45,9 +45,12 @@ public:
 	void OnMouseDown(int x, int y);
 	void OnMouseUp(int x, int y);
 	bool OnMousePos(int x, int y);
-	void SetScreenSize(int x, int y);
-	void MakeScreenBigger();
-	void MakeScreenSmaller();
+	void SetScreenSize();
+	void ToggleFullScreen();
+	void MakeWindowed();
+
+protected:
+	void SetVideoMode();
 };
 
 #endif // __VIEW_H__

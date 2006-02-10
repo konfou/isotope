@@ -19,16 +19,12 @@
 #include "../../GClasses/GXML.h"
 #include "../../GClasses/GHashTable.h"
 #include "../../GClasses/GBitTable.h"
+#include "../../GClasses/GMacros.h"
 #include "../CodeObjects/Project.h"
 #include "../CodeObjects/Method.h"
 #include "../CodeObjects/Class.h"
 #include "EInterface.h"
 #include "EClass.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 // Takes ownership of the XML tree
 Library::Library(GXMLTag* pLibraryTag, COProject* pProject, bool bTakeProjectOwnership)

@@ -1,14 +1,20 @@
 <KnownPuzzles>
 	<Skill Name="Induction_Figural_Complexity">
-		<Puzzle level=".23" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant.realm" />
-		<Puzzle level=".93" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant.realm" />
+		<Puzzle level=".23" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
+		<Puzzle level=".93" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
 	</Skill>
 	<Skill Name="Induction_Multiple_Rules">
-		<Puzzle level=".14" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant.realm" />
-		<Puzzle level=".66" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant.realm" />
+		<Puzzle level=".14" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
+		<Puzzle level=".66" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
 	</Skill>
 	<Skill Name="Induction_Distribution">
-		<Puzzle level=".01" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant.realm" />
-		<Puzzle level=".99" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant.realm" />
+		<Puzzle level=".01" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
+		<Puzzle level=".99" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
+	</Skill>
+	<Skill Name="Induction_Rule_Difficulty">
+		<Puzzle level=".08" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
+		<Puzzle level=".33" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
+		<Puzzle level=".47" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
+		<Puzzle level=".99" url="http://isotope.edumetrics.org/media/trunk/puzzles/d2+0+constant/d2+0+constant.realm" />
 	</Skill>
 </KnownPuzzles>

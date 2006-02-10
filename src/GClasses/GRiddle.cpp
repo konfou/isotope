@@ -16,11 +16,7 @@
 #include "GRand.h"
 #include "GXML.h"
 #include "GKeyPair.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
+#include "GMacros.h"
 #include <stdlib.h>
 
 #define DIGEST_SIZE 64

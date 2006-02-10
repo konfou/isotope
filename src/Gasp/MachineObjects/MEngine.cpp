@@ -15,14 +15,10 @@
 #include "MachineObjects.h"
 #include "../../GClasses/GHashTable.h"
 #include "../../GClasses/GString.h"
+#include "../../GClasses/GMacros.h"
 #include "../Include/GaspLib.h"
 #include "../CodeObjects/Project.h"
 #include "../Engine/Error.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include "../BuiltIns/GaspString.h"
 #include "../Engine/GCompiler.h"
 

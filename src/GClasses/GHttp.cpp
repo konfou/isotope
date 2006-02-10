@@ -16,11 +16,6 @@
 #include "GQueue.h"
 #include "GTime.h"
 #include "GHashTable.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 class GHttpClient;
 
@@ -39,12 +34,12 @@ public:
 	{
 	}
 
-	static GHttpClientSocket* ConnectToTCPSocket(GHttpClient* pParent, const char* szAddress, int nPort)
+	static GHttpClientSocket* ConnectToTCPSocket(GHttpClient* pParent, const char* szHost, int nPort)
 	{
 		GHttpClientSocket* pSocket = new GHttpClientSocket(pParent, 0);
 		if(!pSocket)
 			return NULL;
-		if(!pSocket->Connect(szAddress, nPort))
+		if(!pSocket->Connect(szHost, nPort))
 		{
 			delete(pSocket);
 			return NULL;
@@ -85,6 +80,11 @@ GHttpClient::~GHttpClient()
 	delete(m_szRedirect);
 }
 
+void GHttpClient::Abort()
+{
+	m_status = Aborted;
+}
+
 void GHttpClient::SetClientName(const char* szClientName)
 {
 	strncpy(m_szClientName, szClientName, 32);
@@ -107,7 +107,7 @@ GHttpClient::Status GHttpClient::CheckStatus(float* pfProgress)
 			ProcessHeader(szChunk, nSize);
 		if(pfProgress)
 		{
-			if(m_bChunked)
+			if(m_nContentSize)
 				*pfProgress = (float)m_nDataPos / m_nContentSize;
 			else
 				*pfProgress = 0;
@@ -116,36 +116,36 @@ GHttpClient::Status GHttpClient::CheckStatus(float* pfProgress)
 	return m_status;
 }
 
-bool GHttpClient::Get(const char* szUrl, int nPort)
+bool GHttpClient::Get(const char* szUrl)
 {
-	if(strnicmp(szUrl, "http://", 7) == 0)
-		szUrl += 7;
+	// Get the port
+	int nHostIndex, nPortIndex, nPathIndex;
+	GHttpClientSocket::ParseURL(szUrl, &nHostIndex, &nPortIndex, &nPathIndex, NULL);
+	int nPort;
+	if(nPathIndex > nPortIndex)
+		nPort = atoi(&szUrl[nPortIndex + 1]); // the "+1" is for the ':'
+	else
+		nPort = 80;
 
-	// find the first slash
-	int n;
-	for(n = 0; szUrl[n] != '\0' && szUrl[n] != '/'; n++)
-	{
-	}
-	if(n < 1)
-		return false;
-	char* szServer = (char*)alloca(n + 1);
-	memcpy(szServer, szUrl, n);
-	szServer[n] = '\0';
+	// Copy the host name
+	char* szHost = (char*)alloca(nPortIndex - nHostIndex + 1);
+	memcpy(szHost, &szUrl[nHostIndex], nPortIndex - nHostIndex);
+	szHost[nPortIndex - nHostIndex] = '\0';
 
 	// Connect
-	if(!m_pSocket || GTime::GetTime() - m_dLastReceiveTime > 10 || !m_pSocket->IsConnected() || strcmp(szServer, m_szServer) != 0)
+	if(!m_pSocket || GTime::GetTime() - m_dLastReceiveTime > 10 || !m_pSocket->IsConnected() || strcmp(szHost, m_szServer) != 0)
 	{
 		delete(m_pSocket);
-		m_pSocket = GHttpClientSocket::ConnectToTCPSocket(this, szServer, nPort);
+		m_pSocket = GHttpClientSocket::ConnectToTCPSocket(this, szHost, nPort);
 		if(!m_pSocket)
 			return false;
-		strncpy(m_szServer, szServer, 255);
+		strncpy(m_szServer, szHost, 255);
 		m_szServer[255] = '\0';
 	}
 
 	// Send the request
-	const char* szPath = szUrl + n;
-	if(strlen(szPath) == 0)
+	const char* szPath = &szUrl[nPathIndex];
+	if(szPath[0] == 0)
 		szPath = "/index.html";
 	GString s;
 	s.Add(L"GET ");
@@ -159,7 +159,7 @@ bool GHttpClient::Get(const char* szUrl, int nPort)
 	}
 	s.Add(L" HTTP/1.1\r\n");
 	s.Add(L"Host: ");
-	s.Add(szServer);
+	s.Add(szHost);
 	s.Add(L":");
 	s.Add(nPort);
 // todo: undo the next line
@@ -169,7 +169,6 @@ bool GHttpClient::Get(const char* szUrl, int nPort)
 	s.Add("\r\nKeep-Alive: 60\r\nConnection: keep-alive\r\n\r\n");
 	char* szRequest = (char*)alloca(s.GetLength() + 1);
 	s.GetAnsi(szRequest);
-//printf("### Sending Request:\n%s\n###\n", szRequest);
 	if(!m_pSocket->Send((unsigned char*)szRequest, s.GetLength()))
 		return false;
 
@@ -201,7 +200,7 @@ void GHttpClient::ProcessHeader(const unsigned char* szData, int nSize)
 				m_bPastHeader = true;
 				if(m_szRedirect)
 				{
-					if(!Get(m_szRedirect, 80))
+					if(!Get(m_szRedirect))
 						m_status = Error;
 					delete(m_szRedirect);
 					m_szRedirect = NULL;

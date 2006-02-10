@@ -22,12 +22,16 @@
 #include "../GClasses/GFile.h"
 #include "../GClasses/GThread.h"
 #include "../GClasses/GHttp.h"
+#include <stdlib.h>
 
-const char* g_szTrustedPublicKey = "<KeyPair N=\"1b5d56db6338439933613b7dfbd6b687decdc03e1ef0ae02d93c02cd9270406cb6428d0757b552551ebd9426f8810b36d6f6348af1835e4539fb7f2689af46bf\" Public=\"5276ee4b56255a9784fe859cd5d7ae12028a81b983c44ccd9efdefbf4a34aab\" />";const char* GetTrustedPublicKey()
+const char* g_szTrustedPublicKey = "<KeyPair N=\"1b5d56db6338439933613b7dfbd6b687decdc03e1ef0ae02d93c02cd9270406cb6428d0757b552551ebd9426f8810b36d6f6348af1835e4539fb7f2689af46bf\" Public=\"5276ee4b56255a9784fe859cd5d7ae12028a81b983c44ccd9efdefbf4a34aab\" />";
+
+const char* GetTrustedPublicKey()
 {
 	return g_szTrustedPublicKey;
 }
-void HashBlobSha512(unsigned char* pOutDigest, const unsigned char* pBlob, int nSize)
+
+void HashBlobSha512(unsigned char* pOutDigest, const unsigned char* pBlob, int nSize)
 {
 	sha512_ctx ctx;
 	memset(&ctx, '\0', sizeof(sha512_ctx));

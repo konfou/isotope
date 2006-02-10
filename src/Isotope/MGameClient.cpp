@@ -23,6 +23,7 @@
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GTime.h"
+#include "../GClasses/GThread.h"
 #include "Controller.h"
 #include "MScriptEngine.h"
 #include "MStore.h"
@@ -35,8 +36,6 @@
 #include "LPS.h"
 #ifdef WIN32
 #	include <direct.h>
-#else // WIN32
-#	include <unistd.h>
 #endif // WIN32
 
 MGameClient::MGameClient(const char* szAccountFilename, GXMLTag* pAccountTag, GXMLTag* pAccountRefTag, VOnScreenPanel* pPanel)
@@ -220,9 +219,10 @@ void MGameClient::LoadRealmPhase2(const char* szUrl, char* szScript, MScriptEngi
 	// Look for a URL parameter specifying the starting spot
 	char* szSpot = NULL;
 	int nLen = strlen(szUrl);
-	GTEMPBUF(pParams, nLen + 1);
-	GSocketClientBase::ParseURL(szUrl, NULL, NULL, NULL, NULL, pParams);
-	if(strlen(pParams) > 0)
+	int nParamsIndex;
+	GSocketClientBase::ParseURL(szUrl, NULL, NULL, NULL, &nParamsIndex);
+	const char* pParams = &szUrl[nParamsIndex];
+	if(pParams[0] != '\0')
 	{
 		char* szName;
 		int nNameLen;
@@ -622,12 +622,7 @@ void MGameClient::UnloadMedia()
 	m_pImageStore = NULL;
 	delete(m_pAnimationStore);
 	m_pAnimationStore = NULL;
-#ifdef WIN32
-	GWindows::YieldToWindows();
-	Sleep(1000);
-#else // WIN32
-	usleep(1000);
-#endif // else WIN32
+	GThread::sleep(975);
 	m_pPlayer->StopAudio();
 	delete(m_pSoundStore);
 	m_pSoundStore = NULL;

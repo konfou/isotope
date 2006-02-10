@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include "MCollisionMap.h"
 #include "../GClasses/GArray.h"
+#include <stdlib.h>
 
 class MCollisionMapNode
 {

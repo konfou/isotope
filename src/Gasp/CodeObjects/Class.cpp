@@ -19,12 +19,8 @@
 #include "../../GClasses/GXML.h"
 #include "../../GClasses/GQueue.h"
 #include "../../GClasses/GBitTable.h"
+#include "../../GClasses/GMacros.h"
 #include "../Engine/GCompiler.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 COClass::COClass(int nLine, int nCol, int nWid, const char* szName, COClass* pParent, COFile* pFile, const char* szSource, COProject* pCOProject)
  : COType(nLine, nCol, nWid, szName, pFile, pCOProject)

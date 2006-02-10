@@ -18,17 +18,13 @@
 #include "FileSet.h"
 #include "Interface.h"
 #include "../../GClasses/GXML.h"
+#include "../../GClasses/GMacros.h"
 #include "../../GClasses/GFile.h"
 #include "../Include/GaspEngine.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #ifdef WIN32
-#include <direct.h>
+#	include <direct.h>
 #else
-#include <unistd.h>
+#	include <unistd.h>
 #endif // !WIN32
 
 COProject::COProject(const char* szFilename)

@@ -30,7 +30,8 @@ class GWidgetTextLabel;
 class GWidgetFileSystemBrowser;
 class GWidgetSliderTab;
 class GWidgetTextBox;
-class GWidgetPolarChart;
+class GWidgetPolarLineGraph;
+class GWidgetPolarBarGraph;
 class GWidgetVertSlider;
 
 
@@ -254,10 +255,16 @@ public:
 			m_pParent->OnSlideTab(pTab, dx, dy);
 	}
 
-	virtual void OnChangePolarChartSelection(GWidgetPolarChart* pChart)
+	virtual void OnChangePolarLineGraphSelection(GWidgetPolarLineGraph* pChart)
 	{
 		if(m_pParent)
-			m_pParent->OnChangePolarChartSelection(pChart);
+			m_pParent->OnChangePolarLineGraphSelection(pChart);
+	}
+
+	virtual void OnChangePolarBarGraphSelection(GWidgetPolarBarGraph* pChart)
+	{
+		if(m_pParent)
+			m_pParent->OnChangePolarBarGraphSelection(pChart);
 	}
 
 	virtual void OnVertSliderMove(GWidgetVertSlider* pSlider)
@@ -858,7 +865,7 @@ protected:
 
 
 
-class GWidgetPolarChart : public GWidgetAtomic
+class GWidgetPolarLineGraph : public GWidgetAtomic
 {
 protected:
 	GImage m_image;
@@ -872,8 +879,8 @@ protected:
 	GColor m_cSelected;
 
 public:
-	GWidgetPolarChart(GWidgetGroup* pParent, int x, int y, int w, int h, int nValues);
-	virtual ~GWidgetPolarChart();
+	GWidgetPolarLineGraph(GWidgetGroup* pParent, int x, int y, int w, int h, int nValues);
+	virtual ~GWidgetPolarLineGraph();
 
 	virtual WidgetType GetType() { return PolarChart; }
 	virtual GImage* GetImage(GRect* pOutRect);
@@ -894,6 +901,52 @@ public:
 
 	// Sets the text color
 	void SetShadingColor(GColor c) { m_cShading = c; }
+
+	// Sets which axis is selected
+	void SetSelected(int n) { m_nSelected = n; }
+
+protected:
+	void Update();
+	virtual void Grab(int x, int y);
+	virtual void Release();
+};
+
+
+
+
+
+class GWidgetPolarBarGraph : public GWidgetAtomic
+{
+protected:
+	GImage m_image;
+	int m_nValues;
+	float* m_pValues;
+	bool m_dirty;
+	int m_nSelected;
+	GColor m_cBackground;
+	GColor m_cForeground;
+	GColor m_cSelected;
+
+public:
+	GWidgetPolarBarGraph(GWidgetGroup* pParent, int x, int y, int w, int h, int nValues);
+	virtual ~GWidgetPolarBarGraph();
+
+	virtual WidgetType GetType() { return PolarChart; }
+	virtual GImage* GetImage(GRect* pOutRect);
+	void SetSize(int w, int h);
+	void SetValueCount(int n);
+	void SetValue(int n, float value);
+	float GetValue(int n) { return m_pValues[n]; }
+	float GetSelectedValue() { return m_pValues[m_nSelected]; }
+	int GetSelection() { return m_nSelected; }
+	void SetSelection(int n);
+
+	// Sets the text color
+	void SetForegroundColor(GColor c) { m_cForeground = c; }
+
+	// The default background color is transparent. If you want an opaque
+	// or semi-opaque background then you should call this method.
+	void SetBackgroundColor(GColor c) { m_cBackground = c; }
 
 	// Sets which axis is selected
 	void SetSelected(int n) { m_nSelected = n; }

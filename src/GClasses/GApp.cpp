@@ -16,6 +16,7 @@
 #	include <direct.h>
 #else // WIN32
 #	include <unistd.h>
+#	include <signal.h>
 #endif // !WIN32
 #include "GMacros.h"
 
@@ -80,7 +81,7 @@
 		if(szFilename[n] == '/' || szFilename[n] == '\\')
 			break;
 	}
-	const char* szFilePart = szFilename + n + 1;
+	//const char* szFilePart = szFilename + n + 1;
 	char szAppPath[512];
 	if(n >= 0)
 	{

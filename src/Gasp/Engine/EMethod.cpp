@@ -19,6 +19,7 @@
 #include "../CodeObjects/Variable.h"
 #include "../../GClasses/GXML.h"
 #include "../../GClasses/GHashTable.h"
+#include "../../GClasses/GMacros.h"
 
 EMethod::EMethod()
 :	m_pMethodTag(NULL),

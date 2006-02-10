@@ -24,7 +24,7 @@
 #include "../../GClasses/GXML.h"
 #include "../Engine/Error.h"
 #include "../CodeObjects/CodeObject.h"
-#include "../../SDL/SDL.h"
+#include <SDL/SDL.h>
 #include "../Test/EngineTests.h"
 #include "../Test/ClassTests.h"
 #include "../CodeObjects/Project.h"

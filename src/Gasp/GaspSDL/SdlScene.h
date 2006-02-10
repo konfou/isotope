@@ -14,7 +14,7 @@
 
 #include "../Include/GaspEngine.h"
 #include "../../GClasses/GRayTrace.h"
-#include "../../SDL/SDL.h"
+#include <SDL/SDL.h>
 #include <wchar.h>
 
 class GPreRendered3DScreen;

@@ -12,11 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include "GBigNumber.h"
 #include "GMacros.h"
 #include "GKeyPair.h"
@@ -577,7 +572,17 @@ void GBigNumber::Multiply(GBigNumber* pBigNumber, unsigned int nUInt)
 	Resize((pBigNumber->m_nUInts + 1) * BITS_PER_INT);
 	unsigned int n;
 	for(n = 0; n < pBigNumber->m_nUInts; n++)
+	{
+#ifdef BIG_ENDIAN
+		__int64 prod = (__int64)pBigNumber->m_pBits[n] * (__int64)nUInt;
+		__int64 rev;
+		((unsigned int*)&rev)[0] = ((unsigned int*)&prod)[1];
+		((unsigned int*)&rev)[1] = ((unsigned int*)&prod)[0];
+		*((__int64*)&m_pBits[n]) += rev;
+#else // BIG_ENDIAN
 		*((__int64*)&m_pBits[n]) += (__int64)pBigNumber->m_pBits[n] * (__int64)nUInt;
+#endif // !BIG_ENDIAN
+	}
 }
 
 void GBigNumber::Multiply(GBigNumber* pFirst, GBigNumber* pSecond)

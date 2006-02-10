@@ -17,11 +17,6 @@
 #ifndef WIN32
 #include <wchar.h>
 #endif // WIN32
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 GString::GString(const wchar_t* wszString)
 {

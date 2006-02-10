@@ -7,11 +7,12 @@ TARGET_NAME_DBG = GClassesDbg.a
 OBJ_PATH = ../../obj/obj
 GCLASSES_PATH = .
 UNAME = $(shell uname -s)
-CFLAGS = $(shell sdl-config --cflags)
 ifeq ($(UNAME),Darwin)
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -no-cpp-precomp
-OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -no-cpp-precomp
+CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE
+DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
+OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
 else
+CFLAGS = $(shell sdl-config --cflags)
 #DBG_CFLAGS = $(CFLAGS) -fpermissive -g -D_DEBUG -Wall
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -Wall
 OPT_CFLAGS = $(CFLAGS) -O3 -Wall
@@ -21,7 +22,8 @@ endif
 # GClasses Sources
 ################
 
-GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
+GCLASSES_SOURCES = $(GCLASSES_PATH)/GApp.cpp\
+                   $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/GArray.cpp\
                    $(GCLASSES_PATH)/GAVLTree.cpp\
                    $(GCLASSES_PATH)/GBezier.cpp\
@@ -94,7 +96,8 @@ GCLASSES_SOURCES = $(GCLASSES_PATH)/GArff.cpp\
                    $(GCLASSES_PATH)/sha1.cpp\
                    $(GCLASSES_PATH)/sha2.cpp
 
-GCLASSES_HEADER =  $(GCLASSES_PATH)/GArff.h\
+GCLASSES_HEADER =  $(GCLASSES_PATH)/GApp.h\
+                   $(GCLASSES_PATH)/GArff.h\
                    $(GCLASSES_PATH)/GArray.h\
                    $(GCLASSES_PATH)/GAVLTree.h\
                    $(GCLASSES_PATH)/GBezier.h\
@@ -200,10 +203,10 @@ usage:
 	#
 
 $(TARGET_PATH)/$(TARGET_NAME_OPT) : $(ALL_OBJECTS_OPT)
-	ar -cq $(TARGET_PATH)/$(TARGET_NAME_OPT) $(ALL_OBJECTS_OPT)
+	ar -cr $(TARGET_PATH)/$(TARGET_NAME_OPT) $(ALL_OBJECTS_OPT)
 
 $(TARGET_PATH)/$(TARGET_NAME_DBG) : $(ALL_OBJECTS_DBG)
-	ar -cq $(TARGET_PATH)/$(TARGET_NAME_DBG) $(ALL_OBJECTS_DBG)
+	ar -cr $(TARGET_PATH)/$(TARGET_NAME_DBG) $(ALL_OBJECTS_DBG)
 
 $(GCLASSES_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(GCLASSES_PATH)/%.cpp $(GCLASSES_HEADER)
 	g++ $(OPT_CFLAGS) -c $< -o $@

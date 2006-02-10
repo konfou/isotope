@@ -31,6 +31,7 @@ public:
 		Error,
 		NotFound,
 		Done,
+		Aborted,
 	};
 
 protected:
@@ -55,7 +56,7 @@ public:
 
 	// Send a request to get a file.  Returns immediately (before the file
 	// is downloaded).
-	bool Get(const char* szUrl, int nPort);
+	bool Get(const char* szUrl);
 
 	// See what the status of the download is.  If everything is going okay,
 	// it will return "Downloading" while downloading and "Done" when the file
@@ -77,6 +78,8 @@ public:
 	void OnLoseConnection();
 
 	void SetClientName(const char* szClientName);
+	
+	void Abort();	// called by the consumer, when an abort is desired. 
 
 protected:
 	void ProcessHeader(const unsigned char* szData, int nSize);

@@ -12,6 +12,7 @@
 #include "GDecisionTree.h"
 #include "GArff.h"
 #include "../GClasses/GMacros.h"
+#include <stdlib.h>
 
 //#define DEBUGLOG
 

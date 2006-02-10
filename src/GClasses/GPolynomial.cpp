@@ -11,13 +11,9 @@
 
 #include "GMacros.h"
 #include "GPolynomial.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include "GArff.h"
 #include <math.h>
+#include <stdlib.h>
 
 GPolynomial::GPolynomial(int nDimensions, int nControlPoints)
 {

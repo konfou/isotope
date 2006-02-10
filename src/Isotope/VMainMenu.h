@@ -38,7 +38,6 @@ public:
 
 	void RefreshEntireImage();
 	void SetRect(GRect* pRect) { m_rect = *pRect; }
-	void AddObject(Controller* pController);
 };
 
 #endif // __VMAINMENU_H__

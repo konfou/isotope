@@ -13,7 +13,7 @@
 #define __EDITOR_H__
 
 #include "../../GClasses/GImage.h"
-#include "../../SDL/SDL.h"
+#include <SDL/SDL.h>
 
 class GWidgetListBox;
 class EditorList;

@@ -16,11 +16,6 @@
 #include "../Include/GaspEngine.h"
 #include "../../GClasses/GImage.h"
 #include "../../GClasses/GMacros.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include "../../GClasses/GFile.h"
 
 class MImage : public WrapperObject

@@ -12,11 +12,6 @@
 #include "GDataBase.h"
 #include "GMacros.h"
 #include "GAVLTree.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include <stdlib.h>
 
 // -------------------------------------------------------------------

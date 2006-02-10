@@ -12,11 +12,8 @@
 #include "GBezier.h"
 #include "GRayTrace.h"
 #include "GXML.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
+#include "GMacros.h"
+#include <stdlib.h>
 
 void Point3D::Transform(const struct Transform* pTransform)
 {

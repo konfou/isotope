@@ -12,6 +12,7 @@
 #include "InstrSet.h"
 #include "../Include/GaspEngine.h"
 #include "../../GClasses/GMacros.h"
+#include "../../GClasses/GBits.h"
 #include "EInterface.h"
 #include "EClass.h"
 #include "../BuiltIns/GaspFloat.h"
@@ -239,13 +240,13 @@ void Instr_MCall(GVM* pEngine)
 	// Backpatch the new values
 	*(pEngine->m_pInstructionPointer - 1) = pEngine->m_cMCallLinkedInstr;
 	unsigned int* pParams = (unsigned int*)pEngine->m_pInstructionPointer;
-#ifdef DARWIN
-	pParams[1] = ReverseEndian((unsigned int)pMachineMethod);
-	pParams[2] = ReverseEndian(nParamCount);
-#else // DARWIN
+#ifdef BIG_ENDIAN
+	pParams[1] = GBits::ReverseEndian((unsigned int)pMachineMethod);
+	pParams[2] = GBits::ReverseEndian(nParamCount);
+#else // BIG_ENDIAN
 	pParams[1] = (unsigned int)pMachineMethod;
 	pParams[2] = nParamCount;
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 
 	// Now repeat this instruction as a linked machine call
 	Instr_MCallLinked(pEngine);
@@ -279,11 +280,11 @@ void Instr_Call(GVM* pEngine)
 	pEngine->m_pInstructionPointer -= sizeof(unsigned int);
 	GAssert(pEngine->m_pInstructionTable[*(pEngine->m_pInstructionPointer - 1)] == Instr_Call, "Failed to find this instruction");
 	*(pEngine->m_pInstructionPointer - 1) = pEngine->m_cCallLinkedInstr;
-#ifdef DARWIN
-	*(unsigned int*)pEngine->m_pInstructionPointer = ReverseEndian((unsigned int)pMethod);
-#else // DARWIN
+#ifdef BIG_ENDIAN
+	*(unsigned int*)pEngine->m_pInstructionPointer = GBits::ReverseEndian((unsigned int)pMethod);
+#else // BIG_ENDIAN
 	*(unsigned int*)pEngine->m_pInstructionPointer = (unsigned int)pMethod;
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 	Instr_CallLinked(pEngine);
 }
 
@@ -686,7 +687,11 @@ void Instr_TryCall(GVM* pEngine)
 	pEngine->m_pInstructionPointer -= (sizeof(int) + sizeof(unsigned int));
 	GAssert(pEngine->m_pInstructionTable[*(pEngine->m_pInstructionPointer - 1)] == Instr_TryCall, "Failed to find this instruction");
 	*(pEngine->m_pInstructionPointer - 1) = pEngine->m_cTryCallLinkedInstr;
+#ifdef BIG_ENDIAN
+	*(unsigned int*)(pEngine->m_pInstructionPointer + sizeof(int)) = GBits::ReverseEndian((unsigned int)pMethod);
+#else // BIG_ENDIAN
 	*(unsigned int*)(pEngine->m_pInstructionPointer + sizeof(int)) = (unsigned int)pMethod;
+#endif // !BIG_ENDIAN
 	Instr_TryCallLinked(pEngine);
 }
 

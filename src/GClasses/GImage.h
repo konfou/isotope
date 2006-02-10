@@ -58,6 +58,14 @@ inline GColor GetSpectrumColor(float f)
 	return gARGB(0xff, r, g, b);
 }
 
+inline GColor MultiplyBrightness(GColor c, float f)
+{
+	return gARGB(gAlpha(c),
+		MIN(MAX(0, (int)(f * gRed(c))), 255),
+		MIN(MAX(0, (int)(f * gGreen(c))), 255),
+		MIN(MAX(0, (int)(f * gBlue(c))), 255));
+}
+
 struct GRect
 {
 	int x;

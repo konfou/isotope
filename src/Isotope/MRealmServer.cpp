@@ -17,12 +17,11 @@
 #include "../GClasses/GSocket.h"
 #include "../GClasses/GFile.h"
 #include "../GClasses/GHttp.h"
+#include "../GClasses/GThread.h"
 #include "MRealm.h"
 #ifdef WIN32
 #include <windows.h>
 #include <direct.h>
-#else // WIN32
-#include <unistd.h>
 #endif // WIN32
 #include "../Gasp/Include/GaspEngine.h"
 #include "MScriptEngine.h"
@@ -268,11 +267,7 @@ void MGameServer::Update(double time)
 
 	// Avoid hammering the server machine
 	if(!m_nLoadChecks[m_nLoadCheckPos])
-#ifdef WIN32
-		Sleep(0);
-#else
-		usleep(0);
-#endif
+		GThread::sleep(0);
 
 	// Increment the load check position
 	m_nLoadCheckPos++;

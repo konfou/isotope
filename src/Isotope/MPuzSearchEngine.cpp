@@ -17,6 +17,7 @@
 #include "../GClasses/GHashTable.h"
 #include "../GClasses/GQueue.h"
 #include "Controller.h"
+#include <stdlib.h>
 
 #define PUZ_SEARCH_ENGINE_PORT 4749
 
@@ -39,7 +40,8 @@ public:
 			GameEngine::ThrowError("Expected a 'data' attribute in the <PuzSearchEngine> tag in the config file");
 		const char* szErrorMessage;
 		int nErrorLine;
-		if(!m_pKnownPuzzles->FromFile(pDataAttr->GetValue(), &szErrorMessage, NULL, &nErrorLine, NULL))
+		m_pKnownPuzzles = GXMLTag::FromFile(pDataAttr->GetValue(), &szErrorMessage, NULL, &nErrorLine, NULL);
+		if(!m_pKnownPuzzles)
 			GameEngine::ThrowError("Failed to load puzzle search engine data file: %s, line: %d\n%s", pDataAttr->GetValue(), nErrorLine, szErrorMessage);
 	}
 

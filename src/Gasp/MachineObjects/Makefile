@@ -7,11 +7,12 @@ TARGET_NAME_DBG = GaspLibDbg.a
 OBJ_PATH = ../../../obj/obj
 MACHINE_PATH = .
 UNAME = $(shell uname -s)
-CFLAGS = $(shell sdl-config --cflags)
 ifeq ($(UNAME),Darwin)
-DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -no-cpp-precomp
-OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -no-cpp-precomp
+CFLAGS = -I/usr/local/include/SDL -D_THREAD_SAFE
+DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
+OPT_CFLAGS = $(CFLAGS) -O3 -DDARWIN -DBIG_ENDIAN -no-cpp-precomp
 else
+CFLAGS = $(shell sdl-config --cflags)
 DBG_CFLAGS = $(CFLAGS) -g -D_DEBUG
 OPT_CFLAGS = $(CFLAGS) -O3
 endif
@@ -74,10 +75,10 @@ usage:
 	#
 
 $(TARGET_PATH)/$(TARGET_NAME_OPT) : $(ALL_OBJECTS_OPT)
-	ar -cq $(TARGET_PATH)/$(TARGET_NAME_OPT) $(ALL_OBJECTS_OPT)
+	ar -cr $(TARGET_PATH)/$(TARGET_NAME_OPT) $(ALL_OBJECTS_OPT)
 
 $(TARGET_PATH)/$(TARGET_NAME_DBG) : $(ALL_OBJECTS_DBG)
-	ar -cq $(TARGET_PATH)/$(TARGET_NAME_DBG) $(ALL_OBJECTS_DBG)
+	ar -cr $(TARGET_PATH)/$(TARGET_NAME_DBG) $(ALL_OBJECTS_DBG)
 
 $(MACHINE_OBJECTS_OPT) : $(OBJ_PATH)/%.o : $(MACHINE_PATH)/%.cpp $(ALL_HEADERS)
 	g++ $(OPT_CFLAGS) -c $< -o $@

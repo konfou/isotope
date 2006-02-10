@@ -82,16 +82,12 @@ public:
 	virtual ~GSocketClientBase();
 
 	static bool IsThisAnIPAddress(const char* szHost);
-	static unsigned short StringToPort(const char* szURL);
-	static struct in_addr StringToAddr(const char* szURL); // (If you pass in "localhost", it will return your IP address)
 
 	// This returns the SOCKET
 	SOCKET GetSocketHandle();
 
 	// You should only call Connect for a Client socket
-	bool Connect(struct in_addr nAddr, u_short nPort, short nFamily = AF_INET);
-	bool Connect(const char* szAddr, unsigned short nPort);
-	//bool Connect(const char* szURL);
+	bool Connect(const char* szHost, unsigned short nPort);
 	void Disconnect();
 
 	bool Send(const unsigned char *pBuf, int nLen);
@@ -113,7 +109,7 @@ public:
 	void Listen(); // Don't call this method directly
 
 	// This parses a URL into its parts
-	static void ParseURL(const char* szBuff, char* szProtocall, char* szHost, char* szLoc, char* szPort, char* szParams);
+	static void ParseURL(const char* szUrl, int* pnHostIndex, int* pnPortIndex, int* pnPathIndex, int* pnParamsIndex);
 
 	// Parses the parameter portion of a URL
 	static int ParseUrlParams(const char* szParams, int nMaxParams, char** pNames, int* pNameLengths, char** pValues, int* pValueLengths);

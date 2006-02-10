@@ -22,12 +22,8 @@
 #include "../Engine/GCompiler.h"
 #include "../Engine/EInstrArray.h"
 #include "../../GClasses/GString.h"
+#include "../../GClasses/GMacros.h"
 #include "../Engine/ClassicSyntax.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 COMethodDecl::COMethodDecl(int nLine, int nCol, int nWid, const char* szName, COType* pType, bool bStatic, COProject* pProject)
 : COScope(nLine, nCol, nWid, NULL)

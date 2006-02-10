@@ -16,6 +16,7 @@
 #ifdef WIN32
 #include <windows.h>
 #endif // WIN32
+#include <stdlib.h>
 
 bool TestGPrecalculatedTrigTableForAccuracy(ClassTests* pThis)
 {

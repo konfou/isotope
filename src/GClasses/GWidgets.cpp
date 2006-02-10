@@ -2093,7 +2093,7 @@ void GWidgetFileSystemBrowser::ReloadFileList()
 
 // ----------------------------------------------------------------------
 
-GWidgetPolarChart::GWidgetPolarChart(GWidgetGroup* pParent, int x, int y, int w, int h, int nValues)
+GWidgetPolarLineGraph::GWidgetPolarLineGraph(GWidgetGroup* pParent, int x, int y, int w, int h, int nValues)
 : GWidgetAtomic(pParent, x, y, w, h)
 {
 	m_image.SetSize(w, h);
@@ -2110,25 +2110,28 @@ GWidgetPolarChart::GWidgetPolarChart(GWidgetGroup* pParent, int x, int y, int w,
 	m_dirty = true;
 }
 
-/*virtual*/ GWidgetPolarChart::~GWidgetPolarChart()
+/*virtual*/ GWidgetPolarLineGraph::~GWidgetPolarLineGraph()
 {
 	delete(m_pValues);
 }
 
-/*virtual*/ void GWidgetPolarChart::Grab(int x, int y)
+inline int GetWedgeIndex(int x, int y, int nValues)
+{
+	return (int)(atan2((double)x, (double)-y) * nValues / (2 * PI) + .5 + nValues) % nValues;
+}
+
+/*virtual*/ void GWidgetPolarLineGraph::Grab(int x, int y)
 {
 	x -= m_image.GetWidth() / 2;
 	y -= m_image.GetHeight() / 2;
-	double d = atan2((double)x, (double)-y);
-	int n = (int)(d * m_nValues / (2 * PI) + .5 + m_nValues) % m_nValues;
-	SetSelection(n);
+	SetSelection(GetWedgeIndex(x, y, m_nValues));
 }
 
-/*virtual*/ void GWidgetPolarChart::Release()
+/*virtual*/ void GWidgetPolarLineGraph::Release()
 {
 }
 
-void GWidgetPolarChart::Update()
+void GWidgetPolarLineGraph::Update()
 {
 	m_dirty = false;
 	m_image.Clear(m_cBackground);
@@ -2177,7 +2180,7 @@ void GWidgetPolarChart::Update()
 	}
 }
 
-GImage* GWidgetPolarChart::GetImage(GRect* pOutRect)
+GImage* GWidgetPolarLineGraph::GetImage(GRect* pOutRect)
 {
 	if(m_dirty)
 		Update();
@@ -2188,7 +2191,7 @@ GImage* GWidgetPolarChart::GetImage(GRect* pOutRect)
 	return &m_image;
 }
 
-void GWidgetPolarChart::SetSize(int w, int h)
+void GWidgetPolarLineGraph::SetSize(int w, int h)
 {
 	m_rect.w = w;
 	m_rect.h = h;
@@ -2196,7 +2199,7 @@ void GWidgetPolarChart::SetSize(int w, int h)
 	m_dirty = true;
 }
 
-void GWidgetPolarChart::SetValueCount(int n)
+void GWidgetPolarLineGraph::SetValueCount(int n)
 {
 	delete(m_pValues);
 	m_pValues = new float[n];
@@ -2206,19 +2209,140 @@ void GWidgetPolarChart::SetValueCount(int n)
 		m_pValues[i] = .5;
 }
 
-void GWidgetPolarChart::SetValue(int n, float value)
+void GWidgetPolarLineGraph::SetValue(int n, float value)
 {
 	GAssert(n >= 0 && n < m_nValues, "out of range");
 	m_pValues[n] = value;
 }
 
-void GWidgetPolarChart::SetSelection(int n)
+void GWidgetPolarLineGraph::SetSelection(int n)
 {
 	GAssert(n >= 0 && n < m_nValues, "out of range");
 	m_nSelected = n;
 	m_dirty = true;
 	Draw(NULL);
-	m_pParent->OnChangePolarChartSelection(this);
+	m_pParent->OnChangePolarLineGraphSelection(this);
+}
+
+// ----------------------------------------------------------------------
+
+GWidgetPolarBarGraph::GWidgetPolarBarGraph(GWidgetGroup* pParent, int x, int y, int w, int h, int nValues)
+: GWidgetAtomic(pParent, x, y, w, h)
+{
+	m_image.SetSize(w, h);
+	m_nValues = nValues;
+	m_cForeground = 0xff000000;
+	m_cBackground = 0x00000000; // transparent
+	m_cSelected = 0xffaaaaaa;
+	m_nSelected = -1;
+	m_pValues = new float[nValues];
+	int i;
+	for(i = 0; i < nValues; i++)
+		m_pValues[i] = .5;
+	m_dirty = true;
+}
+
+/*virtual*/ GWidgetPolarBarGraph::~GWidgetPolarBarGraph()
+{
+	delete(m_pValues);
+}
+
+/*virtual*/ void GWidgetPolarBarGraph::Grab(int x, int y)
+{
+	x -= m_image.GetWidth() / 2;
+	y -= m_image.GetHeight() / 2;
+	SetSelection(GetWedgeIndex(x, y, m_nValues));
+}
+
+/*virtual*/ void GWidgetPolarBarGraph::Release()
+{
+}
+
+void GWidgetPolarBarGraph::Update()
+{
+	m_dirty = false;
+	m_image.Clear(m_cBackground);
+	int xCenter = m_image.GetWidth() / 2;
+	int yCenter = m_image.GetHeight() / 2;
+	int radius = MIN(xCenter, yCenter) - 2;
+	int radiusSquared = radius * radius;
+	int* pDistances = (int*)alloca(sizeof(int) * m_nValues);
+	int x, y, n, nDist;
+	GColor c;
+	double d, dBrightness;
+	for(n = 0; n < m_nValues; n++)
+	{
+		d = m_pValues[n] * radius;
+		pDistances[n] = (int)(d * d);
+	}
+	for(y = 1 - yCenter; y < yCenter; y++)
+	{
+		for(x = 1 - xCenter; x < xCenter; x++)
+		{
+			nDist = x * x + y * y;
+			if(nDist > radiusSquared)
+				continue;
+			d = atan2((double)x, (double)-y) * m_nValues / (2 * PI) + .5 + m_nValues;
+			n = ((int)d) % m_nValues;
+			if(nDist > pDistances[n])
+			{
+				m_image.SetPixel(xCenter + x, yCenter + y, (n == m_nSelected) ? m_cSelected : m_cForeground);
+				continue;
+			}
+			dBrightness = d - (int)d;
+			GAssert(dBrightness >= 0 && dBrightness <= 1, "out of range");
+			dBrightness = dBrightness * 4 * (1.0 - dBrightness);
+			c = GetSpectrumColor((float)n / m_nValues);
+			c = MultiplyBrightness(c, (float)dBrightness);
+			if(n == m_nSelected && gRed(c) + gGreen(c) + gBlue(c) < 128)
+				c = m_cSelected;
+			m_image.SetPixel(xCenter + x, yCenter + y, c);
+		}
+	}
+}
+
+GImage* GWidgetPolarBarGraph::GetImage(GRect* pOutRect)
+{
+	if(m_dirty)
+		Update();
+	pOutRect->x = 0;
+	pOutRect->y = 0;
+	pOutRect->w = m_image.GetWidth();
+	pOutRect->h = m_image.GetHeight();
+	return &m_image;
+}
+
+void GWidgetPolarBarGraph::SetSize(int w, int h)
+{
+	m_rect.w = w;
+	m_rect.h = h;
+	m_image.SetSize(w, h);
+	m_dirty = true;
+}
+
+void GWidgetPolarBarGraph::SetValueCount(int n)
+{
+	delete(m_pValues);
+	m_pValues = new float[n];
+	m_nValues = n;
+	int i;
+	for(i = 0; i < n; i++)
+		m_pValues[i] = .5;
+}
+
+void GWidgetPolarBarGraph::SetValue(int n, float value)
+{
+	GAssert(n >= 0 && n < m_nValues, "out of range");
+	m_pValues[n] = value;
+}
+
+void GWidgetPolarBarGraph::SetSelection(int n)
+{
+	GAssert(n >= 0 && n < m_nValues, "out of range");
+	m_nSelected = n;
+	m_dirty = true;
+	Draw(NULL);
+	m_pParent->OnChangePolarBarGraphSelection(this);
 }
 
 // ----------------------------------------------------------------------

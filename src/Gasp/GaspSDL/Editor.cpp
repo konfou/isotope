@@ -25,10 +25,8 @@
 #include "../../GClasses/GArray.h"
 #include "../../GClasses/GFile.h"
 #include "../../GClasses/GHashTable.h"
+#include "../../GClasses/GThread.h"
 #include <wchar.h>
-#ifndef WIN32
-#include <unistd.h>
-#endif // !WIN32
 
 void EditFile(const char* szFilename, const char* szAppPath, ErrorHandler* pErrorHandler)
 {
@@ -1461,11 +1459,7 @@ void EditorController::Run()
 		if(Update(time - timeOld))
 			m_pView->Update();
 		else
-#ifdef WIN32
-			Sleep(0);
-#else // WIN32
-			usleep(0);
-#endif // !WIN32
+			GThread::sleep(0);
 		timeOld = time;
 	}
 }

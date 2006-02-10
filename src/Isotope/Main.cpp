@@ -303,6 +303,7 @@ void LaunchDaemon(DaemonMainFunc pDaemonMain, void* pArg)
 
 void PuzzleGenerator()
 {
+/*
 	time_t t;
 	srand(time(&t));
 	GPointerArray* pOrdered = PuzzleGenerator::LoadPieces("media\\puzzlegen\\ordered");
@@ -321,6 +322,18 @@ void PuzzleGenerator()
 		getchar();
 	}
 	// todo: don't leak the piece sets here
+*/
+
+	printf("Generating...\n");
+	SubsetPuzzleGenerator gen(
+		20, // Bar size
+		(rand() % 2) + 4, // Grid size (of a single axis) in the answer
+		(rand() % 4) + 6, // Grid size (of a single axis) in the puzzle
+		6, // Number of distractor choices
+		(rand() % 5) + 2, // Number of superfluous shapes inside the puzzle
+		false, // Whether or not to add background distractions
+		false); // Whether or not to add spheres at the grid points
+	printf("Done.\n");
 }
 
 void LaunchClient(Controller::RunModes eRunMode, const char* szArg)
@@ -377,7 +390,7 @@ void LaunchProgram(int argc, char *argv[])
 			eRunMode = Controller::CLIENT;
 		else if(stricmp(argv[1], "server") == 0)
 			eRunMode = Controller::SERVER;
-		else if(stricmp(argv[1], "puzsearchengine"))
+		else if(stricmp(argv[1], "puzsearchengine") == 0)
 			eRunMode = Controller::PUZSEARCHENGINE;
 		else if(stricmp(argv[1], "puzgen") == 0)
 			eRunMode = Controller::PUZGEN;
@@ -394,8 +407,8 @@ void LaunchProgram(int argc, char *argv[])
 	if(!bOK)
 	{
 		printf("\n");
-		printf("Usage: isotope.exe [command] [parameters]\n\n");
-		printf("Example: isotope.exe client http://edumetrics.org/isotope/start.realm\n");
+		printf("Usage: isotope [command] [parameters]\n\n");
+		printf("Example: isotope client http://edumetrics.org/isotope/start.realm\n");
 		printf("\n");
 		printf("Valid values for [parameters] depend on the value for [command].\n");
 		printf("Possible values for [command]:\n");
@@ -408,10 +421,8 @@ void LaunchProgram(int argc, char *argv[])
 		printf("\n");
 		printf("keypair [Output File]   Generate a key pair.\n");
 		printf("\n");
-		printf("bless [Key File] [Url]  This command can only be used by the\n");
-		printf("                        owner of the trusted key file.  It generates an\n");
-		printf("                        update.xml file that that is used to tell the\n");
-		printf("                        auto-update feature about updated versions.\n");
+		printf("bless [Key File] [Url]  Generate an update.xml file that is used to tell\n");
+		printf("                        the auto-update feature about updated versions.\n");
 		return;
 	}
 

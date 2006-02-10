@@ -16,11 +16,6 @@
 #include "../../GClasses/GMacros.h"
 #include "../BuiltIns/GaspString.h"
 #include "../BuiltIns/GaspFloat.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 class MConsole : public WrapperObject
 {

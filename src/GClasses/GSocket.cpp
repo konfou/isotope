@@ -385,82 +385,50 @@ bool GSocketClientBase::IsThisAnIPAddress(const char* szHost)
 
 // This is for parsing a URL
 //static
-void GSocketClientBase::ParseURL(const char* szBuff, char* szProtocall, char* szHost, char* szLoc, char* szPort, char* szParams)
+void GSocketClientBase::ParseURL(const char* szUrl, int* pnHostIndex, int* pnPortIndex, int* pnPathIndex, int* pnParamsIndex)
 {
-	char cTmp;
-	GTEMPBUF(szURL, strlen(szBuff) + 1);
-	strcpy(szURL, szBuff);
-
-	// Get the protocal specifier ("http://", "ftp://, "telnet://", etc.)
-	char* pNext = szURL;
-	int n;
-	for(n = 0; szURL[n] != '.' && szURL[n] != '\0'; n++)
+	// Find the host
+	int nHost = 0;
+	int i;
+	for(i = 0; szUrl[i] != ':' && szUrl[i] != '?' && szUrl[i] != '\0'; i++)
 	{
-		if(szURL[n] == '/')
-		{
-			pNext = szURL + n + 1;
-			if(*pNext == '/')
-				pNext++;
-			break;
-		}
 	}
-	cTmp = *pNext;
-	*pNext = '\0';
-	if(szProtocall)
-		strcpy(szProtocall, szURL);
-	*pNext = cTmp;
+	if(strncmp(&szUrl[i], "://", 3) == 0)
+		nHost = i + 3;
 
-	// Get the Host ("www.yahoo.com", "cs.byu.edu", etc.)
-	for(n = 0; pNext[n] != '\0' && pNext[n] != '/' && pNext[n] != '\\' && pNext[n] != ':' && pNext[n] != '?'; n++);
-	cTmp = pNext[n];
-	pNext[n] = '\0';
-	if(szHost)
-		strcpy(szHost, pNext);
-	pNext[n] = cTmp;
-	pNext += n;
-	
-	// Get the Location ("/myfiles/index.htm", "/directx/download.htm", etc.)
-	for(n = 0; pNext[n] != '\0' && pNext[n] != '?' && pNext[n] != ':' && pNext[n] != ' '; n++);
-	cTmp = pNext[n];
-	pNext[n] = '\0';
-	if(szLoc)
-		strcpy(szLoc, pNext);
-	pNext[n] = cTmp;
-	pNext += n;
-	
-	// Get the Port (":3030", ":80", etc.)
-	if(*pNext == ':')
+	// Find the port
+	int nPort = -1;
+	for(i = nHost; szUrl[i] != ':' && szUrl[i] != '?' && szUrl[i] != '\0'; i++)
 	{
-		for(n = 0; pNext[n] != '\0' && pNext[n] != '?' && pNext[n] != ' '; n++);
-		cTmp = pNext[n];
-		pNext[n] = '\0';
-		if(szPort)
-			strcpy(szPort, pNext);
-		pNext[n] = cTmp;
-		pNext += n;
 	}
-	else
-		if(szPort)
-			strcpy(szPort, "");
+	if(szUrl[i] == ':')
+		nPort = i;
 
-	// Get the Parameters
-	if(*pNext == '?')
+	// Find the path
+	int nPath;
+	for(nPath = MAX(nHost, nPort); szUrl[nPath] != '/' && szUrl[nPath] != '?' && szUrl[nPath] != '\0'; nPath++)
 	{
-		for(n = 0; pNext[n] != '\0'; n++)
+	}
+	if(nPort < 0)
+		nPort = nPath;
+
+	// Find the params
+	if(pnParamsIndex)
+	{
+		int nParams;
+		for(nParams = nPath; szUrl[nParams] != '?' && szUrl[nParams] != '\0'; nParams++)
 		{
 		}
-		cTmp = pNext[n];
-		pNext[n] = '\0';
-		if(szParams)
-			strcpy(szParams, pNext);
-		pNext[n] = cTmp;
-		pNext += n;
+		*pnParamsIndex = nParams;
 	}
-	else
-		if(szParams)
-			strcpy(szParams, "");
 
-	// Throw out whatever's left
+	// Set the return values
+	if(pnHostIndex)
+		*pnHostIndex = nHost;
+	if(pnPortIndex)
+		*pnPortIndex = nPort;
+	if(pnPathIndex)
+		*pnPathIndex = nPath;
 }
 
 //static
@@ -494,7 +462,7 @@ int GSocketClientBase::ParseUrlParams(const char* szParams, int nMaxParams, char
 		nParams++;
 	}
 }
-
+/*
 in_addr GSocketClientBase::StringToAddr(const char* szURL)
 {
 	// Extract the host and port from the URL
@@ -529,20 +497,9 @@ in_addr GSocketClientBase::StringToAddr(const char* szURL)
 		return *(in_addr*)psh->h_addr_list[0];
 	}
 }
+*/
 
-unsigned short GSocketClientBase::StringToPort(const char* szURL)
-{
-	char szPort[256];
-	ParseURL(szURL, NULL, NULL, NULL, szPort, NULL);
-	int nPort = 80;
-	const char* pPort;
-	for(pPort = szPort; *pPort != '\0' && (*pPort < '0' || *pPort > '9'); pPort++);
-	if(strlen(pPort) > 0)
-		nPort = atoi(pPort);
-	return(nPort);
-}
-
-bool GSocketClientBase::Connect(const char* szURL, unsigned short nPort)
+bool GSocketClientBase::Connect(const char* szHost, unsigned short nPort)
 {
 	// *** If you use VisualStudio 6.0 and you get an error that says 'hints' uses undefined struct 'addrinfo'
 	// *** on the next code line then you need to update your Platform SDK.
@@ -554,7 +511,7 @@ bool GSocketClientBase::Connect(const char* szURL, unsigned short nPort)
 	hints.ai_socktype = SOCK_STREAM;
 	char szPort[32];
 	itoa(nPort, szPort, 10);
-	error = getaddrinfo(szURL, szPort, &hints, &res0);
+	error = getaddrinfo(szHost, szPort, &hints, &res0);
 	if (error)
 	{
 		GAssert(false, gai_strerror(error));

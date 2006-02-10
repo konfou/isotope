@@ -59,8 +59,10 @@ public:
 	// Sets the data points from a collection
 	void SetData(GArffRelation* pRelation, GArffData* pData);
 
-	// Set a single data point
-	void SetDataPoint(int n, double* pValues);
+	// Set a single data point. For unsupervised manifold learning, bAdjustable
+	// should always be true. For partially-supervised manifold learning, bAdjustable
+	// should only be false if this is one of the supervised (fixed) points.
+	void SetDataPoint(int n, double* pValues, bool bAdjustable);
 
 	// Get a single (multi-dimensional) data point
 	double* GetDataPoint(int n);

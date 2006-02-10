@@ -23,6 +23,7 @@
 #include "GFile.h"
 #include "GHashTable.h"
 #include "GQueue.h"
+#include <stdlib.h>
 
 GCppObject::GCppObject()
 {

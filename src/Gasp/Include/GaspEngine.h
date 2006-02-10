@@ -771,33 +771,33 @@ public:
 	{
 		int nOffset = *((int*)m_pInstructionPointer);
 		m_pInstructionPointer += sizeof(int);
-#ifdef DARWIN
+#ifdef BIG_ENDIAN
 		return m_pStack->GetVariable(RevEndian(nOffset));
-#else // DARWIN
+#else // BIG_ENDIAN
 		return m_pStack->GetVariable(nOffset);
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 	}
 
 	inline int GetIntParam()
 	{
 		int nParam = *((int*)m_pInstructionPointer);
 		m_pInstructionPointer += sizeof(int);
-#ifdef DARWIN
+#ifdef BIG_ENDIAN
 		return RevEndian(nParam);
-#else // DARWIN
+#else // BIG_ENDIAN
 		return nParam;
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 	}
 
 	inline unsigned int GetUIntParam()
 	{
 		unsigned int nParam = *((int*)m_pInstructionPointer);
 		m_pInstructionPointer += sizeof(int);
-#ifdef DARWIN
+#ifdef BIG_ENDIAN
 		return RevEndian(nParam);
-#else // DARWIN
+#else // BIG_ENDIAN
 		return nParam;
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 	}
 
 public: //protected: todo: fix this

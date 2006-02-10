@@ -38,11 +38,7 @@ protected:
 	GXMLTag* m_pAccountTag;
 	GWidgetTextButton* m_pViewMapButton;
 	GWidgetTextButton* m_pViewScriptButton;
-	GWidgetTextButton* m_pScreenBiggerButton;
-	GWidgetTextButton* m_pScreenSmallerButton;
-	GWidgetTextButton* m_pTerrainButton;
-	GWidgetTextButton* m_pAddObjectButton;
-	GWidgetTextButton* m_pSaveMapButton;
+	GWidgetTextButton* m_pToggleFullScreenButton;
 	GPointerArray* m_pInventoryItems;
 	GWidgetGrid* m_pInventoryWidget;
 
@@ -57,11 +53,7 @@ public:
 		// Make the buttons
 		m_pViewMapButton = MakeNewButton(10, 10, 100, 24, L"View Map");
 		m_pViewScriptButton = MakeNewButton(10, 40, 100, 24, L"View Script");
-		m_pScreenBiggerButton = MakeNewButton(10, 70, 100, 24, L"Screen Bigger");
-		m_pScreenSmallerButton = MakeNewButton(10, 100, 100, 24, L"Screen Smaller");
-		m_pTerrainButton = MakeNewButton(10, 130, 100, 24, L"Terrain On");
-		m_pAddObjectButton = MakeNewButton(10, 160, 100, 24, L"Add Object");
-		m_pSaveMapButton = MakeNewButton(10, 190, 100, 25, L"Save Map");
+		m_pToggleFullScreenButton = MakeNewButton(10, 70, 100, 24, L"Toggle Full Screen");
 
 		m_pInventoryItems = new GPointerArray(32);
 		m_pInventoryWidget = new GWidgetGrid(this, m_pInventoryItems, 3, 200, 50, 300, 300);
@@ -129,23 +121,14 @@ public:
 
 	virtual void OnReleaseTextButton(GWidgetTextButton* pButton)
 	{
-		if(pButton == m_pTerrainButton)
-			m_pController->ToggleTerrain();
-		else if(pButton == m_pScreenSmallerButton)
-			m_pController->MakeScreenSmaller();
-		else if(pButton == m_pScreenBiggerButton)
-			m_pController->MakeScreenBigger();
+		if(pButton == m_pToggleFullScreenButton)
+			m_pController->ToggleFullScreen();
 		else if(pButton == m_pViewScriptButton)
 			m_pController->ViewScript();
 		else if(pButton == m_pViewMapButton)
 			m_pController->ViewMap();
-		else if(pButton == m_pAddObjectButton)
-			m_pView->AddObject(m_pController);
-		else if(pButton == m_pSaveMapButton)
-		{
-		}
-		//else
-		//	GAssert(false, "Unrecognized button");
+		else
+			GAssert(false, "Unrecognized button");
 	}
 };
 
@@ -178,18 +161,6 @@ void VMainMenu::RefreshEntireImage()
 {
 	GRect r;
 	StretchClipAndBlitImage(pScreen, &m_rect, m_pClippingRect, m_pDialog->GetImage(&r));
-}
-
-void VMainMenu::AddObject(Controller* pController)
-{
-#ifdef WIN32
-	char szBuf[512];
-	if(GWindows::GetOpenFilename(NULL, "Select an image", "*.bmp", szBuf) != IDOK)
-		return;
-	pController->AddObject(szBuf);
-#else // WIN32
-	GAssert(false, "Sorry, this feature not supported in Linux yet");
-#endif // !WIN32
 }
 
 void VMainMenu::OnMouseDown(int x, int y)

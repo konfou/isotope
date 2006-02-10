@@ -15,11 +15,6 @@
 #include "../Include/GaspEngine.h"
 #include "../../GClasses/GString.h"
 #include "../../GClasses/GMacros.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include <wchar.h>
 
 class GaspString : public WrapperObject

@@ -28,7 +28,7 @@ protected:
 	GWidgetTextBox* m_pUrlBar;
 	GWidgetListBox* m_pChatBox;
 	GWidgetTextBox* m_pChatEnter;
-	GWidgetPolarChart* m_pAbilityChart;
+	GWidgetPolarBarGraph* m_pAbilityChart;
 	GWidgetProgressBar* m_pAbilityBar;
 	GWidgetVertSlider* m_pAbilitySlider;
 	GWidgetTextLabel* m_pThinkingSkill;
@@ -47,7 +47,7 @@ public:
 	virtual void OnReleaseImageButton(GWidgetImageButton* pButton);
 	virtual void OnTextBoxTextChanged(GWidgetTextBox* pTextBox);
 	virtual void OnTextBoxPressEnter(GWidgetTextBox* pTextBox);
-	virtual void OnChangePolarChartSelection(GWidgetPolarChart* pChart);
+	virtual void OnChangePolarBarGraphSelection(GWidgetPolarBarGraph* pChart);
 
 	void SetDirty();
 	bool IsDirty();
@@ -57,6 +57,11 @@ public:
 	void ShowHelp();
 	void AddChatMessage(const char* szMessage);
 	GImage* GetCanvas();
+
+protected:
+	void LoadChartValues();
+	void DoWarp();
+	const wchar_t* GetSkillName(int nSkill);
 };
 
 #endif // __VPANEL_H__

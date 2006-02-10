@@ -10,7 +10,7 @@
 */
 
 #include "VWave.h"
-#include "../SDL/SDL.h"
+#include <SDL/SDL.h>
 #include "../GClasses/GMacros.h"
 #include "Main.h"
 #ifdef WIN32
@@ -30,7 +30,13 @@ MSound::MSound(const char* szFilename)
 	if(SDL_LoadWAV(szFilename, &wave, &data, &dlen) == NULL)
 		GameEngine::ThrowError(SDL_GetError()); // failed to load audio file
 	SDL_AudioCVT cvt;
-	SDL_BuildAudioCVT(&cvt, wave.format, wave.channels, wave.freq, AUDIO_S16, AUDIO_CHANNELS, 22050);
+	SDL_BuildAudioCVT(&cvt, wave.format, wave.channels, wave.freq,
+	#ifdef BIG_ENDIAN
+					AUDIO_S16MSB
+	#else
+					AUDIO_S16
+	#endif
+							, AUDIO_CHANNELS, 22050);
 	cvt.buf = new Uint8[dlen * cvt.len_mult];
 	memcpy(cvt.buf, data, dlen);
 	cvt.len = dlen;

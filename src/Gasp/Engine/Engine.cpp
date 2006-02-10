@@ -23,11 +23,6 @@
 #include "../BuiltIns/GaspString.h"
 #include "../CodeObjects/Method.h"
 #include "EClass.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 #ifdef WIN32
 #include <direct.h>

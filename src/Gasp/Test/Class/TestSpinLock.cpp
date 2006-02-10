@@ -96,11 +96,7 @@ bool TestSpinLock(ClassTests* pThis)
 			if(!exitFlags[n])
 			{
 				bDone = false;
-#ifdef WIN32
-				Sleep(0);
-#else
-				usleep(0);
-#endif // !WIN32
+				GThread::sleep(0);
 				break;
 			}
 		}

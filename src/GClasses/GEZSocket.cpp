@@ -19,13 +19,7 @@
 #include "GArray.h"
 #include "GCrypto.h"
 #include "GXML.h"
-#ifdef WIN32
-#include <malloc.h>
-#include "GWindows.h"
-#else
-#include <alloca.h>
-#include <unistd.h>
-#endif // !WIN32
+#include "GThread.h"
 
 
 class GSocketMessage
@@ -766,12 +760,7 @@ GSecureSocketClient::~GSecureSocketClient()
 			delete(pSocket);
 			return NULL;
 		}
-#ifdef WIN32
-		GWindows::YieldToWindows();
-		Sleep(50);
-#else
-		usleep(50);
-#endif // !WIN32
+		GThread::sleep(50);
 	}
 
 	return pSocket;

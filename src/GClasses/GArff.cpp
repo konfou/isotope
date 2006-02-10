@@ -13,7 +13,6 @@
 #include "../GClasses/GArray.h"
 #include "../GClasses/GMacros.h"
 #include "../GClasses/GMath.h"
-#include <malloc.h>
 #include <math.h>
 #include "GBits.h"
 #include "GMatrix.h"

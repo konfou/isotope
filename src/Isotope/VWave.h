@@ -12,7 +12,7 @@
 #ifndef __VWAVE_H__
 #define __VWAVE_H__
 
-#include "../SDL/SDL_mixer.h"
+#include <SDL/SDL_mixer.h>
 
 class VWaveBuffer;
 

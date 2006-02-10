@@ -16,6 +16,7 @@
 #include "../../GClasses/GHashTable.h"
 #include "../../GClasses/GQueue.h"
 #include "../../GClasses/GLList.h"
+#include "../../GClasses/GBits.h"
 #include <string.h>
 #include "TagNames.h"
 #include "../Include/GaspEngine.h"
@@ -30,20 +31,20 @@
 
 unsigned int InstrBin::GetParam(int n)
 {
-#ifdef DARWIN
-	return ReverseEndian(pParams[n]);
-#else // DARWIN
+#ifdef BIG_ENDIAN
+	return GBits::ReverseEndian(pParams[n]);
+#else // BIG_ENDIAN
 	return pParams[n];
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 }
 
 void InstrBin::SetParam(int nIndex, unsigned int nValue)
 {
-#ifdef DARWIN
-	pParams[nIndex] = ReverseEndian(nValue);
-#else // DARWIN
+#ifdef BIG_ENDIAN
+	pParams[nIndex] = GBits::ReverseEndian(nValue);
+#else // BIG_ENDIAN
 	pParams[nIndex] = nValue;
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 }
 
 InstructionStruct* InstrBin::GetInstrStruct()
@@ -754,11 +755,11 @@ void EInstrArrayBuilder::AddParam(int nParam)
 	GAssert(m_nExpectedParams > 0, "No more params expected");
 	m_nExpectedParams--;
 #endif // _DEBUG
-#ifdef DARWIN
-	m_pQueue->Push(ReverseEndian(nParam));
-#else // DARWIN
+#ifdef BIG_ENDIAN
+	m_pQueue->Push(GBits::ReverseEndian(nParam));
+#else // BIG_ENDIAN
 	m_pQueue->Push(nParam);
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 }
 
 bool EInstrArrayBuilder::ReadInstr(char* pInstr)
@@ -768,11 +769,11 @@ bool EInstrArrayBuilder::ReadInstr(char* pInstr)
 
 bool EInstrArrayBuilder::ReadParam(int* pParam)
 {
-#ifdef DARWIN
-	return ReverseEndian(m_pQueue->Pop(pParam));
-#else // DARWIN
+#ifdef BIG_ENDIAN
+	return GBits::ReverseEndian(m_pQueue->Pop(pParam));
+#else // BIG_ENDIAN
 	return m_pQueue->Pop(pParam);
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 }
 
 EInstrArray* EInstrArrayBuilder::MakeEInstrArray()
@@ -801,17 +802,17 @@ EInstrArray* EInstrArrayBuilder::MakeEInstrArray()
 				int nValue = hSpot.Get()->m_nVal;
 				ReadParam(&n);
 				GAssert(n == 0, "Expected zero place holder");
-#ifdef DARWIN
+#ifdef BIG_ENDIAN
 				c = ((char*)&nValue)[3];
 				cOverflow[0] = ((char*)&nValue)[0];
 				cOverflow[1] = ((char*)&nValue)[1];
 				cOverflow[2] = ((char*)&nValue)[2];
-#else // DARWIN
+#else // BIG_ENDIAN
 				c = ((char*)&nValue)[0];
 				cOverflow[0] = ((char*)&nValue)[3];
 				cOverflow[1] = ((char*)&nValue)[2];
 				cOverflow[2] = ((char*)&nValue)[1];
-#endif // !DARWIN
+#endif // !BIG_ENDIAN
 				nOverflowPointer = 3;
 				hSpot.Set((FixUpSpot*)m_pFixUpSpots->Unlink(NULL));
 			}

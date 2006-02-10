@@ -23,6 +23,7 @@
 #include "../GClasses/GSDL.h"
 #include "../GClasses/sha2.h"
 #include "../GClasses/GWidgets.h"
+#include "../GClasses/GThread.h"
 #include <math.h>
 #include "VGame.h"
 #include "MGameClient.h"
@@ -46,11 +47,7 @@
 #include "MStore.h"
 #ifdef WIN32
 #include <direct.h>
-#else // WIN32
-#include <unistd.h>
 #endif // !WIN32
-
-//#define SERVER_HAS_VIEW
 
 Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 {
@@ -87,15 +84,7 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 	m_pErrorHandler = new IsotopeErrorHandler();
 	m_pHttpClient = new GHttpClient();
 	m_pHttpClient->SetClientName("Isotope/1.0");
-
-	if(eRunMode == SERVER)
-#ifdef SERVER_HAS_VIEW
-		m_pView = new View();
-#else // SERVER_HAS_VIEW
-		m_pView = NULL;
-#endif // !SERVER_HAS_VIEW
-	else
-		m_pView = new View();
+	m_pView = NULL;
 	m_pModel = NULL;
 	switch(eRunMode)
 	{
@@ -106,9 +95,6 @@ Controller::Controller(Controller::RunModes eRunMode, const char* szParam)
 
 		case SERVER:
 			m_pModel = new MGameServer(this);
-#ifdef SERVER_HAS_VIEW
-			MakeServerView((MGameServer*)m_pModel);
-#endif // SERVER_HAS_VIEW
 			break;
 
 		case PUZSEARCHENGINE:
@@ -130,6 +116,13 @@ Controller::~Controller()
 	delete(m_pView);
 	delete(m_pErrorHandler);
 	delete(m_pHttpClient);
+}
+
+View* Controller::LazyGetView()
+{
+	if(!m_pView)
+		m_pView = new View();
+	return m_pView;
 }
 
 int GetAttrValue(GConstStringHashTable* pKeyMappings, GXMLTag* pTag, const char* szAttrName)
@@ -358,14 +351,12 @@ void Controller::LoadKeyControlValues()
 
 void Controller::Run()
 {
-#ifndef SERVER_HAS_VIEW
-	if(m_pModel->GetType() == Model::Server)
+	if(!m_pView)
 	{
 		while(!m_bQuit)
 			m_pModel->Update(GameEngine::GetTime());
 		return;
 	}
-#endif // SERVER_HAS_VIEW
 	double timeOld = GameEngine::GetTime();
 	double time;
 	while(!m_bQuit)
@@ -689,7 +680,7 @@ void Controller::ControlThirdPerson(double dTimeDelta)
 		{
 			dPitch *= (float)dTimeDelta;
 			dPitch += 1;
-			fprintf(stderr, "Multiplier=%f, Horizon Height=%f\n", dPitch, pCamera->GetHorizonHeight() / 300);
+			//fprintf(stderr, "Multiplier=%f, Horizon Height=%f\n", dPitch, pCamera->GetHorizonHeight() / 300);
 			pCamera->AjustHorizonHeight(dPitch, m_pGameView->GetRect()->h / 2 - 75);
 		}
 	}
@@ -951,21 +942,9 @@ void Controller::ControlMakeNewChar(double dTimeDelta)
 */
 }
 
-void Controller::ToggleTerrain()
+void Controller::ToggleFullScreen()
 {
-	m_pGameView->ToggleTerrain();
-}
-
-void Controller::MakeScreenSmaller()
-{
-//	m_pView->MakeScreenSmaller();
-//	m_pGameView->SetRect(m_pView->GetScreenRect());
-}
-
-void Controller::MakeScreenBigger()
-{
-//	m_pView->MakeScreenBigger();
-//	m_pGameView->SetRect(m_pView->GetScreenRect());
+	m_pView->ToggleFullScreen();
 }
 
 void Controller::ViewScript()
@@ -1009,8 +988,9 @@ void Controller::PopAllViewPorts()
 
 void Controller::MakeServerView(MGameServer* pServer)
 {
-	ViewPort* pServerPort = new VServer(m_pView->GetScreenRect(), pServer);
-	m_pView->PushViewPort(pServerPort);
+	View* pView = LazyGetView();
+	ViewPort* pServerPort = new VServer(pView->GetScreenRect(), pServer);
+	pView->PushViewPort(pServerPort);
 	SetMode(NOTHING);
 }
 
@@ -1299,22 +1279,25 @@ void Controller::SetGroundImage(GString* pID)
 
 void Controller::MakeEntropyCollectorView()
 {
-	ViewPort* pViewPort = new VEntropyCollector(m_pView->GetScreenRect(), (MKeyPair*)m_pModel);
-	m_pView->PushViewPort(pViewPort);
+	View* pView = LazyGetView();
+	ViewPort* pViewPort = new VEntropyCollector(pView->GetScreenRect(), (MKeyPair*)m_pModel);
+	pView->PushViewPort(pViewPort);
 	SetMode(ENTROPYCOLLECTOR);
 }
 
 void Controller::MakeCharSelectView()
 {
-	m_pCharSelect = new VCharSelect(m_pView->GetScreenRect(), this);
-	m_pView->PushViewPort(m_pCharSelect);
+	View* pView = LazyGetView();
+	m_pCharSelect = new VCharSelect(pView->GetScreenRect(), this);
+	pView->PushViewPort(m_pCharSelect);
 	SetMode(SELECTCHAR);
 }
 
 void Controller::MakeNewCharView()
 {
-	m_pMakeNewChar = new VCharMake(m_pView->GetScreenRect(), this);
-	m_pView->PushViewPort(m_pMakeNewChar);
+	View* pView = LazyGetView();
+	m_pMakeNewChar = new VCharMake(pView->GetScreenRect(), this);
+	pView->PushViewPort(m_pMakeNewChar);
 	SetMode(MAKENEWCHAR);
 }
 
@@ -1438,11 +1421,6 @@ void Controller::LogIn(GXMLTag* pAccountRefTag, const char* szPassword)
 	GoToRealm(szStartUrl);
 }
 
-void Controller::AddObject(const char* szFilename)
-{
-	m_pGameClient->AddObject(szFilename);
-}
-
 void Controller::ControlEntropyCollector(double dTimeDelta)
 {
 	if(m_mouseX == m_prevMouseX && m_mouseY == m_prevMouseY)
@@ -1532,6 +1510,7 @@ char* Controller::LoadFileFromUrl(const char* szRemotePath, const char* szUrl, i
 		GTEMPBUF(szFullUrl, strlen(szRemotePath) + strlen(szUrl) + 1);
 		strcpy(szFullUrl, szRemotePath);
 		strcat(szFullUrl, szUrl);
+		CondensePath(szFullUrl);
 		return DownloadAndCacheFile(szFullUrl, pnSize, szBuf);
 	}
 }
@@ -1547,8 +1526,13 @@ char* Controller::LoadFileFromUrl(const char* szRemotePath, const char* szUrl, i
 #endif // !_DEBUG
 	for( ; nAttempts > 0; nAttempts--)
 	{
-		if(!pSocket->Get(szUrl, 80))
-			GameEngine::ThrowError("Failed to connect to url: %s", szUrl);
+		if(!pSocket->Get(szUrl))
+		{
+			if(bThrow)
+				GameEngine::ThrowError("Failed to connect to url: %s", szUrl);
+			else
+				return NULL;
+		}
 		float fProgress = 0;
 		float fPrevProgress = 0;
 		double dTime;
@@ -1556,12 +1540,7 @@ char* Controller::LoadFileFromUrl(const char* szRemotePath, const char* szUrl, i
 		double dLastMakeProgressTime = dLastReportProgressTime;
 		while(pSocket->CheckStatus(&fProgress) == GHttpClient::Downloading)
 		{
-#ifdef WIN32
-			GWindows::YieldToWindows();
-			Sleep(0);
-#else // WIN32
-			usleep(0);
-#endif // else WIN32
+			GThread::sleep(0);
 			dTime = GameEngine::GetTime();
 			if(dTime - dLastReportProgressTime > .15)
 			{
@@ -1570,8 +1549,12 @@ char* Controller::LoadFileFromUrl(const char* szRemotePath, const char* szUrl, i
 					fPrevProgress = fProgress;
 					dLastMakeProgressTime = dTime;
 				}
-				else if(dTime - dLastMakeProgressTime > dTimeout)
+				else if(dTime - dLastMakeProgressTime > dTimeout){
+					// to simply exit here is a big problem, because we don't have the whole file yet.
+					//  even though it stalled.
+					pSocket->Abort();	// tell the httpclient that we are bailing. 
 					break;
+				}
 				if(pProgressCallback)
 					pProgressCallback(pThis, fProgress);
 				dLastReportProgressTime = dTime;
@@ -1588,7 +1571,8 @@ char* Controller::LoadFileFromUrl(const char* szRemotePath, const char* szUrl, i
 				char* szSocketStatus;
 				switch(pSocket->CheckStatus(NULL))
 				{
-					case GHttpClient::Downloading: szSocketStatus = "Timed out"; break;
+					case GHttpClient::Downloading:
+					case GHttpClient::Aborted: szSocketStatus = "Timed out"; break;
 					case GHttpClient::Error: szSocketStatus = "An error occurred while downloading"; break;
 					case GHttpClient::NotFound: szSocketStatus = "404- Not Found"; break;
 					case GHttpClient::Done: szSocketStatus = "Successful"; break;
@@ -1702,6 +1686,7 @@ void Controller::ShowMediaHtmlPage(const char* szPage)
 
 void Controller::ShowWebPage(const char* szUrl)
 {
+	m_pView->MakeWindowed();
 #ifdef WIN32
 	ShellExecute(NULL, NULL, szUrl, NULL, NULL, SW_SHOW);
 #else // WIN32
@@ -1716,4 +1701,24 @@ void Controller::ShowWebPage(const char* szUrl)
 	strcat(szCommand, szUrl);
 	system(szCommand);
 #endif // !WIN32
+}
+
+char* Controller::GetPuzzleUrl(const wchar_t* wszSkill, double dAbilityLevel)
+{
+	// Build the query URL
+	char szTmp[32];
+	char szQuery[256];
+	strcpy(szQuery, "http://localhost:4749/PuzzleSearch.html?skill=");
+	ConvertUnicodeToAnsi(wszSkill, szSkill);
+	strcat(szQuery, szSkill);
+	strcat(szQuery, "&level=");
+	sprintf(szTmp, "%f", dAbilityLevel);
+	strcat(szQuery, szTmp);
+
+	// Send the query
+	GHttpClient httpClient;
+	httpClient.SetClientName("Isotope Query Puzzle/1.0");
+	int nSize;
+	char* szReply = Controller::DownloadFile(&httpClient, szQuery, &nSize, false, 30, NULL, NULL);
+	return szReply;
 }

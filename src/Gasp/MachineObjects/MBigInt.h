@@ -16,11 +16,6 @@
 #include "../Include/GaspEngine.h"
 #include "../../GClasses/GBigNumber.h"
 #include "../../GClasses/GMacros.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 
 class MBigInt : public WrapperObject
 {

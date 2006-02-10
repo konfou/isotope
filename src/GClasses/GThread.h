@@ -15,8 +15,10 @@
 #include "GMacros.h"
 #ifdef WIN32
 #	include <windows.h>
+#	include "GWindows.h"
 #else
 #	include <unistd.h>
+#	include <sched.h>
 #endif // WIN32
 
 // A wrapper for PThreads on Linux and for some corresponding WIN32 api on Windows
@@ -25,12 +27,14 @@ class GThread
 public:
 	static HANDLE SpawnThread(unsigned int (*pFunc)(void*), void* pData);
 
+	// don't sleep more than 975ms = 999ms on unix platforms. - simple math
 	static inline void sleep(unsigned int nMiliseconds)
 	{
 #ifdef WIN32
-		Sleep(0);
+		GWindows::YieldToWindows();
+		Sleep(nMiliseconds);
 #else // WIN32
-		usleep(0);
+		nMiliseconds ? usleep(nMiliseconds*1024) : sched_yield();		// it is an error to sleep for more than 1,000,000
 #endif // else WIN32
 	}
 };

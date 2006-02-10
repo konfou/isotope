@@ -2,6 +2,7 @@
 #include "GHashTable.h"
 #include "GAVLTree.h"
 #include "GMatrix.h"
+#include "GMacros.h"
 #include <math.h>
 
 class GConfidenceSearchSpot : public GAVLNode

@@ -18,11 +18,6 @@
 #include "EvalExprResult.h"
 #include "EMethod.h"
 #include "EClass.h"
-#ifdef DARWIN
-#include <sys/malloc.h>
-#else // DARWIN
-#include <malloc.h>
-#endif // !DARWIN
 #include "../Include/GaspEngine.h"
 #include "../CodeObjects/VarRef.h"
 #include "../CodeObjects/InstrArray.h"
@@ -35,6 +30,7 @@
 #include "../CodeObjects/Interface.h"
 #include "../CodeObjects/Operator.h"
 #include "../../GClasses/GXML.h"
+#include "../../GClasses/GMacros.h"
 #include "../../GClasses/GHashTable.h"
 
 #define STR_INTERNAL_VAR "<Internal>"
